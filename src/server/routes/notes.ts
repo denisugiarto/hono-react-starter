@@ -4,6 +4,7 @@ import { noteCreateSchema, noteUpdateSchema } from '../../shared/notes.ts'
 import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
 import { db } from '../db/index.ts'
 import { notes } from '../db/schema.ts'
+import { fail, ok } from '../lib/response.ts'
 
 export const notesRoutes = new Hono<AuthEnv>()
 
@@ -11,20 +12,12 @@ export const notesRoutes = new Hono<AuthEnv>()
 // permission dicek per aksi dan setiap query dibatasi ke pemilik (user_id).
 notesRoutes.use('*', requireAuth)
 
-function validationError(fieldErrors: Record<string, string[] | undefined>) {
-  return {
-    error: 'Data tidak valid',
-    code: 'VALIDATION_ERROR',
-    details: fieldErrors,
-  }
-}
-
-const notFound = { error: 'Note tidak ditemukan', code: 'NOT_FOUND' }
-
 // id harus UUID — selain itu Postgres akan melempar error (→ 500). Perlakukan
 // id yang tidak valid sebagai "tidak ditemukan".
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const isUuid = (value: string) => UUID_RE.test(value)
+
+const NOT_FOUND = 'Note tidak ditemukan'
 
 // GET /api/notes — daftar catatan milik user (terbaru dulu)
 notesRoutes.get('/', requirePermission({ note: ['read'] }), async (c) => {
@@ -34,7 +27,7 @@ notesRoutes.get('/', requirePermission({ note: ['read'] }), async (c) => {
     .from(notes)
     .where(eq(notes.userId, userId))
     .orderBy(desc(notes.createdAt))
-  return c.json(all)
+  return ok(c, all)
 })
 
 // POST /api/notes — buat catatan baru (validasi via shared schema)
@@ -43,30 +36,26 @@ notesRoutes.post('/', requirePermission({ note: ['create'] }), async (c) => {
   const body = await c.req.json().catch(() => null)
   const parsed = noteCreateSchema.safeParse(body)
   if (!parsed.success) {
-    return c.json(validationError(parsed.error.flatten().fieldErrors), 400)
+    return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
   }
 
   const [note] = await db
     .insert(notes)
-    .values({
-      userId,
-      title: parsed.data.title,
-      content: parsed.data.content,
-    })
+    .values({ userId, title: parsed.data.title, content: parsed.data.content })
     .returning()
 
-  return c.json(note, 201)
+  return ok(c, note, { status: 201, message: 'Catatan dibuat' })
 })
 
 // PATCH /api/notes/:id — update sebagian field (hanya milik sendiri)
 notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
-  if (!isUuid(id)) return c.json(notFound, 404)
+  if (!isUuid(id)) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
   const body = await c.req.json().catch(() => null)
   const parsed = noteUpdateSchema.safeParse(body)
   if (!parsed.success) {
-    return c.json(validationError(parsed.error.flatten().fieldErrors), 400)
+    return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
   }
 
   const set: Partial<typeof notes.$inferInsert> = { updatedAt: new Date() }
@@ -79,19 +68,19 @@ notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => 
     .set(set)
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning()
-  if (!note) return c.json(notFound, 404)
-  return c.json(note)
+  if (!note) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
+  return ok(c, note, { message: 'Catatan diperbarui' })
 })
 
 // DELETE /api/notes/:id — hapus catatan (hanya milik sendiri)
 notesRoutes.delete('/:id', requirePermission({ note: ['delete'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
-  if (!isUuid(id)) return c.json(notFound, 404)
+  if (!isUuid(id)) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
   const deleted = await db
     .delete(notes)
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning({ id: notes.id })
-  if (deleted.length === 0) return c.json(notFound, 404)
-  return c.json({ deleted: true })
+  if (deleted.length === 0) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
+  return ok(c, { id }, { message: 'Catatan dihapus' })
 })

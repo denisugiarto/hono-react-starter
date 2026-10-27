@@ -44,8 +44,17 @@ const fetchCalls: Call[] = []
 let notes: Record<string, unknown>[] = []
 let failNextCreate = false
 
-const jsonResponse = (data: unknown, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
+/** Bungkus dalam envelope standar: sukses → { success, data, message }, gagal → { success:false, code, message }. */
+const jsonResponse = (data: unknown, status = 200, message?: string) => {
+  const body =
+    status < 400
+      ? { success: true, data, ...(message ? { message } : {}) }
+      : { success: false, ...(data as Record<string, unknown>) }
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
 
 const originalFetch = globalThis.fetch
 
@@ -73,18 +82,18 @@ beforeEach(() => {
     fetchCalls.push({ method, url, body })
 
     if (url.includes('/api/health')) {
-      return jsonResponse({ status: 'ok', uptime: 1, timestamp: new Date().toISOString() })
+      return jsonResponse({ status: 'ok', database: 'ok', uptime: 1, timestamp: new Date().toISOString() })
     }
     if (url.startsWith('/api/hello')) {
       const name = new URL(url, 'http://x').searchParams.get('name')
-      return jsonResponse({ message: `Hello, ${name}!`, from: 'mock', time: '' })
+      return jsonResponse({ greeting: `Hello, ${name}!`, from: 'mock', time: '' })
     }
     if (url === '/api/notes' && method === 'GET') return jsonResponse(notes)
     if (url === '/api/notes' && method === 'POST') {
-      if (failNextCreate) return jsonResponse({ error: 'Gagal simpan', code: 'X' }, 500)
+      if (failNextCreate) return jsonResponse({ code: 'X', message: 'Gagal simpan' }, 500)
       const created = { ...notes[0], id: '22222222-2222-2222-2222-222222222222', ...body }
       notes = [created, ...notes]
-      return jsonResponse(created, 201)
+      return jsonResponse(created, 201, 'Catatan dibuat')
     }
     if (url.startsWith('/api/notes/') && method === 'PATCH') {
       notes = notes.map((n) => (url.endsWith(String(n.id)) ? { ...n, ...body } : n))
@@ -92,7 +101,7 @@ beforeEach(() => {
     }
     if (url.startsWith('/api/notes/') && method === 'DELETE') {
       notes = notes.filter((n) => !url.endsWith(String(n.id)))
-      return jsonResponse({ deleted: true })
+      return jsonResponse({ id: 'x' }, 200, 'Catatan dihapus')
     }
     if (url === '/api/admin/users') {
       return jsonResponse([
@@ -100,7 +109,7 @@ beforeEach(() => {
         { id: 'u3', name: 'Nakal', email: 'nakal@x', role: 'user', banned: true, createdAt: '' },
       ])
     }
-    return jsonResponse({ error: 'Not Found', code: 'NOT_FOUND' }, 404)
+    return jsonResponse({ code: 'NOT_FOUND', message: 'Not Found' }, 404)
   }) as typeof fetch
 })
 
@@ -228,7 +237,7 @@ describe('<App> — Hello API', () => {
     const base = globalThis.fetch
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : (input as Request).url
-      if (url.startsWith('/api/hello')) return jsonResponse({}, 500)
+      if (url.startsWith('/api/hello')) return jsonResponse({ code: 'INTERNAL_ERROR', message: 'rusak' }, 500)
       return base(input, init)
     }) as typeof fetch
     renderApp()
@@ -254,6 +263,8 @@ describe('<App> — Notes', () => {
     typeInto(screen.getByLabelText('Isi (opsional)'), 'detail')
     fireEvent.click(screen.getByRole('button', { name: 'Tambah' }))
     await waitFor(() => expect(screen.getByText('Catatan baru')).toBeTruthy())
+    // pesan sukses dari envelope server ditampilkan
+    expect(screen.getByRole('status').textContent).toBe('Catatan dibuat')
     const post = fetchCalls.find((c) => c.method === 'POST')
     expect(post?.body).toEqual({ title: 'Catatan baru', content: 'detail' })
   })
@@ -289,7 +300,7 @@ describe('<App> — Notes', () => {
     const base = globalThis.fetch
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : (input as Request).url
-      if (url === '/api/notes') return jsonResponse({ error: 'DB mati', code: 'X' }, 500)
+      if (url === '/api/notes') return jsonResponse({ code: 'X', message: 'DB mati' }, 500)
       return base(input, init)
     }) as typeof fetch
     renderApp()
@@ -311,7 +322,7 @@ describe('<App> — panel admin & health', () => {
     const base = globalThis.fetch
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : (input as Request).url
-      if (url === '/api/admin/users') return jsonResponse({ error: 'Forbidden', code: 'X' }, 403)
+      if (url === '/api/admin/users') return jsonResponse({ code: 'FORBIDDEN', message: 'Forbidden' }, 403)
       return base(input, init)
     }) as typeof fetch
     renderApp()

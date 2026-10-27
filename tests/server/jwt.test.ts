@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import { db } from '../../src/server/db/index.ts'
 import { user } from '../../src/server/db/schema.ts'
-import { call, json, readJson, signUp } from './helpers.ts'
+import { call, json, readData, readJson, signUp } from './helpers.ts'
 
 function decodePayload(token: string): Record<string, unknown> {
   const [, payload] = token.split('.')
@@ -65,14 +65,14 @@ describe('JWT — akses API dengan Authorization: Bearer', () => {
       body: json({ title: 'Dari API client' }),
     })
     expect(created.status).toBe(201)
-    expect((await readJson(created)).userId).toBe(alice.user.id)
+    expect((await readData(created)).userId).toBe(alice.user.id)
 
     const list = await call('/api/notes', { headers: { Authorization: `Bearer ${aliceJwt}` } })
     expect(list.status).toBe(200)
-    expect((await readJson(list)).length).toBe(1)
+    expect((await readData(list)).length).toBe(1)
 
     // Cookie sesi dan JWT menunjuk ke user yang sama
-    const viaCookie = await readJson(await call('/api/notes', { cookie: alice.cookie }))
+    const viaCookie = await readData(await call('/api/notes', { cookie: alice.cookie }))
     expect(viaCookie.length).toBe(1)
   })
 
@@ -81,13 +81,13 @@ describe('JWT — akses API dengan Authorization: Bearer', () => {
     await db.update(user).set({ role: 'admin' }).where(eq(user.id, admin.user.id))
     const adminJwt = await issueJwt(admin.cookie)
 
-    const viaJwt = await readJson(
+    const viaJwt = await readData(
       await call('/api/admin/me', { headers: { Authorization: `Bearer ${adminJwt}` } }),
     )
     expect(viaJwt.authMethod).toBe('jwt')
     expect(viaJwt.role).toBe('admin')
 
-    const viaSession = await readJson(await call('/api/admin/me', { cookie: admin.cookie }))
+    const viaSession = await readData(await call('/api/admin/me', { cookie: admin.cookie }))
     expect(viaSession.authMethod).toBe('session')
   })
 

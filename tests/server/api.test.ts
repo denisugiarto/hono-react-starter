@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test'
-import { call, json, readJson } from './helpers.ts'
+import { call, json, readData, readJson } from './helpers.ts'
 
 describe('API dasar', () => {
   test('GET /api/health → ok + database ok', async () => {
     const res = await call('/api/health')
     expect(res.status).toBe(200)
-    const body = await readJson(res)
+    const envelope = await readJson(res)
+    expect(envelope.success).toBe(true)
+    const body = envelope.data
     expect(body.status).toBe('ok')
     expect(body.database).toBe('ok')
     expect(typeof body.uptime).toBe('number')
@@ -14,19 +16,24 @@ describe('API dasar', () => {
   test('GET /api/hello?name=Budi', async () => {
     const res = await call('/api/hello?name=Budi')
     expect(res.status).toBe(200)
-    expect((await readJson(res)).message).toBe('Hello, Budi!')
+    const envelope = await readJson(res)
+    expect(envelope.data.greeting).toBe('Hello, Budi!')
+    expect(envelope.message).toBe('Salam untuk Budi')
   })
 
   test('POST /api/echo mengembalikan body', async () => {
     const res = await call('/api/echo', { method: 'POST', body: json({ a: 1 }) })
     expect(res.status).toBe(201)
-    expect(await readJson<{ echoed: unknown }>(res)).toEqual({ echoed: { a: 1 } })
+    expect(await readData<{ echoed: unknown }>(res)).toEqual({ echoed: { a: 1 } })
   })
 
   test('POST /api/echo body bukan JSON → 400', async () => {
     const res = await call('/api/echo', { method: 'POST', body: '{nope' })
     expect(res.status).toBe(400)
-    expect((await readJson(res)).code).toBe('INVALID_JSON')
+    const body = await readJson(res)
+    expect(body.success).toBe(false)
+    expect(body.code).toBe('INVALID_JSON')
+    expect(typeof body.message).toBe('string')
   })
 
   test('endpoint /api tidak dikenal → 404 JSON', async () => {
@@ -64,9 +71,15 @@ describe('GET /api/health — DB down', () => {
     try {
       const res = await api.fetch(new Request('http://localhost/health'))
       expect(res.status).toBe(503)
-      const body = (await res.json()) as { status: string; database: string }
-      expect(body.status).toBe('degraded')
-      expect(body.database).toBe('unreachable')
+      const body = (await res.json()) as {
+        success: boolean
+        code: string
+        details: { status: string; database: string }
+      }
+      expect(body.success).toBe(false)
+      expect(body.code).toBe('SERVICE_UNAVAILABLE')
+      expect(body.details.status).toBe('degraded')
+      expect(body.details.database).toBe('unreachable')
     } finally {
       console.error = original
     }
@@ -74,6 +87,6 @@ describe('GET /api/health — DB down', () => {
 
   test('GET /api/hello tanpa name → World', async () => {
     const res = await call('/api/hello')
-    expect((await readJson(res)).message).toBe('Hello, World!')
+    expect((await readData(res)).greeting).toBe('Hello, World!')
   })
 })

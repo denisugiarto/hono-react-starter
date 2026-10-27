@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { sql } from 'drizzle-orm'
 import { db } from '../db/index.ts'
+import { fail, ok } from '../lib/response.ts'
 
 export type ApiOptions = {
   /** Pengecekan kesiapan DB; default `select 1`. Bisa diganti di test. */
@@ -25,31 +26,33 @@ export function createApiRoutes({ ping = defaultPing }: ApiOptions = {}) {
     const timestamp = new Date().toISOString()
     try {
       await ping()
-      return c.json({ status: 'ok', database: 'ok', uptime: process.uptime(), timestamp })
+      return ok(c, { status: 'ok', database: 'ok', uptime: process.uptime(), timestamp })
     } catch (err) {
       console.error('[health] database unreachable:', err)
-      return c.json(
-        { status: 'degraded', database: 'unreachable', uptime: process.uptime(), timestamp },
-        503,
-      )
+      return fail(c, 503, 'SERVICE_UNAVAILABLE', 'Database tidak dapat dihubungi', {
+        status: 'degraded',
+        database: 'unreachable',
+        uptime: process.uptime(),
+        timestamp,
+      })
     }
   })
 
   api.get('/hello', (c) => {
     const name = c.req.query('name') ?? 'World'
-    return c.json({
-      message: `Hello, ${name}!`,
-      from: 'Hono API @ Bun',
-      time: new Date().toISOString(),
-    })
+    return ok(
+      c,
+      { greeting: `Hello, ${name}!`, from: 'Hono API @ Bun', time: new Date().toISOString() },
+      { message: `Salam untuk ${name}` },
+    )
   })
 
   api.post('/echo', async (c) => {
     const body = await c.req.json().catch(() => undefined)
     if (body === undefined) {
-      return c.json({ error: 'Body harus JSON valid', code: 'INVALID_JSON' }, 400)
+      return fail(c, 400, 'INVALID_JSON', 'Body harus JSON valid')
     }
-    return c.json({ echoed: body }, 201)
+    return ok(c, { echoed: body }, { status: 201 })
   })
 
   return api

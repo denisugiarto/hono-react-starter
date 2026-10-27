@@ -40,3 +40,13 @@ export async function signUp(overrides: { name?: string; password?: string } = {
 /** Baca body JSON dengan tipe longgar (Bun mengetik `Response.json()` sebagai unknown). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const readJson = <T = any>(res: Response): Promise<T> => res.json() as Promise<T>
+
+/** Ambil `data` dari envelope sukses ({ success: true, data, message? }). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const readData = async <T = any>(res: Response): Promise<T> => {
+  const body = await readJson(res)
+  if (body?.success !== true) {
+    throw new Error(`Bukan envelope sukses: ${JSON.stringify(body)}`)
+  }
+  return body.data as T
+}

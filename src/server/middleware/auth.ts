@@ -2,6 +2,7 @@ import { createMiddleware } from 'hono/factory'
 import { can, isUserRole, type Permissions, type UserRole } from '../../shared/permissions.ts'
 import { jwtPayloadSchema } from '../../shared/auth.ts'
 import { auth } from '../auth.ts'
+import { fail } from '../lib/response.ts'
 
 /**
  * Identitas pemanggil yang sudah terautentikasi, tersedia via `c.get('user')`.
@@ -21,8 +22,8 @@ export type AuthEnv = {
   }
 }
 
-const unauthorized = { error: 'Unauthorized', code: 'UNAUTHORIZED' } as const
-const forbidden = { error: 'Forbidden', code: 'FORBIDDEN' } as const
+const unauthorized = (c: Parameters<typeof fail>[0]) =>
+  fail(c, 401, 'UNAUTHORIZED', 'Harus login (sesi atau Authorization: Bearer <JWT>)')
 
 function readBearer(headers: Headers): string | null {
   const value = headers.get('authorization')
@@ -72,7 +73,7 @@ export async function resolveUser(headers: Headers): Promise<AuthUser | null> {
  */
 export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
   const user = await resolveUser(c.req.raw.headers)
-  if (!user) return c.json(unauthorized, 401)
+  if (!user) return unauthorized(c)
   c.set('user', user)
   await next()
 })
@@ -84,9 +85,9 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
 export function requireRole(...allowed: UserRole[]) {
   return createMiddleware<AuthEnv>(async (c, next) => {
     const user = c.get('user') ?? (await resolveUser(c.req.raw.headers))
-    if (!user) return c.json(unauthorized, 401)
+    if (!user) return unauthorized(c)
     if (!allowed.includes(user.role)) {
-      return c.json({ ...forbidden, error: `Forbidden: butuh role ${allowed.join('/')}` }, 403)
+      return fail(c, 403, 'FORBIDDEN', `Butuh role ${allowed.join('/')}`)
     }
     c.set('user', user)
     await next()
@@ -100,9 +101,9 @@ export function requireRole(...allowed: UserRole[]) {
 export function requirePermission(permissions: Permissions) {
   return createMiddleware<AuthEnv>(async (c, next) => {
     const user = c.get('user') ?? (await resolveUser(c.req.raw.headers))
-    if (!user) return c.json(unauthorized, 401)
+    if (!user) return unauthorized(c)
     if (!can(user.role, permissions)) {
-      return c.json({ ...forbidden, error: 'Forbidden: permission tidak cukup' }, 403)
+      return fail(c, 403, 'FORBIDDEN', 'Permission tidak cukup', permissions)
     }
     c.set('user', user)
     await next()

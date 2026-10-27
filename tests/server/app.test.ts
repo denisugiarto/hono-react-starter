@@ -113,8 +113,13 @@ describe('createApp — error handler & middleware role', () => {
     try {
       const res = await app.fetch(req('/api/__test/boom'))
       expect(res.status).toBe(500)
-      const body = (await res.json()) as { error: string; code: string }
-      expect(body).toEqual({ error: 'Internal Server Error', code: 'INTERNAL_ERROR' })
+      const body = (await res.json()) as Record<string, unknown>
+      expect(body).toEqual({
+        success: false,
+        code: 'INTERNAL_ERROR',
+        message: 'Terjadi kesalahan internal',
+        details: { requestId: expect.any(String) },
+      })
       expect(logged.length).toBe(1)
     } finally {
       console.error = original
@@ -124,11 +129,11 @@ describe('createApp — error handler & middleware role', () => {
   test('HTTPException → status & pesan asli', async () => {
     const res = await app.fetch(req('/api/__test/teapot'))
     expect(res.status).toBe(418)
-    expect(((await res.json()) as { error: string }).error).toBe('Saya teko')
+    expect(((await res.json()) as { message: string }).message).toBe('Saya teko')
 
     const noMsg = await app.fetch(req('/api/__test/http-no-msg'))
     expect(noMsg.status).toBe(400)
-    expect(((await noMsg.json()) as { error: string }).error).toBe('Request error')
+    expect(((await noMsg.json()) as { message: string }).message).toBe('Request error')
   })
 
   test('requireRole tanpa identitas → 401, role salah → 403, role benar → 200', async () => {
@@ -138,10 +143,10 @@ describe('createApp — error handler & middleware role', () => {
     const u = await signUp()
     const wrong = await app.fetch(req('/api/__test/admin-only', { headers: { Cookie: u.cookie } }))
     expect(wrong.status).toBe(403)
-    expect(((await wrong.json()) as { error: string }).error).toContain('admin')
+    expect(((await wrong.json()) as { message: string }).message).toContain('admin')
 
     const ok = await app.fetch(req('/api/__test/chained', { headers: { Cookie: u.cookie } }))
     expect(ok.status).toBe(200)
-    expect(((await ok.json()) as { role: string }).role).toBe('user')
+    expect(((await ok.json()) as { role: string }).role).toBe('user') // route test mengembalikan JSON mentah
   })
 })

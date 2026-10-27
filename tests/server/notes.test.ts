@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
-import { call, json, readJson, signUp } from './helpers.ts'
+import { call, json, readData, readJson, signUp } from './helpers.ts'
 
 let alice: Awaited<ReturnType<typeof signUp>>
 let bob: Awaited<ReturnType<typeof signUp>>
@@ -34,7 +34,10 @@ describe('Notes — CRUD per-user', () => {
       body: json({ title: '  Belajar Drizzle  ', content: 'catatan' }),
     })
     expect(res.status).toBe(201)
-    const note = await readJson(res)
+    const envelope = await readJson(res)
+    expect(envelope.success).toBe(true)
+    expect(envelope.message).toBe('Catatan dibuat')
+    const note = envelope.data
     expect(note.title).toBe('Belajar Drizzle') // trim dari schema shared
     expect(note.userId).toBe(alice.user.id)
     expect(note.done).toBe(false)
@@ -54,10 +57,10 @@ describe('Notes — CRUD per-user', () => {
   })
 
   test('GET hanya mengembalikan note milik sendiri', async () => {
-    const mine = await readJson(await call('/api/notes', { cookie: alice.cookie }))
+    const mine = await readData(await call('/api/notes', { cookie: alice.cookie }))
     expect(mine.map((n: { id: string }) => n.id)).toContain(noteId)
 
-    const theirs = await readJson(await call('/api/notes', { cookie: bob.cookie }))
+    const theirs = await readData(await call('/api/notes', { cookie: bob.cookie }))
     expect(theirs).toEqual([])
   })
 
@@ -68,7 +71,7 @@ describe('Notes — CRUD per-user', () => {
       body: json({ done: true }),
     })
     expect(ok.status).toBe(200)
-    expect((await readJson(ok)).done).toBe(true)
+    expect((await readData(ok)).done).toBe(true)
 
     const denied = await call(`/api/notes/${noteId}`, {
       method: 'PATCH',
@@ -84,7 +87,8 @@ describe('Notes — CRUD per-user', () => {
 
     const ok = await call(`/api/notes/${noteId}`, { method: 'DELETE', cookie: alice.cookie })
     expect(ok.status).toBe(200)
-    expect(await readJson<{ deleted: boolean }>(ok)).toEqual({ deleted: true })
+    const delBody = await readJson(ok)
+    expect(delBody).toEqual({ success: true, data: { id: noteId }, message: 'Catatan dihapus' })
 
     const gone = await call(`/api/notes/${noteId}`, { method: 'DELETE', cookie: alice.cookie })
     expect(gone.status).toBe(404)
@@ -93,7 +97,7 @@ describe('Notes — CRUD per-user', () => {
 
 describe('Notes — regresi', () => {
   test('PATCH hanya done tidak menghapus content', async () => {
-    const created = await readJson(
+    const created = await readData(
       await call('/api/notes', {
         method: 'POST',
         cookie: alice.cookie,
@@ -101,7 +105,7 @@ describe('Notes — regresi', () => {
       }),
     )
 
-    const patched = await readJson(
+    const patched = await readData(
       await call(`/api/notes/${created.id}`, {
         method: 'PATCH',
         cookie: alice.cookie,

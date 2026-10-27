@@ -3,6 +3,7 @@ import type { Context, MiddlewareHandler } from 'hono'
 import { getConnInfo } from 'hono/bun'
 import { rateLimiter } from 'hono-rate-limiter'
 import { db as defaultDb } from '../db/index.ts'
+import { errorBody } from '../lib/response.ts'
 
 type HitInfo = { totalHits: number; resetTime?: Date }
 type Db = typeof defaultDb
@@ -134,7 +135,6 @@ export function createApiRateLimiter(options: ApiRateLimitOptions): MiddlewareHa
     keyGenerator: clientIp,
     store: options.store ?? new DrizzleRateLimitStore(),
     skip: options.skip ?? defaultRateLimitSkip,
-    handler: (c) =>
-      c.json({ error: 'Terlalu banyak request, coba lagi nanti', code: 'RATE_LIMITED' }, 429),
+    handler: (c) => c.json(errorBody('RATE_LIMITED', 'Terlalu banyak request, coba lagi nanti'), 429),
   })
 }

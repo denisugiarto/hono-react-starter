@@ -20,7 +20,8 @@ mock.module('@/lib/auth-client', () => ({
 const { default: App } = await import('../../src/App.tsx')
 
 function jsonResponse(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
+  const body = status < 400 ? { success: true, data } : { success: false, ...(data as object) }
+  return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
@@ -32,7 +33,7 @@ beforeEach(() => {
   globalThis.fetch = (async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes('/api/health')) {
-      return jsonResponse({ status: 'ok', uptime: 1.5, timestamp: new Date().toISOString() })
+      return jsonResponse({ status: 'ok', database: 'ok', uptime: 1.5, timestamp: new Date().toISOString() })
     }
     if (url.includes('/api/notes')) {
       return jsonResponse([
@@ -47,7 +48,7 @@ beforeEach(() => {
         },
       ])
     }
-    return jsonResponse({ error: 'Not Found', code: 'NOT_FOUND' }, 404)
+    return jsonResponse({ code: 'NOT_FOUND', message: 'Not Found' }, 404)
   }) as typeof fetch
 })
 

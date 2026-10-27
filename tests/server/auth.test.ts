@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { eq } from 'drizzle-orm'
 import { db } from '../../src/server/db/index.ts'
 import { user } from '../../src/server/db/schema.ts'
-import { call, json, readJson, signUp } from './helpers.ts'
+import { call, json, readData, readJson, signUp } from './helpers.ts'
 
 describe('Autentikasi (Better Auth)', () => {
   test('sign-up → sesi via cookie → get-session → sign-out', async () => {
@@ -68,7 +68,7 @@ describe('RBAC — /api/admin/users', () => {
   test('admin → 200 + daftar user sesuai DTO shared', async () => {
     const res = await call('/api/admin/users', { cookie: admin.cookie })
     expect(res.status).toBe(200)
-    const users = await readJson(res)
+    const users = await readData(res)
     expect(Array.isArray(users)).toBe(true)
     const me = users.find((x: { id: string }) => x.id === admin.user.id)
     expect(me.role).toBe('admin')

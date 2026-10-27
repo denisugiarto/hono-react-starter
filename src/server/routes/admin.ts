@@ -4,6 +4,7 @@ import type { AdminUser } from '../../shared/auth.ts'
 import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
 import { db } from '../db/index.ts'
 import { user } from '../db/schema.ts'
+import { ok } from '../lib/response.ts'
 
 export const adminRoutes = new Hono<AuthEnv>()
 
@@ -32,8 +33,8 @@ adminRoutes.get('/users', requirePermission({ user: ['list'] }), async (c) => {
     createdAt: r.createdAt.toISOString(),
   }))
 
-  return c.json(users)
+  return ok(c, users)
 })
 
 // GET /api/admin/me — contoh: identitas pemanggil + cara autentikasi (session/jwt)
-adminRoutes.get('/me', (c) => c.json(c.get('user')))
+adminRoutes.get('/me', (c) => ok(c, c.get('user')))

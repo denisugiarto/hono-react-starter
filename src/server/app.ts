@@ -12,6 +12,7 @@ import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { auth } from './auth.ts'
 import { envIsProd, envIsTest, readApiRateLimit, type ApiRateLimitConfig } from './env.ts'
+import { errorBody, fail } from './lib/response.ts'
 import { createApiRateLimiter, type ApiRateLimitOptions } from './middleware/rate-limit.ts'
 
 /**
@@ -79,8 +80,7 @@ export function createApp(options: AppOptions = {}): App {
     '/api/*',
     bodyLimit({
       maxSize: 1024 * 1024,
-      onError: (c) =>
-        c.json({ error: 'Payload terlalu besar', code: 'PAYLOAD_TOO_LARGE' }, 413),
+      onError: (c) => c.json(errorBody('PAYLOAD_TOO_LARGE', 'Payload terlalu besar (maks 1 MB)'), 413),
     }),
   )
 
@@ -110,15 +110,17 @@ export function createApp(options: AppOptions = {}): App {
   options.extend?.(app)
 
   // Endpoint /api yang tidak dikenal → 404 JSON, bukan index.html
-  app.all('/api/*', (c) => c.json({ error: 'Not Found', code: 'NOT_FOUND' }, 404))
+  app.all('/api/*', (c) => fail(c, 404, 'NOT_FOUND', `Endpoint ${c.req.method} ${c.req.path} tidak ada`))
 
   // Error handler: kembalikan JSON (bukan HTML), jangan bocorkan detail internal
   app.onError((err, c) => {
     if (err instanceof HTTPException) {
-      return c.json({ error: err.message || 'Request error', code: 'HTTP_ERROR' }, err.status)
+      return fail(c, err.status, 'HTTP_ERROR', err.message || 'Request error')
     }
     console.error(`[api] error (request ${c.get('requestId')}):`, err)
-    return c.json({ error: 'Internal Server Error', code: 'INTERNAL_ERROR' }, 500)
+    return fail(c, 500, 'INTERNAL_ERROR', 'Terjadi kesalahan internal', {
+      requestId: c.get('requestId'),
+    })
   })
 
   // -------------------------------------------------------------------------
@@ -138,7 +140,7 @@ export function createApp(options: AppOptions = {}): App {
         res.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
         return res
       }
-      return c.json({ error: 'Not Found', code: 'NOT_FOUND' }, 404)
+      return fail(c, 404, 'NOT_FOUND', 'Asset tidak ditemukan')
     })
 
     // File lain di dist (favicon, robots.txt, …). `/` dan `/index.html` selalu

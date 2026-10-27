@@ -68,7 +68,7 @@ hono-react-starter/
     │       ├── notes.ts    #   useNotes, useCreateNote, useToggleNote, useDeleteNote
     │       └── admin.ts    #   useAdminUsers
     ├── shared/             # ⭐ Tipe & validasi Zod dipakai frontend+backend
-    │   ├── api.ts          #   Error response, health, hello
+    │   ├── api.ts          #   Envelope respons (success/data/message, code), health, hello
     │   ├── auth.ts         #   AdminUser, JwtPayload, signInSchema, signUpSchema
     │   ├── permissions.ts  #   RBAC: statements, roles, can() (server + client)
     │   ├── notes.ts        #   Note + schema create/update
@@ -78,6 +78,7 @@ hono-react-starter/
         ├── app.ts          # createApp(): middleware, API, auth, static, SPA fallback
         ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
         ├── env.ts          # Validasi environment variables (fail-fast)
+        ├── lib/response.ts # ok() / fail() — helper envelope respons
         ├── middleware/
         │   ├── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
         │   └── rate-limit.ts # Rate limit /api/* (hono-rate-limiter + store PostgreSQL)
@@ -184,7 +185,7 @@ export const noteCreateSchema = z.object({
 export type NoteCreateInput = z.infer<typeof noteCreateSchema>
 ```
 
-- **Server**: `noteCreateSchema.safeParse(body)` di `routes/notes.ts` → 400 `VALIDATION_ERROR` + detail field
+- **Server**: `noteCreateSchema.safeParse(body)` di `routes/notes.ts` → `fail(c, 400, 'VALIDATION_ERROR', …, fieldErrors)`
 - **Client**: `import type { Note, AdminUser } from '@/shared'` di komponen
 
 Aturan: isi `src/shared/` harus **runtime-agnostic** (tanpa DOM/Node API) agar
@@ -332,15 +333,50 @@ menampilkan/menyembunyikan UI (contoh panel admin di `App.tsx`). Client admin te
 
 ## API
 
+### Format respons standar
+
+Semua endpoint `/api/*` (kecuali `/api/auth/*` milik Better Auth) memakai satu envelope,
+didefinisikan di `src/shared/api.ts` dan dipakai server + client:
+
+```jsonc
+// Sukses (200/201)
+{ "success": true, "data": { "id": "…", "title": "Belajar" }, "message": "Catatan dibuat" }
+
+// Gagal (4xx/5xx)
+{ "success": false, "code": "VALIDATION_ERROR", "message": "Data tidak valid",
+  "details": { "title": ["title wajib diisi"] } }
+```
+
+- `data` — payload (objek atau array). `message` — opsional, untuk ditampilkan ke pengguna.
+- `code` — kode mesin stabil (`API_ERROR_CODES`): `VALIDATION_ERROR`, `INVALID_JSON`, `UNAUTHORIZED`,
+  `FORBIDDEN`, `NOT_FOUND`, `PAYLOAD_TOO_LARGE`, `RATE_LIMITED`, `HTTP_ERROR`, `INTERNAL_ERROR`,
+  `SERVICE_UNAVAILABLE`. `details` — opsional (error field, `requestId` untuk 500, dsb).
+- HTTP status tetap bermakna; client tidak perlu memeriksa `success` secara manual.
+
+**Server** — helper di `src/server/lib/response.ts`:
+
+```ts
+return ok(c, note, { status: 201, message: 'Catatan dibuat' })
+return fail(c, 404, 'NOT_FOUND', 'Note tidak ditemukan')
+return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
+```
+
+**Client** — `request<T>(url)` mengembalikan `data`; `requestEnvelope<T>(url)` mengembalikan
+`{ success, data, message }` (dipakai `useCreateNote` untuk menampilkan pesan). Error dilempar
+sebagai `ApiError { status, code, message, details }`.
+
+**Log error** — 500 dicatat ke stderr dengan `X-Request-Id`; nilai yang sama dikirim ke client di
+`details.requestId` sehingga laporan pengguna bisa dicocokkan dengan log.
+
 | Method | Path | Deskripsi |
 | --- | --- | --- |
-| GET | `/api/health` | Status server + cek koneksi DB (`503` bila DB tidak bisa dihubungi) |
-| GET | `/api/hello?name=...` | Contoh query param |
+| GET | `/api/health` | `data: { status, database, uptime, timestamp }`; `503 SERVICE_UNAVAILABLE` bila DB down |
+| GET | `/api/hello?name=...` | `data: { greeting, from, time }` + `message` |
 | POST | `/api/echo` | Contoh body JSON (`400` bila bukan JSON) |
 | GET | `/api/notes` | Daftar notes milik user login (`401` tanpa sesi) |
 | POST | `/api/notes` | Buat note (validasi zod) |
 | PATCH | `/api/notes/:id` | Update note milik sendiri (`404` bila bukan pemilik) |
-| DELETE | `/api/notes/:id` | Hapus note milik sendiri |
+| DELETE | `/api/notes/:id` | Hapus note milik sendiri → `data: { id }`, `message` |
 | GET | `/api/admin/users` | Daftar user (permission `user:list` → admin) |
 | GET | `/api/admin/me` | Identitas pemanggil + `authMethod` (`session`/`jwt`) |
 | GET | `/api/auth/token` | Terbitkan JWT untuk sesi saat ini |
@@ -409,7 +445,7 @@ Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
 | JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
 | RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
-| Error | `onError` → JSON generik + log dengan `X-Request-Id`, tidak bocorkan stack |
+| Error | `onError` → envelope `INTERNAL_ERROR` + `details.requestId`, log stack di server dengan `X-Request-Id`, tidak bocorkan stack |
 
 Catatan rate limit: kunci per IP diambil dari header proxy. Pastikan reverse proxy **menimpa**
 `X-Forwarded-For`/`X-Real-IP` dengan alamat koneksi asli (bukan meneruskan nilai dari klien),

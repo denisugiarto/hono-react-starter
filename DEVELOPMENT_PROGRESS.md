@@ -255,9 +255,21 @@ Verifikasi iterasi 2:
 - `createApp({ rateLimit })` untuk konfigurasi/menonaktifkan; test: store (increment, expiry,
   cleanup, prefix), clientIp, middleware (429 + header, per-IP, skip path, nonaktif).
 
+## Iterasi 6 — Envelope respons standar (2026-10-28)
+
+- `src/shared/api.ts`: `{ success: true, data, message? }` / `{ success: false, code, message, details? }`,
+  `API_ERROR_CODES`, `apiResponseSchema` (discriminated union) untuk client.
+- `src/server/lib/response.ts`: `ok()`, `fail()`, `errorBody()`; dipakai semua route, middleware
+  auth, rate limiter, bodyLimit, 404 API, `onError` (500 menyertakan `details.requestId`).
+- Client: `requestEnvelope()` + `request()`; `ApiError` selalu punya `code`; `useCreateNote`
+  mengembalikan envelope → UI menampilkan `message` ("Catatan dibuat"). Health/hello di `App.tsx`
+  memakai `request()` + schema shared (`hello.greeting`).
+- Test diperbarui (helper `readData`), total 109 (81 server + 28 UI), coverage tetap 100 % per file.
+- `/api/auth/*` tidak diubah (format Better Auth).
+
 ## Next Steps
 
-- Push iterasi 5 ke GitHub (CI).
+- Push iterasi 6 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

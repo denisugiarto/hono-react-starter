@@ -28,9 +28,11 @@ import {
   useToggleNote,
 } from '@/lib/api/notes'
 import { useAdminUsers } from '@/lib/api/admin'
+import { request } from '@/lib/api/request'
 import {
   can,
   healthResponseSchema,
+  helloResponseSchema,
   noteCreateSchema,
   signInSchema,
   signUpSchema,
@@ -157,23 +159,17 @@ function App() {
   // ------------------------------------------------------------------
   const healthQuery = useQuery({
     queryKey: ['health'],
-    queryFn: async () => {
-      const res = await fetch('/api/health')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return healthResponseSchema.parse(await res.json())
-    },
+    queryFn: async () => healthResponseSchema.parse(await request<unknown>('/api/health')),
   })
   const [hello, setHello] = useState<string | null>(null)
   const [helloName, setHelloName] = useState('')
 
   const sayHello = async () => {
     try {
-      const res = await fetch(
-        `/api/hello?name=${encodeURIComponent(helloName || 'World')}`,
+      const data = helloResponseSchema.parse(
+        await request<unknown>(`/api/hello?name=${encodeURIComponent(helloName || 'World')}`),
       )
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = (await res.json()) as { message: string; from: string }
-      setHello(`${data.message} — ${data.from}`)
+      setHello(`${data.greeting} — ${data.from}`)
     } catch {
       setHello('Gagal memanggil /api/hello')
     }
@@ -514,6 +510,11 @@ function App() {
 
           {createNote.isError && (
             <p className="text-sm text-destructive">{createNote.error.message}</p>
+          )}
+          {createNote.isSuccess && createNote.data.message && (
+            <p className="text-sm text-muted-foreground" role="status">
+              {createNote.data.message}
+            </p>
           )}
 
           {notesQuery.isPending ? (

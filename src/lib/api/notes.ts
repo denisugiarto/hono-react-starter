@@ -5,7 +5,7 @@ import {
   type NoteCreateInput,
   type NoteUpdateInput,
 } from '@/shared'
-import { request } from './request.ts'
+import { request, requestEnvelope } from './request.ts'
 
 export const notesKeys = {
   all: ['notes'] as const,
@@ -26,12 +26,15 @@ export function useNotes(enabled = true) {
   })
 }
 
-/** Buat note (mutation) */
+/**
+ * Buat note (mutation). Mengembalikan envelope utuh agar UI bisa menampilkan
+ * `message` dari server ("Catatan dibuat").
+ */
 export function useCreateNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NoteCreateInput) =>
-      request<Note>('/api/notes', {
+      requestEnvelope<Note>('/api/notes', {
         method: 'POST',
         body: JSON.stringify(input),
       }),
@@ -56,8 +59,7 @@ export function useToggleNote() {
 export function useDeleteNote() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) =>
-      request<{ deleted: boolean }>(`/api/notes/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => request<{ id: string }>(`/api/notes/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
   })
 }

@@ -1,28 +1,26 @@
 /**
  * Validasi environment variables — fail-fast di startup.
  * Mencegah misconfigurasi diam-diam di production.
+ * Semua pembacaan dilakukan saat fungsi dipanggil (bukan saat import)
+ * agar mudah diuji dan mengikuti env terkini.
  */
-
-const nodeEnv = process.env.NODE_ENV ?? 'development'
-const isProd = nodeEnv === 'production'
-const isTest = nodeEnv === 'test'
 
 function fail(name: string, hint: string): never {
   throw new Error(`[env] ${name} ${hint} — lihat .env.example`)
 }
 
 export function envIsProd(): boolean {
-  return isProd
+  return process.env.NODE_ENV === 'production'
 }
 
 export function envIsTest(): boolean {
-  return isTest
+  return process.env.NODE_ENV === 'test'
 }
 
 export function readDatabaseUrl(): string {
   const url = process.env.DATABASE_URL
   if (url) return url
-  if (isProd) {
+  if (envIsProd()) {
     fail('DATABASE_URL', 'wajib diisi di production')
   }
   // Convenience untuk development lokal
@@ -48,7 +46,7 @@ export function readAuthSecret(): string {
 export function readBaseUrl(): string {
   const raw = process.env.BETTER_AUTH_URL
   if (!raw) {
-    if (isProd) fail('BETTER_AUTH_URL', 'wajib diisi di production (origin aplikasi)')
+    if (envIsProd()) fail('BETTER_AUTH_URL', 'wajib diisi di production (origin aplikasi)')
     return `http://localhost:${readPort()}`
   }
   let parsed: URL
@@ -57,7 +55,7 @@ export function readBaseUrl(): string {
   } catch {
     fail('BETTER_AUTH_URL', `bukan URL valid: "${raw}"`)
   }
-  if (isProd && parsed.protocol !== 'https:') {
+  if (envIsProd() && parsed.protocol !== 'https:') {
     fail('BETTER_AUTH_URL', 'harus https:// di production (cookie Secure)')
   }
   return parsed.origin

@@ -75,7 +75,7 @@ hono-react-starter/
     │   └── index.ts        #   Barrel export
     └── server/
         ├── index.ts        # Entry: serve + graceful shutdown
-        ├── app.ts          # App Hono (middleware, API, auth, static, SPA fallback)
+        ├── app.ts          # createApp(): middleware, API, auth, static, SPA fallback
         ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
         ├── env.ts          # Validasi environment variables (fail-fast)
         ├── middleware/
@@ -137,7 +137,7 @@ Semua env di `.env` (jangan di-commit). Salin `.env.example` lalu sesuaikan.
 | `bun run preview` | Build lalu start production |
 | `bun run typecheck` | Cek tipe TypeScript |
 | `bun run lint` | Lint dengan Oxlint |
-| `bun run test` | Semua test (server + UI) |
+| `bun run test` | Semua test (server + UI) + coverage, gagal bila < 90 % per file |
 | `bun run test:server` | Test integrasi API terhadap database test |
 | `bun run test:ui` | Test komponen React (happy-dom) |
 | `bun run check` | typecheck + lint + test (sama seperti CI) |
@@ -375,8 +375,20 @@ bun run test             # server + UI
   database test. Preload `tests/server/setup.ts` mengarahkan `DATABASE_URL` ke DB test
   (`TEST_DATABASE_URL` atau nama DB + `_test`), menjalankan migrasi, lalu mengosongkan tabel.
   Rate limit Better Auth otomatis nonaktif saat `NODE_ENV=test`.
-- **`tests/ui/`** — test komponen React dengan happy-dom + Testing Library. Contoh
-  `app.test.tsx` menunjukkan pola mock `useSession` (via `mock.module`) dan `fetch`.
+- **`tests/ui/`** — test komponen React dengan happy-dom + Testing Library. `app.test.tsx`
+  menunjukkan pola mock `useSession` (via `mock.module`) dan `fetch`; `app-interactions.test.tsx`
+  menguji alur form, CRUD notes, JWT, dan panel admin lewat `fireEvent`.
+
+**Coverage** selalu aktif (`bunfig.toml`) dengan ambang **90 % baris & fungsi**. Bun menerapkan
+ambang ini **per file** untuk setiap file yang dimuat, jadi file baru harus ikut diuji atau
+`bun test` gagal (CI ikut merah). Dikecualikan dari perhitungan: `tests/**`, deklarasi schema
+Drizzle (`src/server/db/schema.ts`, `auth-schema.ts` hasil generate CLI) dan primitif shadcn
+(`src/components/ui/**`). Kode yang hanya berjalan saat proses start (`src/server/index.ts`,
+`migrate.ts`, `seed.ts`, `src/main.tsx`) tidak dimuat test dan diverifikasi lewat smoke test CI.
+
+Pola yang dipakai agar jalur production bisa diuji tanpa mengubah `NODE_ENV`:
+`createApp({ isProd, distDir, extend })` di `src/server/app.ts` dan `createApiRoutes({ ping })`
+di `routes/api.ts` (simulasi DB down → 503).
 
 ## Security & Hardening
 

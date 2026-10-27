@@ -21,6 +21,11 @@ function validationError(fieldErrors: Record<string, string[] | undefined>) {
 
 const notFound = { error: 'Note tidak ditemukan', code: 'NOT_FOUND' }
 
+// id harus UUID — selain itu Postgres akan melempar error (→ 500). Perlakukan
+// id yang tidak valid sebagai "tidak ditemukan".
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const isUuid = (value: string) => UUID_RE.test(value)
+
 // GET /api/notes — daftar catatan milik user (terbaru dulu)
 notesRoutes.get('/', requirePermission({ note: ['read'] }), async (c) => {
   const userId = c.get('user').id
@@ -57,6 +62,7 @@ notesRoutes.post('/', requirePermission({ note: ['create'] }), async (c) => {
 notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
+  if (!isUuid(id)) return c.json(notFound, 404)
   const body = await c.req.json().catch(() => null)
   const parsed = noteUpdateSchema.safeParse(body)
   if (!parsed.success) {
@@ -81,6 +87,7 @@ notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => 
 notesRoutes.delete('/:id', requirePermission({ note: ['delete'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
+  if (!isUuid(id)) return c.json(notFound, 404)
   const deleted = await db
     .delete(notes)
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))

@@ -113,3 +113,31 @@ describe('Notes — regresi', () => {
     expect(patched.content).toBe('isi penting')
   })
 })
+
+describe('Notes — id bukan UUID', () => {
+  test('PATCH / DELETE dengan id tidak valid → 404 (bukan 500)', async () => {
+    const patch = await call('/api/notes/bukan-uuid', {
+      method: 'PATCH',
+      cookie: alice.cookie,
+      body: json({ done: true }),
+    })
+    expect(patch.status).toBe(404)
+    const del = await call('/api/notes/123', { method: 'DELETE', cookie: alice.cookie })
+    expect(del.status).toBe(404)
+  })
+})
+
+describe('Notes — body bukan JSON', () => {
+  test('POST / PATCH dengan body rusak → 400 VALIDATION_ERROR', async () => {
+    const post = await call('/api/notes', { method: 'POST', cookie: alice.cookie, body: '{rusak' })
+    expect(post.status).toBe(400)
+    expect((await readJson(post)).code).toBe('VALIDATION_ERROR')
+
+    const patch = await call('/api/notes/11111111-1111-1111-1111-111111111111', {
+      method: 'PATCH',
+      cookie: alice.cookie,
+      body: '{rusak',
+    })
+    expect(patch.status).toBe(400)
+  })
+})

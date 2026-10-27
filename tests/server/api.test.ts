@@ -50,3 +50,30 @@ describe('API dasar', () => {
     expect(res.status).toBe(413)
   })
 })
+
+describe('GET /api/health — DB down', () => {
+  test('ping gagal → 503 degraded', async () => {
+    const { createApiRoutes } = await import('../../src/server/routes/api.ts')
+    const api = createApiRoutes({
+      ping: async () => {
+        throw new Error('connection refused')
+      },
+    })
+    const original = console.error
+    console.error = () => {}
+    try {
+      const res = await api.fetch(new Request('http://localhost/health'))
+      expect(res.status).toBe(503)
+      const body = (await res.json()) as { status: string; database: string }
+      expect(body.status).toBe('degraded')
+      expect(body.database).toBe('unreachable')
+    } finally {
+      console.error = original
+    }
+  })
+
+  test('GET /api/hello tanpa name → World', async () => {
+    const res = await call('/api/hello')
+    expect((await readJson(res)).message).toBe('Hello, World!')
+  })
+})

@@ -226,9 +226,27 @@ Verifikasi iterasi 2:
 - Keterbatasan (didokumentasikan): JWT stateless → perubahan role/ban berlaku pada token
   berikutnya (≤ 15 menit); untuk pencabutan instan gunakan session token.
 
+## Iterasi 4 — Coverage ≥ 90 % (2026-10-28)
+
+- `bunfig.toml`: `coverage = true`, `coverageThreshold = { lines = 0.9, functions = 0.9 }`
+  (Bun 1.2.19 menerapkan ambang per file; diverifikasi eksperimen), `coveragePathIgnorePatterns`
+  untuk `tests/**`, schema Drizzle, dan `src/components/ui/**`.
+- Refactor agar jalur production dapat diuji: `createApp({ isProd, distDir, silent, extend })`,
+  `createApiRoutes({ ping })`, `env.ts` membaca `process.env` saat dipanggil.
+- Test baru: `app.test.ts` (static/SPA/HSTS/Vite transform/onError/HTTPException/requireRole),
+  `env.test.ts` (semua validator), `api` 503, notes id non-UUID & body rusak,
+  `app-interactions.test.tsx` (auth, JWT, hello, CRUD notes, admin, health error),
+  `request.test.ts`, klik "Muat ulang" di ErrorBoundary.
+- Bug yang ditemukan test dan diperbaiki:
+  - `/` dan `/index.html` di production dilayani serveStatic tanpa `Cache-Control: no-cache`.
+  - `/assets/<tidak-ada>` jatuh ke index.html lalu diberi header `immutable` (HTML ter-cache
+    1 tahun) → kini 404 JSON.
+  - `PATCH/DELETE /api/notes/<bukan-uuid>` → 500 dari Postgres → kini 404.
+- Hasil: server 66 test, UI 26 test; semua file yang dihitung 100 % baris & fungsi.
+
 ## Next Steps
 
-- Push iterasi 3 ke GitHub (CI).
+- Push iterasi 4 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

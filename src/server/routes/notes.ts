@@ -1,13 +1,14 @@
 import { Hono } from 'hono'
 import { and, desc, eq } from 'drizzle-orm'
 import { noteCreateSchema, noteUpdateSchema } from '../../shared/notes.ts'
-import { requireAuth, type AuthEnv } from '../middleware/auth.ts'
+import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
 import { db } from '../db/index.ts'
 import { notes } from '../db/schema.ts'
 
 export const notesRoutes = new Hono<AuthEnv>()
 
-// Semua route notes wajib login; setiap query dibatasi ke pemilik (user_id).
+// Semua route notes wajib terautentikasi (sesi cookie atau JWT bearer);
+// permission dicek per aksi dan setiap query dibatasi ke pemilik (user_id).
 notesRoutes.use('*', requireAuth)
 
 function validationError(fieldErrors: Record<string, string[] | undefined>) {
@@ -21,7 +22,7 @@ function validationError(fieldErrors: Record<string, string[] | undefined>) {
 const notFound = { error: 'Note tidak ditemukan', code: 'NOT_FOUND' }
 
 // GET /api/notes — daftar catatan milik user (terbaru dulu)
-notesRoutes.get('/', async (c) => {
+notesRoutes.get('/', requirePermission({ note: ['read'] }), async (c) => {
   const userId = c.get('user').id
   const all = await db
     .select()
@@ -32,7 +33,7 @@ notesRoutes.get('/', async (c) => {
 })
 
 // POST /api/notes — buat catatan baru (validasi via shared schema)
-notesRoutes.post('/', async (c) => {
+notesRoutes.post('/', requirePermission({ note: ['create'] }), async (c) => {
   const userId = c.get('user').id
   const body = await c.req.json().catch(() => null)
   const parsed = noteCreateSchema.safeParse(body)
@@ -53,7 +54,7 @@ notesRoutes.post('/', async (c) => {
 })
 
 // PATCH /api/notes/:id — update sebagian field (hanya milik sendiri)
-notesRoutes.patch('/:id', async (c) => {
+notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
   const body = await c.req.json().catch(() => null)
@@ -77,7 +78,7 @@ notesRoutes.patch('/:id', async (c) => {
 })
 
 // DELETE /api/notes/:id — hapus catatan (hanya milik sendiri)
-notesRoutes.delete('/:id', async (c) => {
+notesRoutes.delete('/:id', requirePermission({ note: ['delete'] }), async (c) => {
   const userId = c.get('user').id
   const id = c.req.param('id')
   const deleted = await db

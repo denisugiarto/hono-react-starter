@@ -1,12 +1,11 @@
 import { z } from 'zod'
+import { USER_ROLES } from './permissions.ts'
 
 /**
  * Schema & tipe untuk autentikasi & RBAC.
  * Dipakai server (middleware) dan client (UI role, daftar user).
  */
-
-export const USER_ROLES = ['admin', 'user'] as const
-export type UserRole = (typeof USER_ROLES)[number]
+export { USER_ROLES, type UserRole } from './permissions.ts'
 
 /** Baris user untuk endpoint admin (GET /api/admin/users) */
 export const adminUserSchema = z.object({
@@ -18,6 +17,25 @@ export const adminUserSchema = z.object({
   createdAt: z.string(),
 })
 export type AdminUser = z.infer<typeof adminUserSchema>
+
+/**
+ * Payload JWT yang diterbitkan server (lihat `definePayload` di src/server/auth.ts).
+ * Klaim standar (sub, iss, aud, exp, iat) ditambah identitas + role untuk RBAC
+ * stateless.
+ */
+export const jwtPayloadSchema = z.object({
+  sub: z.string(),
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+  role: z.enum(USER_ROLES),
+  exp: z.number().optional(),
+  iat: z.number().optional(),
+})
+export type JwtPayload = z.infer<typeof jwtPayloadSchema>
+
+/** Respons GET /api/auth/token */
+export const tokenResponseSchema = z.object({ token: z.string() })
 
 /** Form daftar akun (validasi client via React Hook Form + Zod) */
 export const signUpSchema = z.object({

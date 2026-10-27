@@ -1,36 +1,113 @@
 import { createMiddleware } from 'hono/factory'
-import type { User } from 'better-auth'
+import { can, isUserRole, type Permissions, type UserRole } from '../../shared/permissions.ts'
+import { jwtPayloadSchema } from '../../shared/auth.ts'
 import { auth } from '../auth.ts'
+
+/**
+ * Identitas pemanggil yang sudah terautentikasi, tersedia via `c.get('user')`.
+ * `authMethod` menunjukkan sumbernya: cookie sesi (browser) atau JWT (API client).
+ */
+export type AuthUser = {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  authMethod: 'session' | 'jwt'
+}
 
 export type AuthEnv = {
   Variables: {
-    user: User
+    user: AuthUser
+  }
+}
+
+const unauthorized = { error: 'Unauthorized', code: 'UNAUTHORIZED' } as const
+const forbidden = { error: 'Forbidden', code: 'FORBIDDEN' } as const
+
+function readBearer(headers: Headers): string | null {
+  const value = headers.get('authorization')
+  if (!value || value.slice(0, 7).toLowerCase() !== 'bearer ') return null
+  const token = value.slice(7).trim()
+  return token || null
+}
+
+/** JWT = tiga segmen base64url dipisah titik; session token Better Auth hanya dua. */
+function looksLikeJwt(token: string): boolean {
+  return token.split('.').length === 3
+}
+
+/**
+ * Resolusi identitas, urutan:
+ * 1. `Authorization: Bearer <JWT>` → verifikasi tanda tangan + iss/aud/exp
+ *    terhadap JWKS (stateless, tanpa query sesi).
+ * 2. Selain itu → sesi Better Auth (cookie, atau bearer session-token via
+ *    plugin bearer).
+ */
+export async function resolveUser(headers: Headers): Promise<AuthUser | null> {
+  const bearerToken = readBearer(headers)
+
+  if (bearerToken && looksLikeJwt(bearerToken)) {
+    const { payload } = await auth.api.verifyJWT({ body: { token: bearerToken } })
+    if (!payload) return null
+    const parsed = jwtPayloadSchema.safeParse(payload)
+    if (!parsed.success) return null
+    const p = parsed.data
+    return { id: p.sub, email: p.email, name: p.name, role: p.role, authMethod: 'jwt' }
+  }
+
+  const session = await auth.api.getSession({ headers })
+  if (!session) return null
+  const role = isUserRole(session.user.role) ? session.user.role : 'user'
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    role,
+    authMethod: 'session',
   }
 }
 
 /**
- * Wajib login. Menyimpan user di c.get('user').
+ * Wajib terautentikasi (sesi cookie ATAU JWT bearer). Menyimpan user di c.get('user').
  */
 export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
-  const session = await auth.api.getSession({ headers: c.req.raw.headers })
-  if (!session) {
-    return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401)
-  }
-  c.set('user', session.user)
+  const user = await resolveUser(c.req.raw.headers)
+  if (!user) return c.json(unauthorized, 401)
+  c.set('user', user)
   await next()
 })
 
 /**
- * Wajib login DAN berperan admin.
+ * Wajib memiliki salah satu role yang disebut.
+ *   app.get('/x', requireRole('admin'), handler)
  */
-export const requireAdmin = createMiddleware<AuthEnv>(async (c, next) => {
-  const session = await auth.api.getSession({ headers: c.req.raw.headers })
-  if (!session) {
-    return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401)
-  }
-  if (session.user.role !== 'admin') {
-    return c.json({ error: 'Forbidden: butuh role admin', code: 'FORBIDDEN' }, 403)
-  }
-  c.set('user', session.user)
-  await next()
-})
+export function requireRole(...allowed: UserRole[]) {
+  return createMiddleware<AuthEnv>(async (c, next) => {
+    const user = c.get('user') ?? (await resolveUser(c.req.raw.headers))
+    if (!user) return c.json(unauthorized, 401)
+    if (!allowed.includes(user.role)) {
+      return c.json({ ...forbidden, error: `Forbidden: butuh role ${allowed.join('/')}` }, 403)
+    }
+    c.set('user', user)
+    await next()
+  })
+}
+
+/**
+ * Wajib memiliki SEMUA permission yang diminta (lihat src/shared/permissions.ts).
+ *   adminRoutes.get('/users', requirePermission({ user: ['list'] }), handler)
+ */
+export function requirePermission(permissions: Permissions) {
+  return createMiddleware<AuthEnv>(async (c, next) => {
+    const user = c.get('user') ?? (await resolveUser(c.req.raw.headers))
+    if (!user) return c.json(unauthorized, 401)
+    if (!can(user.role, permissions)) {
+      return c.json({ ...forbidden, error: 'Forbidden: permission tidak cukup' }, 403)
+    }
+    c.set('user', user)
+    await next()
+  })
+}
+
+/** Wajib login DAN berperan admin. */
+export const requireAdmin = requireRole('admin')

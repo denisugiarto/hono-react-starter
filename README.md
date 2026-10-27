@@ -15,7 +15,7 @@ Template starter fullstack **TypeScript** — satu repo, satu dev server, siap p
 | Backend | Hono 4 (Web Standard, fetch-based) |
 | Runtime | Bun |
 | Database | PostgreSQL + Drizzle ORM |
-| Autentikasi | Better Auth (email/password) + RBAC (admin / user) |
+| Autentikasi | Better Auth: sesi cookie + JWT (bearer) + RBAC berbasis permission |
 | Data fetching | TanStack Query (React Query) |
 | Form | React Hook Form + Zod |
 | Styling | Tailwind CSS v4 + shadcn/ui |
@@ -26,7 +26,8 @@ Template starter fullstack **TypeScript** — satu repo, satu dev server, siap p
 - **Satu dev server, satu port** — `@hono/vite-dev-server` menjalankan Hono di atas Vite. React dapat HMR (Fast Refresh), API dapat hot reload.
 - **Database terpasang** — Drizzle ORM + driver `postgres` (postgres.js), schema di `src/server/db/`, migrasi versioned di `drizzle/`.
 - **Autentikasi siap pakai** — Better Auth: sign-up / sign-in email-password, sesi via cookie, tabel auth dibuat lewat migrasi.
-- **RBAC bawaan** — peran `admin` dan `user`, middleware `requireAuth` / `requireAdmin`, akun admin via `bun run db:seed`.
+- **JWT untuk API client** — `GET /api/auth/token` menerbitkan JWT (EdDSA, 15 menit) yang diverifikasi stateless lewat JWKS (`/api/auth/jwks`). Semua route API menerima sesi cookie **atau** `Authorization: Bearer <jwt>`.
+- **RBAC berbasis permission** — role `admin` / `user` dipetakan ke permission (`src/shared/permissions.ts`, dipakai server & client). Middleware `requireAuth` / `requireRole(...)` / `requirePermission({...})`; akun admin via `bun run db:seed`.
 - **Shared schema** — `src/shared/` berisi tipe & validasi Zod dipakai frontend DAN backend (satu sumber kebenaran, tanpa drift).
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
@@ -68,16 +69,17 @@ hono-react-starter/
     │       └── admin.ts    #   useAdminUsers
     ├── shared/             # ⭐ Tipe & validasi Zod dipakai frontend+backend
     │   ├── api.ts          #   Error response, health, hello
-    │   ├── auth.ts         #   Role RBAC, AdminUser, signInSchema, signUpSchema
+    │   ├── auth.ts         #   AdminUser, JwtPayload, signInSchema, signUpSchema
+    │   ├── permissions.ts  #   RBAC: statements, roles, can() (server + client)
     │   ├── notes.ts        #   Note + schema create/update
     │   └── index.ts        #   Barrel export
     └── server/
         ├── index.ts        # Entry: serve + graceful shutdown
         ├── app.ts          # App Hono (middleware, API, auth, static, SPA fallback)
-        ├── auth.ts         # Konfigurasi Better Auth (admin, rate limit, proxy IP)
+        ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
         ├── env.ts          # Validasi environment variables (fail-fast)
         ├── middleware/
-        │   └── auth.ts     # requireAuth + requireAdmin (RBAC)
+        │   └── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
         ├── routes/
         │   ├── api.ts      # Endpoint contoh
         │   ├── notes.ts    # CRUD notes per-user (requireAuth + validasi shared)
@@ -162,6 +164,7 @@ Schema saat ini:
 - `notes` — id (uuid), userId (FK → user, cascade), title, content, done, createdAt, updatedAt
 - `rate_limit` — data rate limiting Better Auth (storage database)
 - `user`, `session`, `account`, `verification` — tabel Better Auth
+- `jwks` — kunci penandatangan JWT (kunci privat terenkripsi dengan `BETTER_AUTH_SECRET`)
 
 ## Shared Schema (`src/shared/`)
 
@@ -254,32 +257,74 @@ bun run db:generate && bun run db:migrate
 # 3. Client plugin di src/lib/auth-client.ts
 ```
 
+## JWT (API client non-browser)
+
+Browser memakai sesi cookie (HttpOnly). Untuk klien lain (mobile, service, CLI) ada dua jalur:
+
+| Jalur | Cara | Catatan |
+| --- | --- | --- |
+| **JWT** (direkomendasikan) | `GET /api/auth/token` (dengan sesi) → `{ token }` → kirim `Authorization: Bearer <jwt>` | Stateless: diverifikasi lewat tanda tangan + `iss`/`aud`/`exp` terhadap JWKS, tanpa query DB sesi. Berlaku 15 menit (`JWT_EXPIRATION`), tidak bisa dicabut sebelum expired |
+| **Session token** | `POST /api/auth/sign-in/email` → header `set-auth-token` → `Authorization: Bearer <token>` | Plugin `bearer`: setara cookie, bisa dicabut (sign-out) |
+
+```bash
+# 1. Masuk (tanpa browser) → session token di header set-auth-token
+curl -si -X POST http://localhost:3000/api/auth/sign-in/email \
+  -H 'Content-Type: application/json' -H 'Origin: http://localhost:3000' \
+  -d '{"email":"admin@example.com","password":"admin123456"}' | grep -i set-auth-token
+
+# 2. Tukar menjadi JWT
+curl -s http://localhost:3000/api/auth/token -H "Authorization: Bearer <session token>"
+
+# 3. Pakai JWT ke API
+curl -s http://localhost:3000/api/notes -H "Authorization: Bearer <jwt>"
+```
+
+- Klaim JWT: `sub`, `id`, `email`, `name`, `role` (+ `iss`, `aud`, `exp`, `iat`) — lihat `definePayload` di `src/server/auth.ts` dan `jwtPayloadSchema` di `src/shared/auth.ts`.
+- Kunci: EdDSA (Ed25519) di tabel `jwks`; publik di `GET /api/auth/jwks` sehingga **service lain** bisa memverifikasi token tanpa memanggil server ini.
+- `GET /api/auth/get-session` juga mengirim JWT di header `set-auth-jwt`.
+- Di UI, kartu Autentikasi punya tombol **Buat token** sebagai demo.
+- Karena stateless, perubahan role/ban baru berlaku saat token berikutnya diterbitkan (maks. 15 menit). Untuk kebutuhan pencabutan instan, pakai session token.
+
 ## RBAC (Role-Based Access Control)
 
-Default role **`user`**; role **`admin`** untuk akses khusus. Kolom `role`,
-`banned`, `ban_reason`, `ban_expires` ada di tabel `user`.
+Role disimpan di kolom `user.role` (`admin` / `user`, default `user`). Permission
+didefinisikan **sekali** di `src/shared/permissions.ts` (Better Auth access control)
+dan dipakai server maupun client:
+
+```ts
+// src/shared/permissions.ts
+export const statements = { ...defaultStatements, note: ['create', 'read', 'update', 'delete'] } as const
+export const roles = {
+  user: ac.newRole({ note: ['create', 'read', 'update', 'delete'] }),
+  admin: ac.newRole({ ...adminAc.statements, note: ['create', 'read', 'update', 'delete'] }),
+}
+can('user', { user: ['list'] }) // false
+```
+
+**Melindungi route di Hono** (`src/server/middleware/auth.ts`) — semua menerima sesi cookie atau JWT:
+
+```ts
+app.get('/api/profil', requireAuth, (c) => c.json(c.get('user')))          // cukup login
+app.get('/api/laporan', requireRole('admin'), handler)                      // berdasar role
+adminRoutes.get('/users', requirePermission({ user: ['list'] }), handler)  // berdasar permission
+```
+
+`c.get('user')` bertipe `AuthUser` = `{ id, email, name, role, authMethod: 'session' | 'jwt' }`.
+Perilaku: tanpa identitas → `401 UNAUTHORIZED`, identitas ada tapi tidak berhak → `403 FORBIDDEN`.
+
+**Menambah role / resource:** tambah entri di `statements` dan `roles`, tambah nama role
+di `USER_ROLES`, lalu pakai `requirePermission` di route dan `can()` di UI.
 
 **Membuat akun admin:**
 
 ```bash
 bun run db:seed
-# default: admin@example.com / admin123456 — ganti via env ADMIN_EMAIL/ADMIN_PASSWORD
+# default dev: admin@example.com / admin123456 — di production ADMIN_EMAIL/ADMIN_PASSWORD wajib
 ```
 
-**Melindungi route di Hono** (`src/server/middleware/auth.ts`):
-
-```ts
-// Hanya login
-app.get('/api/profil', requireAuth, (c) => c.json(c.get('user')))
-
-// Hanya admin
-adminRoutes.use('*', requireAdmin)
-```
-
-Perilaku: tanpa login → `401`, login tapi bukan admin → `403`.
-
-**Role di frontend:** `session.user.role` (dari `useSession()`). Client admin
-tersedia via `authClient.admin.*` (mis. `listUsers`, `setRole`, `banUser`).
+**Di frontend:** `useSession().data.user.role`, dan `can(role, { user: ['list'] })` untuk
+menampilkan/menyembunyikan UI (contoh panel admin di `App.tsx`). Client admin tersedia via
+`authClient.admin.*` (`listUsers`, `setRole`, `banUser`, `checkRolePermission`).
 
 ## API
 
@@ -292,7 +337,10 @@ tersedia via `authClient.admin.*` (mis. `listUsers`, `setRole`, `banUser`).
 | POST | `/api/notes` | Buat note (validasi zod) |
 | PATCH | `/api/notes/:id` | Update note milik sendiri (`404` bila bukan pemilik) |
 | DELETE | `/api/notes/:id` | Hapus note milik sendiri |
-| GET | `/api/admin/users` | Daftar user (khusus admin) |
+| GET | `/api/admin/users` | Daftar user (permission `user:list` → admin) |
+| GET | `/api/admin/me` | Identitas pemanggil + `authMethod` (`session`/`jwt`) |
+| GET | `/api/auth/token` | Terbitkan JWT untuk sesi saat ini |
+| GET | `/api/auth/jwks` | Kunci publik (JWKS) untuk verifikasi JWT |
 | POST | `/api/auth/sign-up/email` | Daftar akun |
 | POST | `/api/auth/sign-in/email` | Masuk |
 | GET | `/api/auth/get-session` | Ambil sesi |
@@ -341,6 +389,8 @@ Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
 | Body | `bodyLimit` 1 MB untuk `/api/*` → `413` |
 | Cache | `/api/*` → `no-store`; `/assets/*` immutable 1 tahun; `index.html` no-cache |
 | Auth | Cookie sesi HttpOnly (Secure saat https), CSRF via `trustedOrigins`, rate limit 20 req/menit/IP/endpoint, IP asli dari `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` |
+| JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
+| RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
 | Error | `onError` → JSON generik + log dengan `X-Request-Id`, tidak bocorkan stack |
 

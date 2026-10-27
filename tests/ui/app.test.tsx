@@ -13,6 +13,7 @@ mock.module('@/lib/auth-client', () => ({
   signIn: { email: async () => ({ error: null }) },
   signUp: { email: async () => ({ error: null }) },
   signOut: async () => ({}),
+  getJwtToken: async () => 'header.payload.signature',
   authClient: {},
 }))
 
@@ -80,6 +81,16 @@ describe('<App>', () => {
     renderApp()
     expect(screen.getByText('Alice')).toBeTruthy()
     await waitFor(() => expect(screen.getByText('Catatan pertama')).toBeTruthy())
+    expect(screen.getByRole('button', { name: 'Buat token' })).toBeTruthy()
+    // user biasa: tidak punya permission user:list → panel admin disembunyikan
     expect(screen.queryByText(/Panel Admin/)).toBeNull()
+  })
+
+  test('admin: panel admin tampil (permission user:list)', async () => {
+    sessionState.data = {
+      user: { id: 'u2', name: 'Root', email: 'root@test.local', role: 'admin' },
+    }
+    renderApp()
+    expect(screen.getByText(/Panel Admin/)).toBeTruthy()
   })
 })

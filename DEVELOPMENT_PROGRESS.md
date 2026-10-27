@@ -9,7 +9,7 @@ Lokasi: `/Users/user/Dev/hono-react-starter`
 
 ## Current Status
 
-Production-ready (iterasi 2, 2026-10-27) — lihat bagian "Iterasi 2" di bawah.
+Production-ready (iterasi 3, 2026-10-28: JWT + RBAC permission) — lihat "Iterasi 2/3" di bawah.
 
 ## Goal
 
@@ -209,9 +209,26 @@ Verifikasi iterasi 2:
 - Dev server: `/@vite/client` ter-inject, modul TS dilayani, deep route 200, tanpa HSTS ✓
 - Docker build **belum diverifikasi lokal** (docker tidak terpasang di mesin ini) — diverifikasi oleh job CI `docker`.
 
+## Iterasi 3 — JWT + RBAC berbasis permission (2026-10-28)
+
+- **JWT**: plugin `jwt` Better Auth (EdDSA, exp 15 menit, `iss`/`aud` = baseURL, `definePayload`
+  → `id/email/name/role`), tabel `jwks` (migrasi `0006`), endpoint `GET /api/auth/token` & `/api/auth/jwks`.
+- **Bearer**: plugin `bearer` — session token dari header `set-auth-token` bisa dipakai sebagai bearer.
+- **Middleware** (`src/server/middleware/auth.ts`): `resolveUser()` memprioritaskan
+  `Authorization: Bearer <JWT>` (verifikasi via `auth.api.verifyJWT`, payload divalidasi
+  `jwtPayloadSchema`) lalu fallback sesi. `requireAuth`, `requireRole(...)`,
+  `requirePermission({...})`, `requireAdmin`. `c.get('user')` bertipe `AuthUser` (+ `authMethod`).
+- **RBAC permission**: `src/shared/permissions.ts` (`createAccessControl`, role `user`/`admin`,
+  `can()`), dipakai plugin admin (`ac`, `roles`), route notes (per aksi), admin (`user:list`), dan UI.
+- **UI**: tombol "Buat token" (demo JWT) dan panel admin dikontrol `can(role, { user: ['list'] })`.
+- **Test**: +15 (JWKS, penerbitan token, bearer JWT/session-token, token dipalsukan → 401,
+  RBAC via JWT, token lama tetap bawa role lama, unit `can()`); total 45 server + 4 UI.
+- Keterbatasan (didokumentasikan): JWT stateless → perubahan role/ban berlaku pada token
+  berikutnya (≤ 15 menit); untuk pencabutan instan gunakan session token.
+
 ## Next Steps
 
-- Commit awal & push ke GitHub agar CI berjalan (repo sudah `git init`, belum ada commit).
+- Push iterasi 3 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

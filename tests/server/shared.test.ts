@@ -30,3 +30,25 @@ describe('Shared schema — auth', () => {
     expect(signInSchema.safeParse({ email: 'a@b.co', password: '' }).success).toBe(false)
   })
 })
+
+describe('Shared permissions — RBAC', () => {
+  test('user: penuh atas note, tidak bisa kelola user', async () => {
+    const { can } = await import('../../src/shared/permissions.ts')
+    expect(can('user', { note: ['create', 'read', 'update', 'delete'] })).toBe(true)
+    expect(can('user', { user: ['list'] })).toBe(false)
+    expect(can('user', { note: ['read'], user: ['list'] })).toBe(false)
+  })
+
+  test('admin: kelola user + note', async () => {
+    const { can } = await import('../../src/shared/permissions.ts')
+    expect(can('admin', { user: ['list', 'ban', 'set-role'] })).toBe(true)
+    expect(can('admin', { note: ['delete'] })).toBe(true)
+  })
+
+  test('role tak dikenal / kosong → false', async () => {
+    const { can } = await import('../../src/shared/permissions.ts')
+    expect(can('superuser', { note: ['read'] })).toBe(false)
+    expect(can(null, { note: ['read'] })).toBe(false)
+    expect(can(undefined, {})).toBe(false)
+  })
+})

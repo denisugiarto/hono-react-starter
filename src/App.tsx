@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { signIn, signOut, signUp, useSession } from '@/lib/auth-client'
+import { getJwtToken, signIn, signOut, signUp, useSession } from '@/lib/auth-client'
 import {
   notesKeys,
   useCreateNote,
@@ -29,6 +29,7 @@ import {
 } from '@/lib/api/notes'
 import { useAdminUsers } from '@/lib/api/admin'
 import {
+  can,
   healthResponseSchema,
   noteCreateSchema,
   signInSchema,
@@ -57,7 +58,11 @@ function App() {
   // Sesi & RBAC
   // ------------------------------------------------------------------
   const { data: session, isPending: sessionPending } = useSession()
-  const isAdmin = session?.user.role === 'admin'
+  const role = session?.user.role
+  const isAdmin = role === 'admin'
+  // RBAC berbasis permission (shared dengan server): tampilkan panel admin
+  // hanya bila role punya permission user:list.
+  const canListUsers = can(role, { user: ['list'] })
   const queryClient = useQueryClient()
 
   // Data per-user (notes, admin) dibuang dari cache saat keluar agar tidak
@@ -66,6 +71,19 @@ function App() {
     await signOut()
     queryClient.removeQueries({ queryKey: notesKeys.all })
     queryClient.removeQueries({ queryKey: ['admin'] })
+    setJwt(null)
+  }
+
+  // JWT untuk API client (GET /api/auth/token) — demo
+  const [jwt, setJwt] = useState<string | null>(null)
+  const [jwtError, setJwtError] = useState<string | null>(null)
+  const issueJwt = async () => {
+    setJwtError(null)
+    try {
+      setJwt(await getJwtToken())
+    } catch (err) {
+      setJwtError(err instanceof Error ? err.message : 'Gagal membuat token')
+    }
   }
 
   // ------------------------------------------------------------------
@@ -132,7 +150,7 @@ function App() {
   // ------------------------------------------------------------------
   // Panel admin (TanStack Query, aktif hanya untuk admin)
   // ------------------------------------------------------------------
-  const adminQuery = useAdminUsers(isAdmin)
+  const adminQuery = useAdminUsers(canListUsers)
 
   // ------------------------------------------------------------------
   // Health (TanStack Query) & Hello (demo manual)
@@ -270,7 +288,7 @@ function App() {
             )}
           </CardTitle>
           <CardDescription>
-            React Hook Form + Zod (validasi) · Better Auth · RBAC
+            React Hook Form + Zod (validasi) · Better Auth (sesi cookie + JWT) · RBAC permission
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -290,7 +308,33 @@ function App() {
                 </Button>
               </div>
 
-              {isAdmin && (
+              <div className="space-y-2 rounded-md border bg-muted/30 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    JWT untuk API client —{' '}
+                    <span className="text-muted-foreground">GET /api/auth/token</span>
+                  </p>
+                  <Button variant="outline" size="sm" onClick={issueJwt}>
+                    {jwt ? 'Perbarui token' : 'Buat token'}
+                  </Button>
+                </div>
+                {jwtError && <p className="text-sm text-destructive">{jwtError}</p>}
+                {jwt && (
+                  <>
+                    <code className="block truncate rounded bg-muted px-2 py-1 text-xs">
+                      {jwt}
+                    </code>
+                    <p className="text-xs text-muted-foreground">
+                      Berlaku 15 menit. Contoh:{' '}
+                      <code className="rounded bg-muted px-1">
+                        curl -H "Authorization: Bearer …" /api/notes
+                      </code>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {canListUsers && (
                 <div className="space-y-3 rounded-md border bg-muted/30 p-4">
                   <p className="text-sm font-medium">
                     Panel Admin —{' '}

@@ -1,17 +1,17 @@
 import { Hono } from 'hono'
 import { desc } from 'drizzle-orm'
 import type { AdminUser } from '../../shared/auth.ts'
-import { requireAdmin } from '../middleware/auth.ts'
+import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
 import { db } from '../db/index.ts'
 import { user } from '../db/schema.ts'
 
-export const adminRoutes = new Hono()
+export const adminRoutes = new Hono<AuthEnv>()
 
-// Semua route di bawah wajib role admin (middleware requireAdmin)
-adminRoutes.use('*', requireAdmin)
+// Semua route admin wajib terautentikasi (sesi atau JWT); permission dicek per route.
+adminRoutes.use('*', requireAuth)
 
-// GET /api/admin/users — daftar semua user
-adminRoutes.get('/users', async (c) => {
+// GET /api/admin/users — daftar semua user (permission user:list → hanya admin)
+adminRoutes.get('/users', requirePermission({ user: ['list'] }), async (c) => {
   const rows = await db
     .select({
       id: user.id,
@@ -34,3 +34,6 @@ adminRoutes.get('/users', async (c) => {
 
   return c.json(users)
 })
+
+// GET /api/admin/me — contoh: identitas pemanggil + cara autentikasi (session/jwt)
+adminRoutes.get('/me', (c) => c.json(c.get('user')))

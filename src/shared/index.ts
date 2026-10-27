@@ -5,3 +5,4 @@
 export * from './api.ts'
 export * from './auth.ts'
 export * from './notes.ts'
+export { ac, can, roles, statements, type Permissions } from './permissions.ts'

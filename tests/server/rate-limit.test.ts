@@ -100,7 +100,12 @@ describe('clientIp', () => {
 
 describe('Rate limit /api/* (middleware)', () => {
   const store = new DrizzleRateLimitStore({ prefix: 'mw:' })
-  const app = createApp({ silent: true, rateLimit: { max: 3, windowSeconds: 60, store } })
+  // distDir fixture: SPA fallback butuh index.html, dan di CI test berjalan sebelum build
+  const app = createApp({
+    silent: true,
+    distDir: 'tests/fixtures/build',
+    rateLimit: { max: 3, windowSeconds: 60, store },
+  })
   const hit = (path: string, ip: string) =>
     app.fetch(new Request(`${ORIGIN}${path}`, { headers: { 'x-real-ip': ip } }))
 

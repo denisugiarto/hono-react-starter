@@ -1,0 +1,4 @@
+[test]
+# Preload ditentukan per-skrip (lihat package.json: test:server / test:ui)
+# karena test server dan test UI (happy-dom) butuh lingkungan berbeda.
+coverageSkipTestFiles = true

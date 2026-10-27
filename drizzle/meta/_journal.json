@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786163619121,
+      "tag": "0000_colossal_red_wolf",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786163960979,
+      "tag": "0001_magenta_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786165702427,
+      "tag": "0002_round_blockbuster",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786174424716,
+      "tag": "0003_material_phil_sheldon",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786174562047,
+      "tag": "0004_loose_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793080742894,
+      "tag": "0005_notes_user_id",
+      "breakpoints": true
+    }
+  ]
+}

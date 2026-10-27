@@ -1,0 +1,38 @@
+# Jalankan seluruh stack lokal (app + PostgreSQL):
+#   docker compose up --build
+# App: http://localhost:3000 — DB: localhost:5433 (user/pass: postgres/postgres)
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hono_react_starter
+    ports:
+      - '5433:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d hono_react_starter']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/hono_react_starter
+      # Ganti dengan nilai asli di deploy nyata (openssl rand -base64 32)
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-compose-dev-only-secret-change-me-0123456789}
+      # Di production BETTER_AUTH_URL wajib https://
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -11,7 +11,8 @@ import { api } from './routes/api.ts'
 import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { auth } from './auth.ts'
-import { envIsProd, envIsTest } from './env.ts'
+import { envIsProd, envIsTest, readApiRateLimit, type ApiRateLimitConfig } from './env.ts'
+import { createApiRateLimiter, type ApiRateLimitOptions } from './middleware/rate-limit.ts'
 
 /**
  * `vite` hanya diisi oleh @hono/vite-dev-server saat development.
@@ -31,6 +32,11 @@ export type AppOptions = {
   /** Matikan logger request (default: mati saat NODE_ENV === 'test'). */
   silent?: boolean
   /**
+   * Rate limit /api/* per IP. Default dari env (API_RATE_LIMIT_MAX / _WINDOW);
+   * `false` menonaktifkan. Lihat middleware/rate-limit.ts.
+   */
+  rateLimit?: (ApiRateLimitConfig & Pick<ApiRateLimitOptions, 'store' | 'skip'>) | false
+  /**
    * Hook untuk mendaftarkan route tambahan SETELAH API bawaan dan SEBELUM
    * catch-all (404 API / static / SPA fallback). Dipakai test untuk
    * menyuntik route khusus.
@@ -47,6 +53,7 @@ export function createApp(options: AppOptions = {}): App {
   const isProd = options.isProd ?? envIsProd()
   const distDir = options.distDir ?? './dist'
   const silent = options.silent ?? envIsTest()
+  const rateLimit = options.rateLimit ?? readApiRateLimit()
 
   const app: App = new Hono<{ Bindings: Bindings }>()
 
@@ -84,6 +91,11 @@ export function createApp(options: AppOptions = {}): App {
       c.res.headers.set('Cache-Control', 'no-store')
     }
   })
+
+  // Rate limit per IP untuk API umum (store PostgreSQL, dibagi antar instance).
+  // Dipasang SETELAH middleware no-store agar respons 429 juga tidak di-cache.
+  // /api/auth/* dilewati karena Better Auth punya limiter sendiri.
+  if (rateLimit) app.use('/api/*', createApiRateLimiter(rateLimit))
 
   // -------------------------------------------------------------------------
   // API

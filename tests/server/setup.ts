@@ -27,7 +27,7 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? deriveTestUrl(proces
 const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} })
 try {
   await migrate(drizzle(sql), { migrationsFolder: './drizzle' })
-  await sql`TRUNCATE TABLE "notes", "session", "account", "verification", "rate_limit", "user" RESTART IDENTITY CASCADE`
+  await sql`TRUNCATE TABLE "notes", "session", "account", "verification", "rate_limit", "api_rate_limit", "user" RESTART IDENTITY CASCADE`
 } catch (err) {
   console.error(
     `\n[test] Gagal menyiapkan database test ${process.env.DATABASE_URL}.\n` +

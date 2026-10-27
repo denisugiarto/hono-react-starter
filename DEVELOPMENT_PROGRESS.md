@@ -244,9 +244,20 @@ Verifikasi iterasi 2:
   - `PATCH/DELETE /api/notes/<bukan-uuid>` → 500 dari Postgres → kini 404.
 - Hasil: server 66 test, UI 26 test; semua file yang dihitung 100 % baris & fungsi.
 
+## Iterasi 5 — Rate limit API umum (2026-10-28)
+
+- `hono-rate-limiter` di `/api/*` (lewati `/api/auth/*` & `/api/health`), 100 req/menit/IP
+  default, env `API_RATE_LIMIT_MAX` / `API_RATE_LIMIT_WINDOW` (`0` = nonaktif; test env nonaktif).
+- Store PostgreSQL `DrizzleRateLimitStore` (tabel `api_rate_limit`, migrasi `0007`): UPSERT
+  atomik, dibagi antar instance, cleanup baris kedaluwarsa ±1% request.
+- `clientIp()` konsisten dengan Better Auth (`cf-connecting-ip` → `x-real-ip` → `x-forwarded-for`
+  → alamat koneksi Bun → `unknown`).
+- `createApp({ rateLimit })` untuk konfigurasi/menonaktifkan; test: store (increment, expiry,
+  cleanup, prefix), clientIp, middleware (429 + header, per-IP, skip path, nonaktif).
+
 ## Next Steps
 
-- Push iterasi 4 ke GitHub (CI).
+- Push iterasi 5 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

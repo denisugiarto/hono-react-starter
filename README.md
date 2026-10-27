@@ -79,7 +79,8 @@ hono-react-starter/
         ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
         ├── env.ts          # Validasi environment variables (fail-fast)
         ├── middleware/
-        │   └── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
+        │   ├── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
+        │   └── rate-limit.ts # Rate limit /api/* (hono-rate-limiter + store PostgreSQL)
         ├── routes/
         │   ├── api.ts      # Endpoint contoh
         │   ├── notes.ts    # CRUD notes per-user (requireAuth + validasi shared)
@@ -123,6 +124,8 @@ Semua env di `.env` (jangan di-commit). Salin `.env.example` lalu sesuaikan.
 | `BETTER_AUTH_URL` | Ya (production) | `http://localhost:PORT` (dev) | Origin publik aplikasi, mis. `https://app.example.com`. Wajib `https://` di production (trusted origin + cookie Secure) |
 | `PORT` | Tidak | `3000` | Port server (dev & production) |
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
+| `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
+| `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
 | `ADMIN_EMAIL` | Ya (production, saat seed) | `admin@example.com` (dev) | Email akun admin saat `db:seed` |
 | `ADMIN_PASSWORD` | Ya (production, saat seed) | `admin123456` (dev) | Password admin saat `db:seed`, min 8 karakter |
 | `ADMIN_NAME` | Tidak | `Admin` | Nama admin saat `db:seed` |
@@ -163,6 +166,7 @@ bun run db:migrate
 Schema saat ini:
 - `notes` — id (uuid), userId (FK → user, cascade), title, content, done, createdAt, updatedAt
 - `rate_limit` — data rate limiting Better Auth (storage database)
+- `api_rate_limit` — counter rate limit `/api/*` (hono-rate-limiter, store PostgreSQL)
 - `user`, `session`, `account`, `verification` — tabel Better Auth
 - `jwks` — kunci penandatangan JWT (kunci privat terenkripsi dengan `BETTER_AUTH_SECRET`)
 
@@ -401,10 +405,18 @@ Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
 | Body | `bodyLimit` 1 MB untuk `/api/*` → `413` |
 | Cache | `/api/*` → `no-store`; `/assets/*` immutable 1 tahun; `index.html` no-cache |
 | Auth | Cookie sesi HttpOnly (Secure saat https), CSRF via `trustedOrigins`, rate limit 20 req/menit/IP/endpoint, IP asli dari `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` |
+| Rate limit API | `hono-rate-limiter` di `/api/*` (kecuali `/api/auth/*` & `/api/health`): default 100 req/menit/IP, store PostgreSQL (`api_rate_limit`, dibagi antar replika), header `RateLimit-*` + `Retry-After`, `429 RATE_LIMITED` |
 | JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
 | RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
 | Error | `onError` → JSON generik + log dengan `X-Request-Id`, tidak bocorkan stack |
+
+Catatan rate limit: kunci per IP diambil dari header proxy. Pastikan reverse proxy **menimpa**
+`X-Forwarded-For`/`X-Real-IP` dengan alamat koneksi asli (bukan meneruskan nilai dari klien),
+atau pakai `CF-Connecting-IP` di Cloudflare. Atur via `API_RATE_LIMIT_MAX` / `API_RATE_LIMIT_WINDOW`;
+`0` menonaktifkan. Untuk batas per-route berbeda, buat limiter lain dengan
+`createApiRateLimiter({ max, windowSeconds, store: new DrizzleRateLimitStore({ prefix: 'upload:' }) })`
+dan pasang di route tersebut.
 
 Belum terpasang (tambahkan sesuai kebutuhan): Content-Security-Policy (dinonaktifkan agar HMR Vite
 tidak terblokir), verifikasi email, CORS (tidak perlu karena satu origin).

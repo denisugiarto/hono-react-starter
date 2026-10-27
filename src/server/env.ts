@@ -70,3 +70,29 @@ export function readPort(): number {
   }
   return port
 }
+
+export type ApiRateLimitConfig = { max: number; windowSeconds: number }
+
+/**
+ * Rate limit API umum (/api/*, di luar /api/auth yang punya limiter sendiri).
+ * - API_RATE_LIMIT_MAX: request per jendela per IP (default 100; `0` = nonaktif)
+ * - API_RATE_LIMIT_WINDOW: panjang jendela, detik (default 60)
+ * Saat NODE_ENV=test nonaktif kecuali API_RATE_LIMIT_MAX diisi eksplisit.
+ */
+export function readApiRateLimit(): ApiRateLimitConfig | false {
+  const rawMax = process.env.API_RATE_LIMIT_MAX
+  const rawWindow = process.env.API_RATE_LIMIT_WINDOW
+  if (rawMax === undefined && envIsTest()) return false
+
+  const max = rawMax === undefined ? 100 : Number(rawMax)
+  if (!Number.isInteger(max) || max < 0) {
+    fail('API_RATE_LIMIT_MAX', `harus bilangan bulat ≥ 0: "${rawMax}"`)
+  }
+  if (max === 0) return false
+
+  const windowSeconds = rawWindow === undefined ? 60 : Number(rawWindow)
+  if (!Number.isInteger(windowSeconds) || windowSeconds < 1) {
+    fail('API_RATE_LIMIT_WINDOW', `harus bilangan bulat ≥ 1 detik: "${rawWindow}"`)
+  }
+  return { max, windowSeconds }
+}

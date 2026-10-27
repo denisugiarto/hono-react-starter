@@ -98,3 +98,43 @@ describe('env — PORT', () => {
     }
   })
 })
+
+describe('env — API_RATE_LIMIT_*', () => {
+  const RL = ['API_RATE_LIMIT_MAX', 'API_RATE_LIMIT_WINDOW'] as const
+  const savedRl: Record<string, string | undefined> = {}
+  beforeEach(() => {
+    for (const k of RL) savedRl[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of RL) {
+      if (savedRl[k] === undefined) delete process.env[k]
+      else process.env[k] = savedRl[k]
+    }
+  })
+
+  test('test env tanpa nilai → nonaktif; dev tanpa nilai → 100/60', async () => {
+    const { readApiRateLimit } = await import('../../src/server/env.ts')
+    delete process.env.API_RATE_LIMIT_MAX
+    delete process.env.API_RATE_LIMIT_WINDOW
+    process.env.NODE_ENV = 'test'
+    expect(readApiRateLimit()).toBe(false)
+    process.env.NODE_ENV = 'development'
+    expect(readApiRateLimit()).toEqual({ max: 100, windowSeconds: 60 })
+  })
+
+  test('nilai eksplisit; 0 → nonaktif; tidak valid → error', async () => {
+    const { readApiRateLimit } = await import('../../src/server/env.ts')
+    process.env.API_RATE_LIMIT_MAX = '10'
+    process.env.API_RATE_LIMIT_WINDOW = '5'
+    expect(readApiRateLimit()).toEqual({ max: 10, windowSeconds: 5 })
+    process.env.API_RATE_LIMIT_MAX = '0'
+    expect(readApiRateLimit()).toBe(false)
+    process.env.API_RATE_LIMIT_MAX = '-1'
+    expect(() => readApiRateLimit()).toThrow(/API_RATE_LIMIT_MAX/)
+    process.env.API_RATE_LIMIT_MAX = '10'
+    process.env.API_RATE_LIMIT_WINDOW = '0'
+    expect(() => readApiRateLimit()).toThrow(/API_RATE_LIMIT_WINDOW/)
+    process.env.API_RATE_LIMIT_WINDOW = 'abc'
+    expect(() => readApiRateLimit()).toThrow(/API_RATE_LIMIT_WINDOW/)
+  })
+})

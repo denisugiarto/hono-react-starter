@@ -23,6 +23,13 @@ export const rateLimit = pgTable('rate_limit', {
   lastRequest: bigint('last_request', { mode: 'number' }).notNull(),
 })
 
+// Rate limit API umum (/api/*) — store untuk hono-rate-limiter, dibagi antar instance.
+export const apiRateLimit = pgTable('api_rate_limit', {
+  key: text('key').primaryKey(),
+  hits: integer('hits').notNull(),
+  resetAt: timestamp('reset_at', { withTimezone: true }).notNull(),
+})
+
 // Catatan milik user (per-user). Dihapus otomatis saat user dihapus.
 export const notes = pgTable(
   'notes',

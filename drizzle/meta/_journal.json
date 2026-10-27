@@ -50,6 +50,13 @@
       "when": 1793137909374,
       "tag": "0006_jwks",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793140089078,
+      "tag": "0007_api_rate_limit",
+      "breakpoints": true
     }
   ]
 }

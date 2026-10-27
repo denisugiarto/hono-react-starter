@@ -4,7 +4,7 @@ import { createApp } from '../../src/server/app.ts'
 import { requireAuth, requireRole } from '../../src/server/middleware/auth.ts'
 import { ORIGIN, signUp } from './helpers.ts'
 
-const DIST = 'tests/fixtures/dist'
+const DIST = 'tests/fixtures/build'
 
 const req = (path: string, init?: RequestInit) => new Request(`${ORIGIN}${path}`, init)
 

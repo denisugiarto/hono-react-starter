@@ -8,7 +8,9 @@ WORKDIR /app
 # --- deps: semua dependency (termasuk dev) untuk build ---------------------
 FROM base AS deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+# --ignore-scripts: dependency transitif (better-sqlite3 dari drizzle-kit/better-auth CLI)
+# punya skrip native yang gagal di image; app ini tidak memakai SQLite.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # --- build: typecheck + vite build → dist/ ----------------------------------
 FROM deps AS build
@@ -18,7 +20,7 @@ RUN bun run build
 # --- prod-deps: hanya dependency runtime ------------------------------------
 FROM base AS prod-deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # --- runtime -----------------------------------------------------------------
 FROM oven/bun:1.2-slim AS runtime

@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { sql } from 'drizzle-orm'
 import { db } from '../db/index.ts'
 import { Logger } from '../lib/logger.ts'
@@ -15,18 +15,25 @@ const defaultPing = () => db.execute(sql`select 1`)
 const rootLogger = new Logger({ level: 'silent' })
 
 /**
- * Route API umum (health, contoh hello/echo). `api` di bawah adalah instance
+ * Route API umum (health live/ready, contoh hello/echo). `api` di bawah adalah instance
  * runtime; `createApiRoutes()` dipakai test untuk menyimulasikan DB down.
  */
 export function createApiRoutes({ ping = defaultPing }: ApiOptions = {}) {
   const api = new Hono<AppEnv>()
 
   /**
-   * GET /api/health — liveness + readiness.
-   * Mengecek koneksi database; 503 bila DB tidak bisa dihubungi
-   * agar load balancer / orchestrator tidak mengarahkan traffic.
+   * GET /api/health/live — liveness: proses hidup & event loop merespons.
+   * TANPA cek dependensi, supaya orchestrator tidak me-restart pod hanya karena
+   * database sedang down (itu urusan readiness).
    */
-  api.get('/health', async (c) => {
+  api.get('/health/live', (c) => ok(c, { status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() }))
+
+  /**
+   * GET /api/health/ready — readiness: siap menerima traffic (DB terhubung).
+   * 503 bila DB tidak bisa dihubungi agar load balancer menghentikan routing
+   * ke instance ini. `/api/health` adalah alias (kompatibilitas).
+   */
+  const readiness = async (c: Context<AppEnv>) => {
     const timestamp = new Date().toISOString()
     try {
       await ping()
@@ -40,7 +47,9 @@ export function createApiRoutes({ ping = defaultPing }: ApiOptions = {}) {
         timestamp,
       })
     }
-  })
+  }
+  api.get('/health/ready', readiness)
+  api.get('/health', readiness)
 
   api.get('/hello', (c) => {
     const name = c.req.query('name') ?? 'World'

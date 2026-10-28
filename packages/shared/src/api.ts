@@ -51,7 +51,15 @@ export const apiResponseSchema = z.discriminatedUnion('success', [
 /** @deprecated gunakan apiErrorSchema — dipertahankan untuk kompatibilitas tipe */
 export type ErrorResponse = ApiErrorBody
 
-/** Endpoint demo: health (isi `data`) */
+/** GET /api/health/live — proses hidup (tanpa cek dependensi) */
+export const livenessResponseSchema = z.object({
+  status: z.literal('ok'),
+  uptime: z.number(),
+  timestamp: z.string(),
+})
+export type LivenessResponse = z.infer<typeof livenessResponseSchema>
+
+/** GET /api/health/ready (alias /api/health) — siap melayani: DB terhubung (isi `data`) */
 export const healthResponseSchema = z.object({
   status: z.string(),
   database: z.string(),

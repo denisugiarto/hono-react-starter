@@ -30,12 +30,14 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Nx** — task graph + cache (`typecheck`, `lint`, `test`, `build`), `nx affected` untuk CI, `nx graph` untuk melihat dependensi antar proyek.
 - **Database terpasang** — Drizzle ORM + driver `postgres` (postgres.js), schema di `apps/api/src/db/`, migrasi versioned di `apps/api/drizzle/`.
 - **Autentikasi siap pakai** — Better Auth: sign-up / sign-in email-password, sesi via cookie, tabel auth dibuat lewat migrasi.
+- **Alur akun lengkap** — verifikasi email (opsional wajib via `AUTH_REQUIRE_EMAIL_VERIFICATION`), lupa/reset password, ganti password, **2FA TOTP** + backup code (aplikasi authenticator, QR di halaman Keamanan). Email lewat `Mailer` tanpa dependency: `console` (dev), `memory` (test), `resend` (produksi) — ganti provider di satu file.
+- **Audit log** — tabel `audit_log` append-only: sign-in/out (termasuk yang gagal), reset password, 2FA, aksi admin, dan CRUD catatan, lengkap dengan `requestId`, IP, user-agent. Endpoint `GET /api/admin/audit-logs` (permission `audit:list`) + halaman admin dengan filter & paginasi cursor.
 - **JWT untuk API client** — `GET /api/auth/token` menerbitkan JWT (EdDSA, 15 menit) yang diverifikasi stateless lewat JWKS (`/api/auth/jwks`). Semua route API menerima sesi cookie **atau** `Authorization: Bearer <jwt>`.
 - **RBAC berbasis permission** — role `admin` / `user` dipetakan ke permission (`packages/shared/src/permissions.ts`, dipakai server & client). Middleware `requireAuth` / `requireRole(...)` / `requirePermission({...})`; akun admin via `bun run db:seed`.
 - **Shared schema** — paket `@hono-react-starter/shared` (`packages/shared`) berisi tipe & validasi Zod dipakai frontend DAN backend (satu sumber kebenaran, tanpa drift).
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
-- **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check yang mengecek DB, graceful shutdown, migrasi otomatis saat start, cache header asset.
+- **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check terpisah (`/api/health/live` & `/api/health/ready`), graceful shutdown, migrasi otomatis saat start, cache header asset.
 - **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
 - **Frontend terstruktur** — React Router + folder berbasis fitur (`app/`, `pages/`, `features/`, `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/`), header dengan navigasi (desktop + Sheet mobile), menu pengguna, tema gelap, toast (sonner).
@@ -64,13 +66,15 @@ hono-react-starter/
 │   │   ├── src/
 │   │   │   ├── index.ts    #   Entry: serve + graceful shutdown
 │   │   │   ├── app.ts      #   createApp(): middleware, API, auth, static apps/web/dist, SPA fallback
-│   │   │   ├── auth.ts     #   Better Auth (admin+ac, bearer, jwt, rate limit, trusted origins)
+│   │   │   ├── auth.ts     #   createAuth(): Better Auth (admin+ac, bearer, jwt, two-factor, email verif, reset password)
+│   │   │   ├── auth-audit.ts # Pembungkus auth.handler → audit_log (sign-in/out, reset, 2FA, aksi admin)
+│   │   │   ├── mailer.ts   #   Singleton Mailer (MAIL_PROVIDER: console | memory | resend)
 │   │   │   ├── env.ts      #   Validasi environment variables (fail-fast)
 │   │   │   ├── types.ts    #   AppEnv: requestId, log, user
-│   │   │   ├── lib/        #   logger.ts (terstruktur), response.ts (ok/fail)
+│   │   │   ├── lib/        #   logger, response (ok/fail), mailer, emails (template), audit, request-context
 │   │   │   ├── middleware/ #   auth (requireAuth/Role/Permission), request-log, rate-limit
-│   │   │   ├── routes/     #   api.ts, notes.ts, admin.ts
-│   │   │   └── db/         #   index.ts, schema.ts, auth-schema.ts, migrate.ts, seed.ts
+│   │   │   ├── routes/     #   api.ts (health live/ready, hello), notes.ts, admin.ts (users, audit-logs)
+│   │   │   └── db/         #   index.ts, schema.ts (+ audit_log), auth-schema.ts (+ two_factor), migrate.ts, seed.ts
 │   │   └── tests/          #   Test integrasi API (bun test, DB test) + fixtures/build
 │   │
 │   └── web/                # 🎨 Frontend React + Vite — @hono-react-starter/web
@@ -83,7 +87,7 @@ hono-react-starter/
 │       │   ├── main.tsx    #   Entry: Providers + RouterProvider
 │       │   ├── app/        #   providers.tsx, routes.tsx, router.tsx
 │       │   ├── pages/      #   Satu komponen per route (tipis, menyusun fitur)
-│       │   ├── features/   #   auth, notes, admin, system (api/ + components/ + hooks/)
+│       │   ├── features/   #   auth (form, 2FA, reset, keamanan), notes, admin (users, audit-logs), system
 │       │   ├── components/ #   ui/ (shadcn), layout/ (header, nav, shell), common/ (state kosong/error/loading)
 │       │   ├── hooks/      #   use-theme, use-document-title, use-visible-nav
 │       │   ├── lib/        #   api/request, auth-client, query-client, theme, utils
@@ -94,8 +98,9 @@ hono-react-starter/
 └── packages/
     └── shared/             # ⭐ @hono-react-starter/shared — dipakai api & web
         ├── src/
-        │   ├── api.ts      #   Envelope respons (success/data/message, code), health, hello
-        │   ├── auth.ts     #   AdminUser, JwtPayload, signInSchema, signUpSchema
+        │   ├── api.ts      #   Envelope respons (success/data/message, code), health live/ready, hello
+        │   ├── audit.ts    #   AUDIT_ACTIONS, auditLogSchema, auditLogQuerySchema (paginasi cursor)
+        │   ├── auth.ts     #   AdminUser, JwtPayload, schema form (sign-in/up, reset, ganti password, TOTP)
         │   ├── permissions.ts # RBAC: statements, roles, can()
         │   ├── notes.ts    #   Note + schema create/update
         │   └── index.ts    #   Barrel export
@@ -141,6 +146,10 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `PORT` | Tidak | `3000` | Port server API (dev & production) |
 | `TRUSTED_ORIGINS` | Tidak | dev: `http://localhost:5173`; prod: kosong | Origin lain yang dipercaya Better Auth (CSRF), dipisah koma — mis. Vite dev server. Tidak perlu di production bila API menyajikan frontend (same-origin) |
 | `WEB_DIST_DIR` | Tidak | `apps/web/dist` | Folder hasil build frontend yang disajikan API di production |
+| `MAIL_PROVIDER` | Tidak | test: `memory`; lainnya: `console` | Pengirim email verifikasi / reset password: `console` (hanya dicatat di log), `memory` (ditangkap untuk test), `resend` (HTTP API Resend) |
+| `MAIL_FROM` | Ya (bila `resend`) | — | Alamat pengirim, mis. `App <no-reply@example.com>` |
+| `RESEND_API_KEY` | Ya (bila `resend`) | — | Kunci API Resend |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | Tidak | `false` | `true` = sign-in ditolak (`403 EMAIL_NOT_VERIFIED`) sampai email diverifikasi; di production wajib `MAIL_PROVIDER=resend` |
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
@@ -271,11 +280,32 @@ Form auth (masuk/daftar) memakai `signInSchema` / `signUpSchema` dari `packages/
 
 ## Autentikasi (Better Auth)
 
-- Konfigurasi: `apps/api/src/auth.ts` (adapter Drizzle, email/password, admin plugin, rate limit, `trustedOrigins`)
-- Endpoint: semua request `POST`/`GET` ke `/api/auth/*` ditangani Better Auth
-- Client React: `apps/web/src/lib/auth-client.ts` (`useSession()`, `signIn`, `signUp`, `signOut`)
+- Konfigurasi: `apps/api/src/auth.ts` — `createAuth()` (adapter Drizzle, email/password, admin plugin, bearer, jwt,
+  two-factor, verifikasi email, reset password, rate limit, `trustedOrigins`)
+- Endpoint: semua request `POST`/`GET` ke `/api/auth/*` ditangani Better Auth (dibungkus `withAuthAudit` → audit log)
+- Client React: `apps/web/src/lib/auth-client.ts` (`useSession()`, `signIn`, `signUp`, `signOut`, `requestPasswordReset`,
+  `resetPassword`, `sendVerificationEmail`, `changePassword`, `twoFactor.*`)
 
-**Menambah plugin** (mis. OAuth Google, two-factor):
+### Alur akun (verifikasi email, reset password, 2FA)
+
+| Alur | Server | Frontend |
+| --- | --- | --- |
+| **Verifikasi email** | Email dikirim saat sign-up (`sendOnSignUp`) dan saat sign-in ditolak (`sendOnSignIn`). Tautan `GET /api/auth/verify-email?token=…&callbackURL=…` → set `emailVerified`, sesi otomatis, redirect ke `callbackURL` (`?error=…` bila gagal). Berlaku 24 jam | `/verify-email` (sukses / gagal), tombol **Kirim ulang** di form masuk (saat `EMAIL_NOT_VERIFIED`) dan halaman **Keamanan** |
+| **Wajib verifikasi** | `AUTH_REQUIRE_EMAIL_VERIFICATION=true` → sign-in sebelum verifikasi `403 EMAIL_NOT_VERIFIED`; sign-up tidak membuat sesi (`token: null`) | Form daftar menampilkan "Periksa email Anda" |
+| **Lupa / reset password** | `POST /request-password-reset { email, redirectTo }` (respons selalu 200) → email → `GET /reset-password/:token?callbackURL` → redirect `redirectTo?token=…` → `POST /reset-password { newPassword, token }`. Token sekali pakai, 1 jam, semua sesi lama dicabut | `/forgot-password`, `/reset-password?token=…` |
+| **Ganti password** | `POST /change-password { currentPassword, newPassword, revokeOtherSessions }` | Kartu di `/settings/security` |
+| **2FA TOTP** | Plugin `twoFactor` (tabel `two_factor`, secret & backup code terenkripsi). `POST /two-factor/enable { password }` → `{ totpURI, backupCodes }` → `POST /two-factor/verify-totp { code }` mengaktifkan. Sign-in akun ber-2FA → `{ twoFactorRedirect: true }` + cookie sementara → `verify-totp` / `verify-backup-code { code, trustDevice }` → sesi. 10 kode salah → akun dikunci 15 menit | Kartu 2FA di `/settings/security` (QR via `qrcode.react`, secret manual, backup code); langkah kedua login di `/login/two-factor` |
+
+Email dikirim lewat `Mailer` (`apps/api/src/lib/mailer.ts`): `ConsoleMailer` (dev — isi email muncul di log,
+termasuk tautannya), `MemoryMailer` (test), `ResendMailer` (HTTP API, tanpa SDK). Template (teks + HTML,
+bahasa Indonesia) ada di `lib/emails.ts`. Provider lain (SMTP/nodemailer, SES, Postmark): implementasikan
+`Mailer.send()` dan daftarkan di `createMailer()`.
+
+Di development tautan email mengarah ke origin API (`BETTER_AUTH_URL`, port 3000) tetapi `callbackURL`
+diisi origin frontend (`absoluteUrl()` di `auth-client.ts`), jadi setelah diproses server pengguna
+kembali ke Vite (5173). Origin itu harus ada di `TRUSTED_ORIGINS` (default dev sudah).
+
+**Menambah plugin** (mis. OAuth Google, passkey):
 
 ```bash
 # 1. Tambahkan plugin di apps/api/src/auth.ts
@@ -394,7 +424,8 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 
 | Method | Path | Deskripsi |
 | --- | --- | --- |
-| GET | `/api/health` | `data: { status, database, uptime, timestamp }`; `503 SERVICE_UNAVAILABLE` bila DB down |
+| GET | `/api/health/live` | Liveness: `data: { status: 'ok', uptime, timestamp }` — tanpa cek DB (untuk restart probe) |
+| GET | `/api/health/ready` | Readiness (alias `/api/health`): `data: { status, database, uptime, timestamp }`; `503 SERVICE_UNAVAILABLE` bila DB down |
 | GET | `/api/hello?name=...` | `data: { greeting, from, time }` + `message` |
 | POST | `/api/echo` | Contoh body JSON (`400` bila bukan JSON) |
 | GET | `/api/notes` | Daftar notes milik user login (`401` tanpa sesi) |
@@ -403,12 +434,37 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 | DELETE | `/api/notes/:id` | Hapus note milik sendiri → `data: { id }`, `message` |
 | GET | `/api/admin/users` | Daftar user (permission `user:list` → admin) |
 | GET | `/api/admin/me` | Identitas pemanggil + `authMethod` (`session`/`jwt`) |
+| GET | `/api/admin/audit-logs` | Audit log terbaru dulu (permission `audit:list`). Query: `limit` (≤200), `cursor` (dari `nextCursor`), `action` (prefix, mis. `auth.`), `actorId`, `success` → `data: { items, nextCursor }` |
 | GET | `/api/auth/token` | Terbitkan JWT untuk sesi saat ini |
 | GET | `/api/auth/jwks` | Kunci publik (JWKS) untuk verifikasi JWT |
 | POST | `/api/auth/sign-up/email` | Daftar akun |
 | POST | `/api/auth/sign-in/email` | Masuk |
 | GET | `/api/auth/get-session` | Ambil sesi |
 | POST | `/api/auth/sign-out` | Keluar |
+| POST | `/api/auth/send-verification-email` | Kirim ulang tautan verifikasi `{ email, callbackURL }` |
+| GET | `/api/auth/verify-email` | Tautan dari email (`?token&callbackURL`) → redirect |
+| POST | `/api/auth/request-password-reset` | `{ email, redirectTo }` → email reset (selalu 200) |
+| POST | `/api/auth/reset-password` | `{ newPassword, token }` |
+| POST | `/api/auth/change-password` | `{ currentPassword, newPassword, revokeOtherSessions }` (butuh sesi) |
+| POST | `/api/auth/two-factor/enable` · `verify-totp` · `verify-backup-code` · `disable` · `generate-backup-codes` | 2FA (lihat "Alur akun") |
+
+### Audit log
+
+Setiap aksi penting ditulis ke tabel `audit_log` (`apps/api/src/lib/audit.ts`), **append-only**, tanpa FK ke
+`user` agar riwayat tetap utuh setelah akun dihapus. Kolom: `at`, `actorId`/`actorEmail` (null = anonim),
+`action` (`AUDIT_ACTIONS` di `packages/shared/src/audit.ts`), `success`, `targetType`/`targetId`,
+`requestId` (sama dengan header `X-Request-Id` dan baris log), `ip`, `userAgent`, `metadata` (JSON).
+
+- **Auth** (`apps/api/src/auth-audit.ts`): pembungkus `auth.handler` — bukan hook Better Auth — sehingga
+  kegagalan (password salah, kode TOTP salah, token kedaluwarsa) ikut tercatat (`success: false`,
+  `metadata.status`), dan pelaku diambil dari sesi sebelum aksi (sign-out, ganti password, aksi admin).
+  Aksi admin plugin (`set-role`, `ban-user`, `remove-user`, …) mencatat `targetId` = user yang diubah.
+- **Data**: `auditFromContext(c, { action: 'note.created', targetType: 'note', targetId })` di route.
+  Tambahkan aksi baru di `AUDIT_ACTIONS` lalu panggil helper ini.
+- Konteks request (`requestId`, IP, UA) tersedia lewat `AsyncLocalStorage` (`lib/request-context.ts`) untuk
+  kode yang tidak menerima Context Hono (callback Better Auth, dsb).
+- Kegagalan menulis audit **tidak** menggagalkan request (fail-open) tetapi dicatat di log level `error`.
+  Ubah `recordAudit` menjadi `throw` bila kebijakan compliance mewajibkan fail-closed.
 
 ## Alur Menambah Fitur
 
@@ -429,23 +485,25 @@ file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
 | Folder | Isi | Aturan |
 | --- | --- | --- |
 | `app/` | `providers.tsx` (ErrorBoundary → Theme → QueryClient → Tooltip + Toaster), `routes.tsx` (definisi route + guard), `router.tsx` (createBrowserRouter) | Satu-satunya tempat yang tahu seluruh app |
-| `pages/` | Satu komponen per route: `home-page`, `login-page`, `notes-page`, `settings/api-token-page`, `admin/users-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
+| `pages/` | Satu komponen per route: `home-page`, `login-page`, `two-factor-page`, `forgot-password-page`, `reset-password-page`, `verify-email-page`, `notes-page`, `settings/{api-token,security}-page`, `admin/{users,audit-logs}-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
 | `features/<fitur>/` | `api/` (hooks TanStack Query + schema shared), `components/`, `hooks/`, `index.ts` (barrel) | Fitur boleh mengimpor `components/`, `hooks/`, `lib/`, `config/`; **hindari** impor antar fitur (lewat `index.ts` bila terpaksa) |
 | `components/ui/` | Primitif shadcn/ui (di-generate CLI, jangan diedit manual kecuali perlu) | Dikecualikan dari coverage |
 | `components/layout/` | `app-shell`, `site-header`, `main-nav`, `mobile-nav` (Sheet), `site-footer` | Kerangka halaman |
 | `components/common/` | `page-header`, `empty-state`, `loading-state`, `error-message`, `theme-toggle`, `error-boundary` | Komponen generik lintas fitur |
 | `hooks/` | `use-theme`, `use-document-title`, `use-visible-nav` | Hook generik (bukan milik satu fitur) |
-| `lib/` | `api/request.ts` (fetch + `ApiError`), `auth-client.ts`, `query-client.ts`, `theme.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
+| `lib/` | `api/request.ts` (fetch + `ApiError`), `auth-client.ts`, `query-client.ts`, `theme.ts`, `format.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
 | `config/` | `site.ts` (nama, stack, repo), `paths.ts` (semua path route), `navigation.ts` (item nav + syarat login/permission) | Konstanta; jangan hardcode path/nama di komponen |
 | `styles/` | `globals.css` | Tailwind v4 + token tema shadcn |
 
-Fitur bawaan: **auth** (`useAuth`, `useSignOut`, `AuthForm`, `UserMenu`, guard `RequireAuth` /
-`RequirePermission`, `ApiTokenCard`), **notes** (hooks CRUD + `NoteForm` + `NoteList`),
-**admin** (`UsersTable`), **system** (`HealthCard`, `HelloCard`).
+Fitur bawaan: **auth** (`useAuth`, `useSignOut`, `AuthForm`, `TwoFactorForm`, `ForgotPasswordForm`,
+`ResetPasswordForm`, `TwoFactorCard`, `ChangePasswordCard`, `EmailVerificationCard`, `UserMenu`, guard
+`RequireAuth` / `RequirePermission`, `ApiTokenCard`), **notes** (hooks CRUD + `NoteForm` + `NoteList`),
+**admin** (`UsersTable`, `AuditLogsTable` + `useAuditLogs` infinite query), **system** (`HealthCard`, `HelloCard`).
 
-**Routing** (React Router, `app/routes.tsx`): `/` beranda, `/login`, lalu di bawah `RequireAuth`
-(redirect ke `/login` dengan `state.from`, kembali setelah masuk): `/notes`, `/settings/api-token`,
-dan di bawah `RequirePermission({ user: ['list'] })`: `/admin/users` (403 bila tak berhak).
+**Routing** (React Router, `app/routes.tsx`): publik `/`, `/login`, `/login/two-factor`, `/forgot-password`,
+`/reset-password`, `/verify-email`; di bawah `RequireAuth` (redirect ke `/login` dengan `state.from`, kembali
+setelah masuk): `/notes`, `/settings/api-token`, `/settings/security`; di bawah `RequirePermission`:
+`/admin/users` (`user:list`) dan `/admin/audit-logs` (`audit:list`) — 403 bila tak berhak.
 Route lain → 404; error render → `RouteErrorPage`.
 
 **Tema**: `ThemeProvider` (light / dark / system, tersimpan di `localStorage`, mengikuti perubahan OS)
@@ -494,7 +552,10 @@ bunx nx test api         # hanya backend
 - **`apps/api/tests/`** — test integrasi: memanggil `app.fetch` langsung (tanpa port) terhadap
   database test. Preload `tests/setup.ts` mengarahkan `DATABASE_URL` ke DB test
   (`TEST_DATABASE_URL` atau nama DB + `_test`), menjalankan migrasi, lalu mengosongkan tabel.
-  Rate limit Better Auth otomatis nonaktif saat `NODE_ENV=test`.
+  Rate limit Better Auth otomatis nonaktif saat `NODE_ENV=test`, dan `MAIL_PROVIDER=memory` sehingga
+  test alur akun (`tests/account.test.ts`) membaca tautan verifikasi/reset dari `MemoryMailer`;
+  kode TOTP dibuat dengan `createOTP` dari `@better-auth/utils` memakai secret dari `totpURI`.
+  `createAuth({ requireEmailVerification: true, mailer })` dipakai untuk menguji mode wajib verifikasi.
 - **`apps/web/tests/`** — test komponen React dengan happy-dom + Testing Library, disusun mengikuti
   `src`: `app/` (router, guard, layout, tema, menu pengguna), `features/` (auth, notes, admin, system),
   `components/`, `lib/`. `tests/utils.tsx` menyediakan `renderAt(path)` (seluruh app dengan
@@ -569,6 +630,8 @@ Yang sudah terpasang di `apps/api/src/app.ts` / `auth.ts`:
 | Auth | Cookie sesi HttpOnly (Secure saat https), CSRF via `trustedOrigins`, rate limit 20 req/menit/IP/endpoint, IP asli dari `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` |
 | Rate limit API | `hono-rate-limiter` di `/api/*` (kecuali `/api/auth/*` & `/api/health`): default 100 req/menit/IP, store PostgreSQL (`api_rate_limit`, dibagi antar replika), header `RateLimit-*` + `Retry-After`, `429 RATE_LIMITED` |
 | JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
+| Akun | Verifikasi email (opsional wajib), reset password (token 1 jam sekali pakai, sesi lama dicabut), 2FA TOTP + backup code terenkripsi, lockout 15 menit setelah 10 kode salah, rate limit `/two-factor/*` 3 req/10 detik |
+| Audit | `audit_log` append-only untuk auth (termasuk gagal), aksi admin, dan CRUD data — dengan `requestId`, IP, UA |
 | RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
 | Error | `onError` → envelope `INTERNAL_ERROR` + `details.requestId`; log terstruktur berisi stack/cause/kode DB dengan `requestId` yang sama; stack tidak pernah dikirim ke client |
@@ -581,7 +644,7 @@ atau pakai `CF-Connecting-IP` di Cloudflare. Atur via `API_RATE_LIMIT_MAX` / `AP
 dan pasang di route tersebut.
 
 Belum terpasang (tambahkan sesuai kebutuhan): Content-Security-Policy (dinonaktifkan agar HMR Vite
-tidak terblokir), verifikasi email, CORS (tidak perlu karena satu origin).
+tidak terblokir), CORS (tidak perlu karena satu origin), SSO/OIDC (plugin Better Auth `genericOAuth`/`sso`).
 
 ## Deployment
 
@@ -598,7 +661,8 @@ docker run -p 3000:3000 \
   hono-react-starter
 ```
 
-Image menjalankan migrasi otomatis lalu serve, dengan `HEALTHCHECK` ke `/api/health`.
+Image menjalankan migrasi otomatis lalu serve, dengan `HEALTHCHECK` ke `/api/health/ready`. Di Kubernetes
+pakai `/api/health/live` untuk liveness probe (tidak menyentuh DB) dan `/api/health/ready` untuk readiness.
 Untuk lokal: `docker compose up --build`.
 
 **Checklist go-live:**
@@ -606,8 +670,11 @@ Untuk lokal: `docker compose up --build`.
 1. `BETTER_AUTH_URL` = origin https publik; reverse proxy meneruskan `X-Forwarded-For` (atau `CF-Connecting-IP`).
 2. `BETTER_AUTH_SECRET` unik per environment, `DATABASE_URL` dengan user berhak DDL (untuk migrasi otomatis) — atau jalankan `bun run db:migrate` terpisah dan ubah `start`.
 3. Seed admin: `ADMIN_EMAIL=... ADMIN_PASSWORD=... NODE_ENV=production bun run db:seed`.
-4. Pantau `/api/health` (mengembalikan `503` saat DB down) dan log `X-Request-Id`.
-5. Backup PostgreSQL terjadwal.
+4. Email: `MAIL_PROVIDER=resend`, `RESEND_API_KEY`, `MAIL_FROM` (domain terverifikasi di Resend); lalu
+   pertimbangkan `AUTH_REQUIRE_EMAIL_VERIFICATION=true`.
+5. Pantau `/api/health/ready` (mengembalikan `503` saat DB down), `/api/health/live`, log `X-Request-Id`,
+   dan tabel `audit_log` (mis. lonjakan `auth.sign_in` dengan `success=false`).
+6. Backup PostgreSQL terjadwal (termasuk `audit_log`; pertimbangkan retensi/arsip sesuai kebijakan).
 
 **Tanpa Docker (VPS/Railway/Fly):**
 
@@ -655,6 +722,10 @@ entry server sesuai platform.
 - [x] Dockerfile + CI (GitHub Actions)
 - [x] Monorepo Nx: `apps/api`, `apps/web`, `packages/shared`
 - [x] React Router + struktur frontend berbasis fitur + set shadcn/ui lengkap + tema gelap
-- [ ] OAuth Google/GitHub (plugin Better Auth)
-- [ ] Verifikasi email (plugin Better Auth + provider email)
+- [x] Verifikasi email, reset/ganti password, 2FA TOTP (plugin Better Auth + Mailer)
+- [x] Audit log + health check live/ready
+- [ ] OAuth Google/GitHub / SSO OIDC (plugin Better Auth)
+- [ ] OpenTelemetry (tracing/metrics) + Sentry
+- [ ] OpenAPI dari schema Zod shared
+- [ ] Playwright E2E di CI
 - [ ] Content-Security-Policy (nonce) di production

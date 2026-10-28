@@ -15,4 +15,5 @@ export const mainNav: NavItem[] = [
   { label: 'Beranda', to: paths.home },
   { label: 'Catatan', to: paths.notes, auth: true },
   { label: 'Pengguna', to: paths.adminUsers, auth: true, permission: { user: ['list'] } },
+  { label: 'Audit', to: paths.adminAuditLogs, auth: true, permission: { audit: ['list'] } },
 ]

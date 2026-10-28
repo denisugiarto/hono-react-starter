@@ -5,7 +5,7 @@ import { paths } from '@/config/paths'
 import { AuthForm, useAuth } from '@/features/auth'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 
-type LocationState = { from?: string } | null
+export type LocationState = { from?: string } | null
 
 export function LoginPage() {
   useDocumentTitle('Masuk')
@@ -27,7 +27,10 @@ export function LoginPage() {
           <CardDescription>Gunakan email dan password, atau daftar akun baru.</CardDescription>
         </CardHeader>
         <CardContent>
-          <AuthForm onSuccess={() => navigate(from, { replace: true })} />
+          <AuthForm
+            onSuccess={() => navigate(from, { replace: true })}
+            onTwoFactor={() => navigate(paths.twoFactor, { state: { from } })}
+          />
         </CardContent>
       </Card>
     </div>

@@ -51,3 +51,16 @@ describe('komponen common', () => {
     expect(initialsOf('  ')).toBe('?')
   })
 })
+
+describe('lib/format — audit & totp', () => {
+  test('summarizeMetadata', async () => {
+    const { summarizeMetadata } = await import('../../src/lib/format.ts')
+    expect(summarizeMetadata(null)).toBe('')
+    expect(summarizeMetadata({ email: 'a@b.co', status: 401, ok: true })).toBe('email=a@b.co · status=401 · ok=true')
+  })
+  test('secretFromTotpUri', async () => {
+    const { secretFromTotpUri } = await import('../../src/lib/format.ts')
+    expect(secretFromTotpUri('otpauth://totp/App:a%40b.co?secret=ABC123&issuer=App')).toBe('ABC123')
+    expect(secretFromTotpUri('bukan uri')).toBeNull()
+  })
+})

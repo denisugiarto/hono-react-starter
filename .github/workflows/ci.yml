@@ -69,9 +69,11 @@ jobs:
         run: |
           bun run start > server.log 2>&1 &
           for i in $(seq 1 30); do
-            if curl -fsS http://localhost:3100/api/health > /dev/null; then break; fi
+            if curl -fsS http://localhost:3100/api/health/live > /dev/null; then break; fi
             sleep 1
           done
+          curl -fsS http://localhost:3100/api/health/live
+          curl -fsS http://localhost:3100/api/health/ready
           curl -fsS http://localhost:3100/api/health
           curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3100/ | grep -q 200
           curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost:3100/dashboard | grep -q 200

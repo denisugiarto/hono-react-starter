@@ -12,6 +12,8 @@ import { adminAc, defaultStatements } from 'better-auth/plugins/admin/access'
 export const statements = {
   ...defaultStatements,
   note: ['create', 'read', 'update', 'delete'],
+  /** Audit log (GET /api/admin/audit-logs). */
+  audit: ['list'],
 } as const
 
 export const ac = createAccessControl(statements)
@@ -22,7 +24,7 @@ export const roles = {
   /** Pengguna biasa: penuh atas catatannya sendiri, tanpa manajemen user. */
   user: ac.newRole({ ...notePermissions }),
   /** Admin: semua permission bawaan plugin admin + catatan. */
-  admin: ac.newRole({ ...adminAc.statements, ...notePermissions }),
+  admin: ac.newRole({ ...adminAc.statements, ...notePermissions, audit: ['list'] }),
 }
 
 export const USER_ROLES = ['admin', 'user'] as const

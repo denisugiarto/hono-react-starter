@@ -13,6 +13,18 @@ describe('API dasar', () => {
     expect(typeof body.uptime).toBe('number')
   })
 
+  test('GET /api/health/live → ok tanpa menyentuh DB; /api/health/ready = /api/health', async () => {
+    const live = await call('/api/health/live')
+    expect(live.status).toBe(200)
+    const data = (await readJson(live)).data
+    expect(data).toEqual({ status: 'ok', uptime: expect.any(Number), timestamp: expect.any(String) })
+    expect(data).not.toHaveProperty('database')
+
+    const ready = await call('/api/health/ready')
+    expect(ready.status).toBe(200)
+    expect((await readJson(ready)).data.database).toBe('ok')
+  })
+
   test('GET /api/hello?name=Budi', async () => {
     const res = await call('/api/hello?name=Budi')
     expect(res.status).toBe(200)
@@ -66,8 +78,10 @@ describe('GET /api/health — DB down', () => {
         throw new Error('connection refused')
       },
     })
-    {
-      const res = await api.fetch(new Request('http://localhost/health'))
+    // liveness tetap 200 walau DB down (bukan urusan liveness)
+    expect((await api.fetch(new Request('http://localhost/health/live'))).status).toBe(200)
+    for (const path of ['/health', '/health/ready']) {
+      const res = await api.fetch(new Request(`http://localhost${path}`))
       expect(res.status).toBe(503)
       const body = (await res.json()) as {
         success: boolean

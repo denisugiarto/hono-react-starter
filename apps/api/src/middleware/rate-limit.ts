@@ -116,12 +116,14 @@ export type ApiRateLimitOptions = {
   windowSeconds: number
   /** Store kustom (default: PostgreSQL via Drizzle). */
   store?: DrizzleRateLimitStore
-  /** Path yang tidak dihitung. Default: /api/auth/* (punya limiter sendiri) & /api/health. */
+  /** Path yang tidak dihitung. Default: /api/auth/* (punya limiter sendiri) & /api/health[/live|/ready]. */
   skip?: (c: Context) => boolean
 }
 
 export const defaultRateLimitSkip = (c: Context): boolean =>
-  c.req.path.startsWith('/api/auth/') || c.req.path === '/api/health'
+  c.req.path.startsWith('/api/auth/') ||
+  c.req.path === '/api/health' ||
+  c.req.path.startsWith('/api/health/')
 
 /**
  * Middleware rate limit untuk /api/*. Mengirim header `RateLimit-*` (draft-6)

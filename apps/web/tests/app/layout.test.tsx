@@ -60,12 +60,16 @@ describe('layout — menu pengguna', () => {
   test('membuka menu: identitas, pintasan, keluar → signOut + ke beranda', async () => {
     asAdmin()
     const { router } = renderAt('/notes')
+    const nav = mainNav()
     const trigger = screen.getByRole('button', { name: 'Menu pengguna' })
     expect(trigger.textContent).toContain('R') // inisial avatar
     fireEvent.click(trigger)
     const menu = await screen.findByRole('menu')
     expect(within(menu).getByText('root@test.local')).toBeTruthy()
     expect(within(menu).getByRole('menuitem', { name: /Pengguna/ })).toBeTruthy()
+    expect(within(menu).getByRole('menuitem', { name: /Audit log/ })).toBeTruthy()
+    expect(within(menu).getByRole('menuitem', { name: /Keamanan/ })).toBeTruthy()
+    expect(nav.getByRole('link', { name: 'Audit' })).toBeTruthy()
     fireEvent.click(within(menu).getByRole('menuitem', { name: /Keluar/ }))
     await waitFor(() => expect(authCalls.some((c) => c.kind === 'signOut')).toBe(true))
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
@@ -78,7 +82,9 @@ describe('layout — menu pengguna', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Menu pengguna' }))
     const menu = await screen.findByRole('menu')
     expect(within(menu).queryByRole('menuitem', { name: /Pengguna/ })).toBeNull()
+    expect(within(menu).queryByRole('menuitem', { name: /Audit log/ })).toBeNull()
     expect(within(menu).getByRole('menuitem', { name: /Token API/ })).toBeTruthy()
+    expect(mainNav().queryByRole('link', { name: 'Audit' })).toBeNull()
   })
 })
 

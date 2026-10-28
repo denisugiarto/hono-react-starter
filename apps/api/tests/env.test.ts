@@ -160,3 +160,69 @@ describe('env — API_RATE_LIMIT_*', () => {
     expect(() => readApiRateLimit()).toThrow(/API_RATE_LIMIT_WINDOW/)
   })
 })
+
+describe('env — MAIL_PROVIDER / AUTH_REQUIRE_EMAIL_VERIFICATION', () => {
+  const MK = ['MAIL_PROVIDER', 'RESEND_API_KEY', 'MAIL_FROM', 'AUTH_REQUIRE_EMAIL_VERIFICATION'] as const
+  const savedMail: Record<string, string | undefined> = {}
+  beforeEach(() => {
+    for (const k of MK) savedMail[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of MK) {
+      if (savedMail[k] === undefined) delete process.env[k]
+      else process.env[k] = savedMail[k]
+    }
+  })
+
+  test('default: test → memory, dev → console', async () => {
+    const { readMailConfig } = await import('../src/env.ts')
+    delete process.env.MAIL_PROVIDER
+    process.env.NODE_ENV = 'test'
+    expect(readMailConfig()).toEqual({ provider: 'memory' })
+    process.env.NODE_ENV = 'development'
+    expect(readMailConfig()).toEqual({ provider: 'console' })
+  })
+
+  test('resend: butuh RESEND_API_KEY + MAIL_FROM; provider tak dikenal → error', async () => {
+    const { readMailConfig } = await import('../src/env.ts')
+    process.env.MAIL_PROVIDER = 'resend'
+    delete process.env.RESEND_API_KEY
+    delete process.env.MAIL_FROM
+    expect(() => readMailConfig()).toThrow(/RESEND_API_KEY wajib/)
+    process.env.RESEND_API_KEY = 're_123'
+    expect(() => readMailConfig()).toThrow(/MAIL_FROM wajib/)
+    process.env.MAIL_FROM = 'App <no-reply@example.com>'
+    expect(readMailConfig()).toEqual({ provider: 'resend', apiKey: 're_123', from: 'App <no-reply@example.com>' })
+    process.env.MAIL_PROVIDER = 'smtp'
+    expect(() => readMailConfig()).toThrow(/MAIL_PROVIDER harus/)
+  })
+
+  test('AUTH_REQUIRE_EMAIL_VERIFICATION: default false; true/1/yes; nilai aneh → error', async () => {
+    const { readEmailVerificationRequired } = await import('../src/env.ts')
+    process.env.NODE_ENV = 'development'
+    delete process.env.AUTH_REQUIRE_EMAIL_VERIFICATION
+    expect(readEmailVerificationRequired()).toBe(false)
+    for (const v of ['true', '1', 'YES']) {
+      process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = v
+      expect(readEmailVerificationRequired()).toBe(true)
+    }
+    for (const v of ['false', '0', 'no', '']) {
+      process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = v
+      expect(readEmailVerificationRequired()).toBe(false)
+    }
+    process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = 'mungkin'
+    expect(() => readEmailVerificationRequired()).toThrow(/harus true\|false/)
+  })
+
+  test('production + wajib verifikasi + provider console → error', async () => {
+    const { readEmailVerificationRequired } = await import('../src/env.ts')
+    asProd()
+    process.env.AUTH_REQUIRE_EMAIL_VERIFICATION = 'true'
+    process.env.MAIL_PROVIDER = 'console'
+    expect(() => readEmailVerificationRequired()).toThrow(/butuh MAIL_PROVIDER=resend/)
+    process.env.MAIL_PROVIDER = 'resend'
+    process.env.RESEND_API_KEY = 'k'
+    process.env.MAIL_FROM = 'a@b.co'
+    expect(readEmailVerificationRequired()).toBe(true)
+  })
+})

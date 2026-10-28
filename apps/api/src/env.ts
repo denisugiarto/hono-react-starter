@@ -145,3 +145,52 @@ export function readLogConfig(): LogConfig {
 
   return { level, format }
 }
+
+export type MailConfig =
+  | { provider: 'console' }
+  | { provider: 'memory' }
+  | { provider: 'resend'; apiKey: string; from: string }
+
+/**
+ * Pengiriman email (verifikasi email, reset password).
+ * - MAIL_PROVIDER: console | resend | memory
+ *   (default: test → memory, lainnya → console = hanya dicatat di log)
+ * - MAIL_FROM: alamat pengirim, mis. "Nama <no-reply@example.com>" (wajib untuk resend)
+ * - RESEND_API_KEY: kunci API Resend (wajib untuk resend)
+ */
+export function readMailConfig(): MailConfig {
+  const raw = process.env.MAIL_PROVIDER
+  const provider = raw ?? (envIsTest() ? 'memory' : 'console')
+  if (provider === 'console' || provider === 'memory') return { provider }
+  if (provider === 'resend') {
+    const apiKey = process.env.RESEND_API_KEY
+    const from = process.env.MAIL_FROM
+    if (!apiKey) fail('RESEND_API_KEY', 'wajib diisi bila MAIL_PROVIDER=resend')
+    if (!from) fail('MAIL_FROM', 'wajib diisi bila MAIL_PROVIDER=resend')
+    return { provider, apiKey, from }
+  }
+  fail('MAIL_PROVIDER', `harus console|resend|memory: "${raw}"`)
+}
+
+function readBool(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]
+  if (raw === undefined || raw === '') return fallback
+  const v = raw.trim().toLowerCase()
+  if (v === 'true' || v === '1' || v === 'yes') return true
+  if (v === 'false' || v === '0' || v === 'no') return false
+  fail(name, `harus true|false: "${raw}"`)
+}
+
+/**
+ * AUTH_REQUIRE_EMAIL_VERIFICATION (default false): bila true, sign-in dengan
+ * email yang belum diverifikasi ditolak (403 EMAIL_NOT_VERIFIED) dan email
+ * verifikasi dikirim ulang. Di production wajib ada provider email sungguhan
+ * (bukan console) agar pengguna benar-benar bisa memverifikasi.
+ */
+export function readEmailVerificationRequired(): boolean {
+  const required = readBool('AUTH_REQUIRE_EMAIL_VERIFICATION', false)
+  if (required && envIsProd() && readMailConfig().provider !== 'resend') {
+    fail('AUTH_REQUIRE_EMAIL_VERIFICATION', 'butuh MAIL_PROVIDER=resend di production (email harus benar-benar terkirim)')
+  }
+  return required
+}

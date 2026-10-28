@@ -9,6 +9,7 @@ import { api } from './routes/api.ts'
 import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { auth } from './auth.ts'
+import { withAuthAudit } from './auth-audit.ts'
 import { envIsProd, envIsTest, readApiRateLimit, readLogConfig, type ApiRateLimitConfig } from './env.ts'
 import { Logger, serializeError } from './lib/logger.ts'
 import { errorBody, fail } from './lib/response.ts'
@@ -111,8 +112,9 @@ export function createApp(options: AppOptions = {}): App {
   app.route('/api/notes', notesRoutes)
   app.route('/api/admin', adminRoutes)
 
-  // Better Auth — semua request /api/auth/* di-handle oleh auth
-  app.on(['POST', 'GET'], '/api/auth/*', (c) => auth.handler(c.req.raw))
+  // Better Auth — semua request /api/auth/* di-handle oleh auth; aksi penting
+  // (sign-in/out, reset password, 2FA, aksi admin) dicatat ke audit_log.
+  app.on(['POST', 'GET'], '/api/auth/*', withAuthAudit((req) => auth.handler(req)))
 
   options.extend?.(app)
 

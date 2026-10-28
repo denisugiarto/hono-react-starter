@@ -5,6 +5,7 @@ import { requireAuth, requirePermission } from '../middleware/auth.ts'
 import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { notes } from '../db/schema.ts'
+import { auditFromContext } from '../lib/audit.ts'
 import { fail, ok } from '../lib/response.ts'
 
 export const notesRoutes = new Hono<AppEnv>()
@@ -46,6 +47,7 @@ notesRoutes.post('/', requirePermission({ note: ['create'] }), async (c) => {
     .returning()
 
   c.get('log').info('note created', { noteId: note!.id })
+  await auditFromContext(c, { action: 'note.created', targetType: 'note', targetId: note!.id })
   return ok(c, note, { status: 201, message: 'Catatan dibuat' })
 })
 
@@ -71,6 +73,12 @@ notesRoutes.patch('/:id', requirePermission({ note: ['update'] }), async (c) => 
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning()
   if (!note) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
+  await auditFromContext(c, {
+    action: 'note.updated',
+    targetType: 'note',
+    targetId: id,
+    metadata: { fields: Object.keys(parsed.data) },
+  })
   return ok(c, note, { message: 'Catatan diperbarui' })
 })
 
@@ -85,5 +93,6 @@ notesRoutes.delete('/:id', requirePermission({ note: ['delete'] }), async (c) =>
     .returning({ id: notes.id })
   if (deleted.length === 0) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
   c.get('log').info('note deleted', { noteId: id })
+  await auditFromContext(c, { action: 'note.deleted', targetType: 'note', targetId: id })
   return ok(c, { id }, { message: 'Catatan dihapus' })
 })

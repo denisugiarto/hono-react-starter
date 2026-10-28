@@ -2,7 +2,14 @@ import { useCallback } from 'react'
 import { can as canRole, type Permissions } from '@hono-react-starter/shared'
 import { useSession } from '@/lib/auth-client'
 
-export type AuthUser = { id: string; name: string; email: string; role?: string | null }
+export type AuthUser = {
+  id: string
+  name: string
+  email: string
+  role?: string | null
+  emailVerified?: boolean
+  twoFactorEnabled?: boolean | null
+}
 
 /**
  * Sesi pengguna saat ini + helper RBAC. Satu-satunya tempat komponen membaca

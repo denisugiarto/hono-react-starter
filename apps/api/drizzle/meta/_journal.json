@@ -57,6 +57,13 @@
       "when": 1793140089078,
       "tag": "0007_api_rate_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793215141846,
+      "tag": "0008_account_security_audit",
+      "breakpoints": true
     }
   ]
 }

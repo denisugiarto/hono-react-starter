@@ -9,8 +9,25 @@ export const fetchCalls: Call[] = []
 type NoteRow = Record<string, unknown> & { id: string }
 export const apiMock = {
   notes: [] as NoteRow[],
-  fail: { create: false, notes: false, admin: false, health: false, hello: false },
+  fail: { create: false, notes: false, admin: false, health: false, hello: false, audit: false },
+  /** Jumlah entri audit yang disajikan (dua halaman bila > pageSize). */
+  auditTotal: 3,
 }
+
+const auditItem = (i: number) => ({
+  id: `a${i}`,
+  at: new Date(Date.UTC(2026, 0, 1, 10, i)).toISOString(),
+  actorId: i % 2 ? 'u2' : null,
+  actorEmail: i % 2 ? 'root@test.local' : null,
+  action: i % 2 ? 'admin.set_role' : 'auth.sign_in',
+  success: i !== 2,
+  targetType: i % 2 ? 'user' : null,
+  targetId: i % 2 ? 'u3' : null,
+  requestId: `req-${i}`,
+  ip: '10.0.0.1',
+  userAgent: 'test',
+  metadata: i % 2 ? { role: 'admin' } : { email: 'x@test.local', status: 401 },
+})
 
 const sampleNote = (): NoteRow => ({
   id: '11111111-1111-1111-1111-111111111111',
@@ -35,7 +52,8 @@ const originalFetch = globalThis.fetch
 export function resetApiMock() {
   fetchCalls.length = 0
   apiMock.notes = [sampleNote()]
-  apiMock.fail = { create: false, notes: false, admin: false, health: false, hello: false }
+  apiMock.fail = { create: false, notes: false, admin: false, health: false, hello: false, audit: false }
+  apiMock.auditTotal = 3
 }
 
 export function installFetchMock() {
@@ -71,6 +89,20 @@ export function installFetchMock() {
     if (url.startsWith('/api/notes/') && method === 'DELETE') {
       apiMock.notes = apiMock.notes.filter((n) => !url.endsWith(n.id))
       return jsonResponse({ id: 'x' }, 200, 'Catatan dihapus')
+    }
+    if (url.startsWith('/api/admin/audit-logs')) {
+      if (apiMock.fail.audit) return jsonResponse({ code: 'FORBIDDEN', message: 'Audit ditolak' }, 403)
+      const params = new URL(url, 'http://x').searchParams
+      const pageSize = 2
+      const all = Array.from({ length: apiMock.auditTotal }, (_, i) => auditItem(i))
+        .filter((it) => !params.get('action') || it.action.startsWith(params.get('action')!))
+        .filter((it) => !params.get('success') || String(it.success) === params.get('success'))
+      const cursor = params.get('cursor')
+      const start = cursor ? all.findIndex((it) => it.at === cursor) + 1 : 0
+      const items = all.slice(start, start + pageSize)
+      const last = items[items.length - 1]
+      const nextCursor = start + pageSize < all.length && last ? last.at : null
+      return jsonResponse({ items, nextCursor })
     }
     if (url === '/api/admin/users') {
       if (apiMock.fail.admin) return jsonResponse({ code: 'FORBIDDEN', message: 'Forbidden' }, 403)

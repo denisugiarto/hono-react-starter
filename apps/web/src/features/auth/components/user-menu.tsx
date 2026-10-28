@@ -1,4 +1,4 @@
-import { KeyRoundIcon, LogOutIcon, NotebookPenIcon, UsersIcon } from 'lucide-react'
+import { KeyRoundIcon, LogOutIcon, NotebookPenIcon, ScrollTextIcon, ShieldCheckIcon, UsersIcon } from 'lucide-react'
 import { Link } from 'react-router'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -43,12 +43,20 @@ export function UserMenu() {
         <DropdownMenuItem render={<Link to={paths.notes} />}>
           <NotebookPenIcon /> Catatan
         </DropdownMenuItem>
+        <DropdownMenuItem render={<Link to={paths.security} />}>
+          <ShieldCheckIcon /> Keamanan
+        </DropdownMenuItem>
         <DropdownMenuItem render={<Link to={paths.apiToken} />}>
           <KeyRoundIcon /> Token API
         </DropdownMenuItem>
         {can({ user: ['list'] }) && (
           <DropdownMenuItem render={<Link to={paths.adminUsers} />}>
             <UsersIcon /> Pengguna
+          </DropdownMenuItem>
+        )}
+        {can({ audit: ['list'] }) && (
+          <DropdownMenuItem render={<Link to={paths.adminAuditLogs} />}>
+            <ScrollTextIcon /> Audit log
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

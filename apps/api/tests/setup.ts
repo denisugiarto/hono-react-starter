@@ -14,6 +14,8 @@ import { MIGRATIONS_DIR } from '../src/db/migrations-dir.ts'
 process.env.NODE_ENV = 'test'
 process.env.BETTER_AUTH_SECRET ??= 'test-secret-test-secret-test-secret-123456'
 process.env.BETTER_AUTH_URL ??= 'http://localhost:3000'
+process.env.MAIL_PROVIDER = 'memory' // email ditangkap di memori (lihat tests/account.test.ts)
+delete process.env.AUTH_REQUIRE_EMAIL_VERIFICATION
 
 function deriveTestUrl(url: string | undefined): string {
   const base = url ?? 'postgresql://localhost:5432/hono_react_starter'
@@ -28,7 +30,7 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? deriveTestUrl(proces
 const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} })
 try {
   await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS_DIR })
-  await sql`TRUNCATE TABLE "notes", "session", "account", "verification", "rate_limit", "api_rate_limit", "user" RESTART IDENTITY CASCADE`
+  await sql`TRUNCATE TABLE "notes", "audit_log", "two_factor", "session", "account", "verification", "rate_limit", "api_rate_limit", "user" RESTART IDENTITY CASCADE`
 } catch (err) {
   console.error(
     `\n[test] Gagal menyiapkan database test ${process.env.DATABASE_URL}.\n` +

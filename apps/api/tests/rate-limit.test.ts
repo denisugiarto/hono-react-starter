@@ -95,6 +95,8 @@ describe('clientIp', () => {
     const c = (path: string) => ({ req: { path } }) as unknown as Parameters<typeof defaultRateLimitSkip>[0]
     expect(defaultRateLimitSkip(c('/api/auth/token'))).toBe(true)
     expect(defaultRateLimitSkip(c('/api/health'))).toBe(true)
+    expect(defaultRateLimitSkip(c('/api/health/live'))).toBe(true)
+    expect(defaultRateLimitSkip(c('/api/health/ready'))).toBe(true)
     expect(defaultRateLimitSkip(c('/api/notes'))).toBe(false)
   })
 })

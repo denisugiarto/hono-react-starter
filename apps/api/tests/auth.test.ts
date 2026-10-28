@@ -76,3 +76,65 @@ describe('RBAC — /api/admin/users', () => {
     expect(me).not.toHaveProperty('password')
   })
 })
+
+describe('Audit log — GET /api/admin/audit-logs', () => {
+  let admin: Awaited<ReturnType<typeof signUp>>
+  let regular: Awaited<ReturnType<typeof signUp>>
+
+  beforeAll(async () => {
+    regular = await signUp()
+    admin = await signUp()
+    await db.update(user).set({ role: 'admin' }).where(eq(user.id, admin.user.id))
+    // beberapa aksi agar ada entri
+    for (let i = 0; i < 3; i++) {
+      await call('/api/notes', { method: 'POST', cookie: regular.cookie, body: json({ title: `audit ${i}` }) })
+    }
+  })
+
+  test('tanpa login → 401; user biasa → 403 (permission audit:list)', async () => {
+    expect((await call('/api/admin/audit-logs')).status).toBe(401)
+    const res = await call('/api/admin/audit-logs', { cookie: regular.cookie })
+    expect(res.status).toBe(403)
+    expect((await readJson(res)).details).toEqual({ audit: ['list'] })
+  })
+
+  test('admin: daftar terbaru dulu, DTO sesuai schema shared, filter actorId/action/success', async () => {
+    const { auditLogListSchema } = await import('@hono-react-starter/shared/audit')
+    const res = await call(`/api/admin/audit-logs?actorId=${regular.user.id}&action=note.`, { cookie: admin.cookie })
+    expect(res.status).toBe(200)
+    const list = auditLogListSchema.parse(await readData(res))
+    expect(list.items.length).toBe(3)
+    expect(list.items.every((i) => i.action === 'note.created' && i.actorId === regular.user.id)).toBe(true)
+    expect(list.items.every((i) => typeof i.requestId === 'string' && typeof i.ip === 'string')).toBe(true)
+    const times = list.items.map((i) => i.at)
+    expect([...times].sort().reverse()).toEqual(times)
+    expect(list.nextCursor).toBeNull()
+
+    const failedOnly = auditLogListSchema.parse(await readData(await call('/api/admin/audit-logs?success=false&limit=5', { cookie: admin.cookie })))
+    expect(failedOnly.items.every((i) => i.success === false)).toBe(true)
+  })
+
+  test('paginasi cursor: limit=2 → nextCursor → halaman berikutnya tanpa duplikat', async () => {
+    const q = `actorId=${regular.user.id}&action=note.created&limit=2`
+    const page1 = (await readData(await call(`/api/admin/audit-logs?${q}`, { cookie: admin.cookie }))) as {
+      items: { id: string; at: string }[]
+      nextCursor: string | null
+    }
+    expect(page1.items.length).toBe(2)
+    expect(page1.nextCursor).toBe(page1.items[1]!.at)
+    const page2 = (await readData(
+      await call(`/api/admin/audit-logs?${q}&cursor=${encodeURIComponent(page1.nextCursor!)}`, { cookie: admin.cookie }),
+    )) as typeof page1
+    expect(page2.items.length).toBe(1)
+    expect(page2.nextCursor).toBeNull()
+    expect(page1.items.map((i) => i.id)).not.toContain(page2.items[0]!.id)
+  })
+
+  test('query tidak valid → 400 VALIDATION_ERROR', async () => {
+    const res = await call('/api/admin/audit-logs?limit=0&cursor=kemarin', { cookie: admin.cookie })
+    expect(res.status).toBe(400)
+    const body = await readJson(res)
+    expect(body.code).toBe('VALIDATION_ERROR')
+    expect(Object.keys(body.details)).toEqual(expect.arrayContaining(['limit', 'cursor']))
+  })
+})

@@ -316,11 +316,39 @@ Verifikasi iterasi 2:
   harus sebelum `await import()` modul app; hook `beforeEach` tidak bisa dipanggil dari helper (dipanggil di file test).
 - 57 test web (sebelumnya 30), coverage 100 % per file. README: bagian "Struktur Frontend" dan "shadcn/ui".
 
+## Iterasi 10 — Alur akun enterprise + audit log + health live/ready (2026-10-29)
+
+- **Mailer** tanpa dependency (`lib/mailer.ts`): `ConsoleMailer` (dev, log), `MemoryMailer` (test), `ResendMailer`
+  (HTTP API). Env `MAIL_PROVIDER` / `MAIL_FROM` / `RESEND_API_KEY`; template Indonesia di `lib/emails.ts`.
+- **Better Auth** (`auth.ts` → `createAuth(options)`): `emailVerification` (sendOnSignUp/SignIn, auto sign-in,
+  24 jam), `sendResetPassword` (1 jam, sesi lama dicabut), `AUTH_REQUIRE_EMAIL_VERIFICATION` (fail-fast di
+  production bila provider bukan resend), plugin `twoFactor` (TOTP + backup code; tabel `two_factor`,
+  kolom `user.two_factor_enabled`). Migrasi `0008_account_security_audit`.
+- **Audit log**: tabel `audit_log` (append-only, tanpa FK), `lib/audit.ts` (`recordAudit`, `auditFromContext`,
+  fail-open + log error), `lib/request-context.ts` (AsyncLocalStorage: requestId/ip/UA dari `requestLog`),
+  `auth-audit.ts` membungkus `auth.handler` (mencatat sukses & gagal untuk sign-in/out, verifikasi email,
+  reset/ganti password, 2FA, aksi admin — pelaku dari sesi sebelum aksi atau `user` di respons), audit di
+  route notes. `GET /api/admin/audit-logs` (permission `audit:list`, filter action/actorId/success,
+  paginasi cursor `at`). Shared: `packages/shared/src/audit.ts`.
+- **Health**: `/api/health/live` (tanpa DB) dan `/api/health/ready` (DB; `/api/health` alias). Dockerfile
+  HEALTHCHECK + CI smoke diperbarui; rate limit melewati `/api/health/*`.
+- **Frontend**: `auth-client` + `twoFactorClient`; halaman `/forgot-password`, `/reset-password`,
+  `/verify-email`, `/login/two-factor`, `/settings/security` (kartu verifikasi email, 2FA dengan QR
+  `qrcode.react` + secret + backup code, ganti password), `/admin/audit-logs` (tabel + filter + "Muat lebih
+  banyak" via `useInfiniteQuery`). `AuthForm` menangani `twoFactorRedirect`, `EMAIL_NOT_VERIFIED` (kirim
+  ulang), dan daftar tanpa sesi (`token: null`). Nav/menu: Keamanan, Audit (admin).
+- Test: api 129 (+36: env mail, mailer, emails, audit lib, `account.test.ts` alur lengkap termasuk TOTP
+  nyata via `@better-auth/utils`, audit-logs endpoint, health), web 80 (+23), shared 14 (+6). Coverage
+  per file tetap ≥ 90 % (mayoritas 100 %).
+- Catatan: hook `after` Better Auth tidak berjalan saat endpoint melempar error, karena itu audit auth
+  dilakukan di lapisan Hono. `Button render={<Link/>}` memicu peringatan Base UI `nativeButton` di
+  console test — `nativeButton={false}` mengubah role link menjadi button, jadi peringatan dibiarkan.
+
 ## Next Steps
 
-- Push iterasi 9 ke GitHub (CI).
-- OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
-- React Router untuk multi-halaman.
+- OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).
+- OpenTelemetry (tracing/metrics) + Sentry; OpenAPI dari schema Zod; Playwright E2E.
+- Hygiene repo: LICENSE, CONTRIBUTING, SECURITY.md, CODEOWNERS, Renovate, scan dependensi di CI.
 - Content-Security-Policy ber-nonce di production.
 
 ## Final Result

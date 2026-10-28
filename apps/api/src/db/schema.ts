@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -49,3 +50,37 @@ export const notes = pgTable(
 
 export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
+
+/**
+ * Audit log: siapa melakukan apa, kapan, dari mana. Ditulis lewat lib/audit.ts
+ * (aksi auth via src/auth-audit.ts, aksi data via route). Tidak ada FK ke user
+ * agar riwayat tetap utuh setelah akun dihapus. Tabel ini append-only — jangan
+ * tambahkan endpoint update/delete.
+ */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    /** Pelaku (null untuk aksi anonim, mis. permintaan reset password). */
+    actorId: text('actor_id'),
+    actorEmail: text('actor_email'),
+    /** Nama aksi stabil, mis. auth.sign_in, note.created, admin.set_role. */
+    action: text('action').notNull(),
+    success: boolean('success').notNull().default(true),
+    targetType: text('target_type'),
+    targetId: text('target_id'),
+    requestId: text('request_id'),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    metadata: jsonb('metadata').$type<Record<string, unknown>>(),
+  },
+  (table) => [
+    index('audit_log_at_idx').on(table.at),
+    index('audit_log_actor_id_idx').on(table.actorId),
+    index('audit_log_action_idx').on(table.action),
+  ],
+)
+
+export type AuditLogRow = typeof auditLog.$inferSelect
+export type NewAuditLog = typeof auditLog.$inferInsert

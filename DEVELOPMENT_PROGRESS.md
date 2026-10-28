@@ -377,6 +377,24 @@ Verifikasi iterasi 2:
   `.env.example`, skill `verifying-changes` / `writing-tests` / `adding-feature` diperbarui.
 - Test: api 148 (+19), web 80, shared 15 (+1), e2e 18. Coverage per file tetap ≥ 90 %.
 
+## Iterasi 13 — Caching backend & frontend (2026-10-29)
+
+- **Cookie cache sesi** Better Auth: `session.cookieCache` dari `AUTH_SESSION_CACHE_SECONDS` (default 60,
+  `createAuth({ sessionCacheSeconds })`); `tests/setup.ts` memaksa `0` untuk instance utama karena banyak test
+  mengubah role/sesi langsung di DB; perilaku cache diuji di `tests/session-cache.test.ts`.
+- **Cache aplikasi**: `lib/cache.ts` — interface `Cache`, `MemoryCache` (TTL, FIFO, `maxEntries`), `RedisCache`
+  (`Bun.RedisClient`, JSON, prefix, fail-open dengan warn), `createCache(config, { redisClient })`, helper
+  `cached()`; singleton `src/cache.ts`; env `CACHE_PROVIDER` / `REDIS_URL`.
+- **JWT**: `verifyJwtCached()` di `middleware/auth.ts` — hasil verifikasi disimpan dengan key `jwt:sha256(token)`
+  sampai `exp` (maks 15 menit).
+- **ETag**: `middleware/cache-control.ts` `revalidate()` = `etag()` + `Cache-Control: private, no-cache` untuk
+  GET `/api/notes`, `/api/admin/users`, `/api/admin/audit-logs` → 304 bila tak berubah; respons gagal tetap `no-store`.
+- **Frontend**: `useToggleNote` / `useDeleteNote` optimistic (`onMutate` snapshot → `onError` rollback + toast →
+  `onSettled` invalidate); mock API punya `fail.update` / `fail.delete`.
+- Dokumentasi: README bagian "Caching" (tabel lapisan, cara pakai `cached()`, alasan tidak memakai persistensi
+  storage), Env, `.env.example`, `docker-compose.yml` (service redis opsional).
+- Test: api 161 (+13), web 82 (+2), shared 15, e2e 18.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

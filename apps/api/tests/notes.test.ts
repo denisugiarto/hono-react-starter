@@ -145,3 +145,29 @@ describe('Notes — body bukan JSON', () => {
     expect(patch.status).toBe(400)
   })
 })
+
+describe('Notes — ETag & revalidasi', () => {
+  test('GET: ETag + Cache-Control private/no-cache; If-None-Match → 304; berubah setelah mutasi', async () => {
+    const u = await signUp()
+    const first = await call('/api/notes', { cookie: u.cookie })
+    expect(first.status).toBe(200)
+    const etag = first.headers.get('etag')
+    expect(etag).toBeTruthy()
+    expect(first.headers.get('cache-control')).toBe('private, no-cache')
+
+    const same = await call('/api/notes', { cookie: u.cookie, headers: { 'If-None-Match': etag! } })
+    expect(same.status).toBe(304)
+    expect(same.headers.get('cache-control')).toBe('private, no-cache')
+    expect(await same.text()).toBe('')
+
+    await call('/api/notes', { method: 'POST', cookie: u.cookie, body: json({ title: 'Baru' }) })
+    const changed = await call('/api/notes', { cookie: u.cookie, headers: { 'If-None-Match': etag! } })
+    expect(changed.status).toBe(200)
+    expect(changed.headers.get('etag')).not.toBe(etag)
+
+    // Respons gagal tetap no-store (tidak boleh disimpan browser)
+    const unauth = await call('/api/notes')
+    expect(unauth.status).toBe(401)
+    expect(unauth.headers.get('cache-control')).toBe('no-store')
+  })
+})

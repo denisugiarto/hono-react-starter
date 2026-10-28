@@ -37,6 +37,7 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Shared schema** — paket `@hono-react-starter/shared` (`packages/shared`) berisi tipe & validasi Zod dipakai frontend DAN backend (satu sumber kebenaran, tanpa drift).
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
+- **Caching berlapis** — aset ber-hash `immutable`, `index.html` `no-cache`, API `no-store` kecuali daftar besar yang memakai **ETag + `private, no-cache`** (304 bila tak berubah); **cookie cache sesi** Better Auth (tanpa query DB per request), **cache aplikasi** (`Cache` interface: memory / Redis bawaan Bun) dipakai untuk hasil verifikasi JWT; di frontend TanStack Query dengan `staleTime` + **optimistic update** (rollback otomatis saat gagal).
 - **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check terpisah (`/api/health/live` & `/api/health/ready`), graceful shutdown, migrasi otomatis saat start, cache header asset.
 - **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library); **Playwright E2E** (`apps/e2e`) di browser asli terhadap build production + akun demo.
 - **Siap untuk tester** — `bun run db:seed:demo` membuat akun demo (admin, user dengan catatan, akun 2FA dengan secret tetap, akun diblokir), dokumentasi **OpenAPI** dari schema Zod (`/api/openapi.json` + UI `/api/docs`), selector `data-testid` konsisten, panduan QA (`docs/QA.md`), dan stack **staging** HTTPS (`docker-compose.staging.yml`, Caddy).
@@ -73,10 +74,11 @@ hono-react-starter/
 │   │   │   ├── auth-audit.ts # Pembungkus auth.handler → audit_log (sign-in/out, reset, 2FA, aksi admin)
 │   │   │   ├── openapi.ts  #   Dokumen OpenAPI dari schema shared + /api/openapi.json, /api/docs (Scalar)
 │   │   │   ├── mailer.ts   #   Singleton Mailer (MAIL_PROVIDER: console | memory | resend)
+│   │   │   ├── cache.ts    #   Singleton Cache (CACHE_PROVIDER: memory | redis)
 │   │   │   ├── env.ts      #   Validasi environment variables (fail-fast)
 │   │   │   ├── types.ts    #   AppEnv: requestId, log, user
-│   │   │   ├── lib/        #   logger, response (ok/fail), mailer, emails (template), audit, request-context
-│   │   │   ├── middleware/ #   auth (requireAuth/Role/Permission), request-log, rate-limit
+│   │   │   ├── lib/        #   logger, response (ok/fail), mailer, emails (template), audit, request-context, cache
+│   │   │   ├── middleware/ #   auth (requireAuth/Role/Permission + cache JWT), request-log, rate-limit, cache-control (ETag)
 │   │   │   ├── routes/     #   api.ts (health live/ready, hello), notes.ts, admin.ts (users, audit-logs)
 │   │   │   └── db/         #   index.ts, schema.ts (+ audit_log), auth-schema.ts (+ two_factor), migrate.ts, seed.ts, demo.ts + seed-demo.ts
 │   │   └── tests/          #   Test integrasi API (bun test, DB test) + fixtures/build
@@ -167,6 +169,9 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `API_DOCS_ENABLED` | Tidak | prod `false`, lainnya `true` | Aktifkan `GET /api/openapi.json` + `GET /api/docs` |
 | `ALLOW_DEMO_SEED` | Tidak | `false` | Izinkan `db:seed:demo` di production (hanya staging; password akun demo publik) |
 | `E2E_PORT` / `E2E_DATABASE_URL` | Tidak | `3199` / DB test | Port & database server yang dijalankan Playwright (`apps/e2e`) |
+| `CACHE_PROVIDER` | Tidak | `memory` | Cache aplikasi (`apps/api/src/lib/cache.ts`): `memory` (per proses) atau `redis` (dibagi antar instance, client bawaan Bun) |
+| `REDIS_URL` | Ya (bila `redis`) | — | mis. `redis://localhost:6379` |
+| `AUTH_SESSION_CACHE_SECONDS` | Tidak | `60` (test: `0`) | Cookie cache sesi Better Auth: `getSession` tanpa DB selama N detik; perubahan role/ban/pencabutan sesi terasa paling lama N detik kemudian. `0` = nonaktif |
 | `LOG_LEVEL` | Tidak | prod `info`, dev `debug`, test `silent` | `debug` / `info` / `warn` / `error` / `silent` |
 | `LOG_FORMAT` | Tidak | prod `json`, lainnya `pretty` | Format baris log |
 | `ADMIN_EMAIL` | Ya (production, saat seed) | `admin@example.com` (dev) | Email akun admin saat `db:seed` |
@@ -653,6 +658,39 @@ c.get('log').error('gagal kirim email', { err })   // err diserialisasi otomatis
 Error di luar siklus request (`unhandledRejection`, `uncaughtException`) dan start/stop server
 juga dicatat (`apps/api/src/index.ts`). `createApp({ logger })` menerima logger kustom (test memakai
 `createCapturingSink()` untuk memeriksa baris log).
+
+## Caching
+
+Prinsip: **data per pengguna tidak pernah disimpan proxy/CDN**, transfer dan query DB dihemat
+di tempat yang aman.
+
+| Lapisan | Mekanisme | Di mana |
+| --- | --- | --- |
+| Aset frontend | Nama file ber-hash → `Cache-Control: public, max-age=31536000, immutable`; `index.html` → `no-cache` | `apps/api/src/app.ts` |
+| Respons API | Default `no-store`. GET daftar (`/api/notes`, `/api/admin/users`, `/api/admin/audit-logs`) memakai `revalidate()`: `ETag` + `private, no-cache` → browser mengirim `If-None-Match`, server menjawab **304** tanpa body bila sama | `apps/api/src/middleware/cache-control.ts` |
+| Sesi | Cookie cache Better Auth (`better-auth.session_data`, bertanda tangan) selama `AUTH_SESSION_CACHE_SECONDS` → `getSession`/`requireAuth` tanpa query DB. Dihapus saat sign-out/ganti password | `apps/api/src/auth.ts` |
+| JWT | Hasil verifikasi disimpan di `Cache` dengan key SHA-256 token sampai `exp` (JWT stateless, jadi aman) | `apps/api/src/middleware/auth.ts` (`verifyJwtCached`) |
+| Cache aplikasi | `Cache` interface (`get/set/delete` + TTL) dengan `MemoryCache` (FIFO, batas entri) dan `RedisCache` (`Bun.RedisClient`, fail-open). Helper `cached(cache, key, ttl, fn)` untuk pola cache-aside | `apps/api/src/lib/cache.ts`, singleton `src/cache.ts` |
+| State klien | TanStack Query `staleTime` 30 detik, `retry` 1, tanpa refetch saat fokus; mutasi catatan **optimistic** (`onMutate` → ubah cache, `onError` → rollback + toast, `onSettled` → invalidate) | `apps/web/src/lib/query-client.ts`, `features/notes/api/notes.ts` |
+
+Memakai cache untuk data lain:
+
+```ts
+import { cache } from '../cache.ts'
+import { cached } from '../lib/cache.ts'
+
+const stats = await cached(cache, 'stats:global', 30, () => db.select()…)   // 30 detik
+await cache.delete('stats:global')                                           // invalidasi manual
+```
+
+Hanya cache data yang **tidak per pengguna** atau beri key per pengguna (`notes:${userId}`) dan
+hapus saat mutasi. Untuk beberapa instance di production set `CACHE_PROVIDER=redis` agar cache
+dibagi; `memory` tetap benar, hanya tiap instance menghitung sendiri.
+
+Yang sengaja **tidak** dipakai: persistensi cache Query ke `localStorage`/IndexedDB (data sensitif
+tertinggal di perangkat bersama, `staleTime` pendek membuat data pulihan segera di-refetch, dan
+butuh invalidasi per rilis) dan service worker/offline. Keduanya bisa ditambah bila kebutuhannya
+muncul (katalog publik, mobile dengan jaringan buruk).
 
 ## Security & Hardening
 

@@ -249,3 +249,40 @@ export function readApiDocsEnabled(): boolean {
 export function readDemoSeedAllowed(): boolean {
   return !envIsProd() || readBool('ALLOW_DEMO_SEED', false)
 }
+
+export type CacheConfig = { provider: 'memory' } | { provider: 'redis'; url: string }
+
+/**
+ * Cache aplikasi (lihat lib/cache.ts).
+ * - CACHE_PROVIDER: memory | redis (default memory — cukup untuk satu instance)
+ * - REDIS_URL: wajib bila redis, mis. redis://localhost:6379
+ * Multi-instance di production sebaiknya redis agar cache (mis. hasil verifikasi JWT)
+ * dibagi; memory tetap benar secara fungsi, hanya kurang efektif.
+ */
+export function readCacheConfig(): CacheConfig {
+  const provider = process.env.CACHE_PROVIDER ?? 'memory'
+  if (provider === 'memory') return { provider }
+  if (provider === 'redis') {
+    const url = process.env.REDIS_URL
+    if (!url) fail('REDIS_URL', 'wajib diisi bila CACHE_PROVIDER=redis')
+    return { provider, url }
+  }
+  fail('CACHE_PROVIDER', `harus memory|redis: "${provider}"`)
+}
+
+/**
+ * AUTH_SESSION_CACHE_SECONDS (default 60; 0 = nonaktif): Better Auth menyimpan
+ * salinan sesi+user di cookie bertanda tangan selama N detik, sehingga
+ * `getSession` tidak mengakses database pada setiap request. Konsekuensi:
+ * perubahan role/ban/pencabutan sesi baru terasa paling lama N detik kemudian —
+ * jaga tetap pendek.
+ */
+export function readSessionCacheSeconds(): number {
+  const raw = process.env.AUTH_SESSION_CACHE_SECONDS
+  if (raw === undefined) return 60
+  const seconds = Number(raw)
+  if (!Number.isInteger(seconds) || seconds < 0 || seconds > 3600) {
+    fail('AUTH_SESSION_CACHE_SECONDS', `harus bilangan bulat 0–3600: "${raw}"`)
+  }
+  return seconds
+}

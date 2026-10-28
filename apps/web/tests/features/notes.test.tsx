@@ -59,6 +59,26 @@ describe('Notes', () => {
     expect(await screen.findByText('Catatan dihapus')).toBeTruthy()
   })
 
+  test('toggle gagal → optimistic di-rollback (coretan hilang) + toast error', async () => {
+    asUser()
+    apiMock.fail.update = true
+    renderAt('/notes')
+    fireEvent.click(await screen.findByLabelText('Tandai "Catatan pertama" selesai'))
+    expect((await screen.findAllByText('Gagal mengubah')).length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.getByText('Catatan pertama').className).not.toContain('line-through'))
+    expect(apiMock.notes[0]!.done).toBe(false)
+  })
+
+  test('hapus gagal → item kembali + toast error', async () => {
+    asUser()
+    apiMock.fail.delete = true
+    renderAt('/notes')
+    fireEvent.click(await screen.findByLabelText('Hapus "Catatan pertama"'))
+    expect((await screen.findAllByText('Gagal menghapus')).length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.getByText('Catatan pertama')).toBeTruthy())
+    expect(screen.queryByText('Belum ada catatan')).toBeNull()
+  })
+
   test('daftar gagal dimuat → pesan error', async () => {
     asUser()
     apiMock.fail.notes = true

@@ -304,3 +304,43 @@ describe('env — AUTH_RATE_LIMIT_*', () => {
     expect(() => readAuthRateLimit()).toThrow(/AUTH_RATE_LIMIT_WINDOW/)
   })
 })
+
+describe('env — CACHE_PROVIDER / REDIS_URL / AUTH_SESSION_CACHE_SECONDS', () => {
+  const EXTRA = ['CACHE_PROVIDER', 'REDIS_URL', 'AUTH_SESSION_CACHE_SECONDS'] as const
+  const savedExtra: Partial<Record<(typeof EXTRA)[number], string | undefined>> = {}
+  beforeEach(() => {
+    for (const k of EXTRA) savedExtra[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of EXTRA) {
+      if (savedExtra[k] === undefined) delete process.env[k]
+      else process.env[k] = savedExtra[k]
+    }
+  })
+
+  test('cache: default memory; redis butuh REDIS_URL; provider asing → error', async () => {
+    const { readCacheConfig } = await import('../src/env.ts')
+    for (const k of EXTRA) delete process.env[k]
+    expect(readCacheConfig()).toEqual({ provider: 'memory' })
+    process.env.CACHE_PROVIDER = 'redis'
+    expect(() => readCacheConfig()).toThrow(/REDIS_URL/)
+    process.env.REDIS_URL = 'redis://localhost:6379'
+    expect(readCacheConfig()).toEqual({ provider: 'redis', url: 'redis://localhost:6379' })
+    process.env.CACHE_PROVIDER = 'memcached'
+    expect(() => readCacheConfig()).toThrow(/CACHE_PROVIDER/)
+  })
+
+  test('session cache: default 60; 0 boleh; di luar 0–3600 atau bukan bilangan → error', async () => {
+    const { readSessionCacheSeconds } = await import('../src/env.ts')
+    delete process.env.AUTH_SESSION_CACHE_SECONDS
+    expect(readSessionCacheSeconds()).toBe(60)
+    process.env.AUTH_SESSION_CACHE_SECONDS = '0'
+    expect(readSessionCacheSeconds()).toBe(0)
+    process.env.AUTH_SESSION_CACHE_SECONDS = '300'
+    expect(readSessionCacheSeconds()).toBe(300)
+    process.env.AUTH_SESSION_CACHE_SECONDS = '3601'
+    expect(() => readSessionCacheSeconds()).toThrow(/AUTH_SESSION_CACHE_SECONDS/)
+    process.env.AUTH_SESSION_CACHE_SECONDS = 'abc'
+    expect(() => readSessionCacheSeconds()).toThrow(/AUTH_SESSION_CACHE_SECONDS/)
+  })
+})

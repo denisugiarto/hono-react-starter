@@ -3,6 +3,7 @@ import { and, desc, eq, like, lt, type SQL } from 'drizzle-orm'
 import type { AdminUser } from '@hono-react-starter/shared/auth'
 import { auditLogQuerySchema, type AuditLog, type AuditLogList } from '@hono-react-starter/shared/audit'
 import { requireAuth, requirePermission } from '../middleware/auth.ts'
+import { revalidate } from '../middleware/cache-control.ts'
 import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { auditLog, user } from '../db/schema.ts'
@@ -14,7 +15,7 @@ export const adminRoutes = new Hono<AppEnv>()
 adminRoutes.use('*', requireAuth)
 
 // GET /api/admin/users — daftar semua user (permission user:list → hanya admin)
-adminRoutes.get('/users', requirePermission({ user: ['list'] }), async (c) => {
+adminRoutes.get('/users', requirePermission({ user: ['list'] }), revalidate(), async (c) => {
   const rows = await db
     .select({
       id: user.id,
@@ -43,7 +44,7 @@ adminRoutes.get('/me', (c) => ok(c, c.get('user')))
 
 // GET /api/admin/audit-logs — audit log terbaru dulu, paginasi cursor (permission audit:list)
 //   ?limit=50&cursor=<nextCursor>&action=auth.&actorId=…&success=false
-adminRoutes.get('/audit-logs', requirePermission({ audit: ['list'] }), async (c) => {
+adminRoutes.get('/audit-logs', requirePermission({ audit: ['list'] }), revalidate(), async (c) => {
   const parsed = auditLogQuerySchema.safeParse(c.req.query())
   if (!parsed.success) {
     return fail(c, 400, 'VALIDATION_ERROR', 'Query tidak valid', parsed.error.flatten().fieldErrors)

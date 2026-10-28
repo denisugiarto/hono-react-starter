@@ -11,7 +11,7 @@ Urutan **shared → tabel/migrasi → api → web → test → dokumen**. Satu s
 
 1. **Shared** — `packages/shared/src/<fitur>.ts`: tipe + `xCreateSchema` / `xUpdateSchema` (Zod; update = field opsional eksplisit, bukan `.partial()` agar default tidak menimpa), ekspor di `src/index.ts`. Sub-path `@hono-react-starter/shared/<fitur>` otomatis ada (`exports: "./*"` di `package.json`) — tidak perlu diubah. Permission baru: tambah resource + daftar aksi di `statements` dan ke role yang berhak di `src/permissions.ts` (Better Auth access control **tidak punya wildcard**; tulis aksi satu per satu), lalu test `can('user', { x: [...] })` / `can('admin', …)` di `tests/shared.test.ts`. Test di `packages/shared/tests/shared.test.ts` — setiap callback (`.refine`, `.transform`) harus tereksekusi (coverage fungsi per file).
 2. **Tabel** — `apps/api/src/db/schema.ts` lalu ikuti skill `db-migrations`.
-3. **Route** — salin pola `apps/api/src/routes/notes.ts`: `new Hono<AppEnv>()`, `routes.use('*', requireAuth)`, per handler `requirePermission({ x: ['create'] })`. Validasi:
+3. **Route** — salin pola `apps/api/src/routes/notes.ts`: `new Hono<AppEnv>()`, `routes.use('*', requireAuth)`, per handler `requirePermission({ x: ['create'] })`; GET daftar ditambah `revalidate()` dari `middleware/cache-control.ts` (ETag + `private, no-cache`, bukan `no-store`). Data yang mahal dan tidak per pengguna: `cached(cache, key, ttl, fn)` dari `lib/cache.ts` + `cache.delete(key)` saat mutasi. Validasi:
    ```ts
    const body = await c.req.json().catch(() => null) // arrow ini tercakup oleh test "body bukan JSON → 400"
    const parsed = xCreateSchema.safeParse(body)

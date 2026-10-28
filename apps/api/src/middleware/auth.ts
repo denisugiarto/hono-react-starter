@@ -2,6 +2,8 @@ import { createMiddleware } from 'hono/factory'
 import { can, isUserRole, type Permissions, type UserRole } from '@hono-react-starter/shared/permissions'
 import { jwtPayloadSchema } from '@hono-react-starter/shared/auth'
 import { auth } from '../auth.ts'
+import { cache as defaultCache } from '../cache.ts'
+import type { Cache } from '../lib/cache.ts'
 import { fail } from '../lib/response.ts'
 
 /**
@@ -37,6 +39,38 @@ function looksLikeJwt(token: string): boolean {
   return token.split('.').length === 3
 }
 
+/** Batas atas umur entri cache hasil verifikasi JWT (detik) — tidak melebihi JWT_EXPIRATION. */
+export const JWT_CACHE_MAX_SECONDS = 15 * 60
+
+/** Key cache untuk sebuah token: hash SHA-256, token mentah tidak pernah jadi key. */
+export function jwtCacheKey(token: string): string {
+  const hasher = new Bun.CryptoHasher('sha256')
+  hasher.update(token)
+  return `jwt:${hasher.digest('hex')}`
+}
+
+/**
+ * Verifikasi JWT dengan cache-aside. JWT stateless (tidak bisa dicabut sebelum
+ * expired), jadi menyimpan hasil verifikasi selama sisa umurnya tidak mengubah
+ * semantik — hanya menghemat pembacaan JWKS + verifikasi tanda tangan per request.
+ */
+export async function verifyJwtCached(token: string, cache: Cache = defaultCache): Promise<AuthUser | null> {
+  const key = jwtCacheKey(token)
+  const hit = await cache.get<AuthUser>(key)
+  if (hit) return hit
+
+  const { payload } = await auth.api.verifyJWT({ body: { token } })
+  if (!payload) return null
+  const parsed = jwtPayloadSchema.safeParse(payload)
+  if (!parsed.success) return null
+  const p = parsed.data
+  const user: AuthUser = { id: p.sub, email: p.email, name: p.name, role: p.role, authMethod: 'jwt' }
+
+  const ttl = p.exp ? Math.min(JWT_CACHE_MAX_SECONDS, p.exp - Math.floor(Date.now() / 1000)) : JWT_CACHE_MAX_SECONDS
+  if (ttl > 0) await cache.set(key, user, ttl)
+  return user
+}
+
 /**
  * Resolusi identitas, urutan:
  * 1. `Authorization: Bearer <JWT>` → verifikasi tanda tangan + iss/aud/exp
@@ -47,14 +81,7 @@ function looksLikeJwt(token: string): boolean {
 export async function resolveUser(headers: Headers): Promise<AuthUser | null> {
   const bearerToken = readBearer(headers)
 
-  if (bearerToken && looksLikeJwt(bearerToken)) {
-    const { payload } = await auth.api.verifyJWT({ body: { token: bearerToken } })
-    if (!payload) return null
-    const parsed = jwtPayloadSchema.safeParse(payload)
-    if (!parsed.success) return null
-    const p = parsed.data
-    return { id: p.sub, email: p.email, name: p.name, role: p.role, authMethod: 'jwt' }
-  }
+  if (bearerToken && looksLikeJwt(bearerToken)) return verifyJwtCached(bearerToken)
 
   const session = await auth.api.getSession({ headers })
   if (!session) return null

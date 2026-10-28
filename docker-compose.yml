@@ -32,6 +32,9 @@ services:
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       # Frontend (apps/web) ikut disajikan oleh API dari apps/web/dist (same-origin),
       # jadi TRUSTED_ORIGINS tidak perlu diisi.
+      # Cache: default memory. Untuk beberapa replika app, aktifkan service redis di bawah dan:
+      # CACHE_PROVIDER: redis
+      # REDIS_URL: redis://redis:6379
       # Email: default console (hanya log). Untuk kirim sungguhan:
       # MAIL_PROVIDER: resend
       # MAIL_FROM: App <no-reply@example.com>
@@ -39,6 +42,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  # redis:
+  #   image: redis:7-alpine
+  #   command: ['redis-server', '--save', '', '--appendonly', 'no']   # cache murni, tanpa persistensi
 
 volumes:
   pgdata:

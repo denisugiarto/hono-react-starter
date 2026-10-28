@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { and, desc, eq } from 'drizzle-orm'
 import { noteCreateSchema, noteUpdateSchema } from '@hono-react-starter/shared/notes'
 import { requireAuth, requirePermission } from '../middleware/auth.ts'
+import { revalidate } from '../middleware/cache-control.ts'
 import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { notes } from '../db/schema.ts'
@@ -21,8 +22,8 @@ const isUuid = (value: string) => UUID_RE.test(value)
 
 const NOT_FOUND = 'Note tidak ditemukan'
 
-// GET /api/notes — daftar catatan milik user (terbaru dulu)
-notesRoutes.get('/', requirePermission({ note: ['read'] }), async (c) => {
+// GET /api/notes — daftar catatan milik user (terbaru dulu). ETag + private/no-cache → 304 bila tak berubah.
+notesRoutes.get('/', requirePermission({ note: ['read'] }), revalidate(), async (c) => {
   const userId = c.get('user').id
   const all = await db
     .select()

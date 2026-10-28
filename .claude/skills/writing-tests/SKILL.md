@@ -15,6 +15,7 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 - Email ditangkap `MemoryMailer` (`mailer` dari `src/mailer.ts`; `MAIL_PROVIDER=memory` di setup). Tautan dari `mail.text`, panggil dengan `app.fetch(new Request(url, { redirect: 'manual' }))`.
 - Kode TOTP nyata: `createOTP(secret).totp()` dari `@better-auth/utils/otp`, secret = base32-decode dari `totpURI`.
 - Konfigurasi alternatif tanpa ubah env: `createApp({ isProd, serveWeb, docs, rateLimit, extend })`, `createApiRoutes({ ping })`, `createAuth({ requireEmailVerification, mailer, rateLimit })`.
+- Cookie cache sesi dimatikan untuk `auth` utama saat test (`AUTH_SESSION_CACHE_SECONDS=0` di setup) — test yang mengubah role/sesi di DB lalu memakai cookie lama bergantung padanya; uji cache sesi lewat `createAuth({ sessionCacheSeconds })` dengan `.handler` sendiri. Cache aplikasi: suntik `new MemoryCache({ now })` atau `RedisCache(fakeClient)`; jangan sentuh Redis sungguhan.
 - Akun demo (`seedDemo()` dari `src/db/demo.ts`, konstanta di `@hono-react-starter/shared/demo`) boleh dipakai di test API; jangan andalkan urutan global tabel `audit_log` — filter per email/actor karena file test lain (termasuk seed demo) ikut menulis.
 - Arrow `.catch(() => …)` dihitung sebagai fungsi oleh coverage: pastikan ada test yang memicunya (mis. JSON rusak), atau tulis `try/catch` bila jalurnya sulit dipicu.
 
@@ -23,6 +24,7 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 - Setiap file: `beforeEach(setupEach); afterEach(teardownEach)` dari `tests/utils.tsx`. Hook `bun:test` hanya boleh dipanggil di file test; memanggilnya dari modul helper memicu "beforeEach is not a function".
 - `renderAt('/path')` = seluruh app (Providers + `createMemoryRouter`), mengembalikan `router` → cek `router.state.location.pathname` dengan `waitFor`.
 - Sesi: `asGuest()`, `asUser({ emailVerified, twoFactorEnabled })`, `asAdmin()`; `sessionState.isPending = true` untuk skeleton. Hasil auth: `authMock.result` (sign-in/up), `authMock.responses['twoFactor.enable'] = { data, error }`; semua panggilan tercatat di `authCalls`.
+- Mutasi optimistic: uji jalur gagal dengan `apiMock.fail.update` / `apiMock.fail.delete` dan pastikan UI kembali ke snapshot (`not.toContain('line-through')`, item muncul lagi) + toast error (`findAllByText`).
 - Fetch API: `tests/mocks/api.ts`. Endpoint baru = cabang `if (url === '/api/x' && method === 'GET')` di dalam `installFetchMock()` **sebelum** fallback 404, respons `jsonResponse(data, status, message)`; data in-memory + flag gagal masuk objek `apiMock` (tambahkan field di tipe dan di `resetApiMock()`), contoh `apiMock.notes`, `apiMock.fail.create`, `apiMock.auditTotal`.
 - Impor mock **sebelum** modul app — `tests/utils.tsx` sudah mengatur; jangan impor `src/**` yang menyentuh `auth-client` dari file test lain secara langsung (urutan file di CI/Linux berbeda → "Invalid base URL: null").
 - Selector: `CardTitle` bukan heading → `getByText`; teks toast muncul ganda (live region) → `findAllByText`; header punya link "Masuk" juga → `within(container)`.

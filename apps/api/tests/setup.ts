@@ -16,6 +16,10 @@ process.env.BETTER_AUTH_SECRET ??= 'test-secret-test-secret-test-secret-123456'
 process.env.BETTER_AUTH_URL ??= 'http://localhost:3000'
 process.env.MAIL_PROVIDER = 'memory' // email ditangkap di memori (lihat tests/account.test.ts)
 delete process.env.AUTH_REQUIRE_EMAIL_VERIFICATION
+// Cookie cache sesi dimatikan untuk instance `auth` utama: banyak test mengubah role/sesi
+// langsung di DB lalu memakai cookie yang sama. Perilaku cache diuji terpisah dengan
+// createAuth({ sessionCacheSeconds }) di tests/session-cache.test.ts.
+process.env.AUTH_SESSION_CACHE_SECONDS ??= '0'
 
 function deriveTestUrl(url: string | undefined): string {
   const base = url ?? 'postgresql://localhost:5432/hono_react_starter'

@@ -150,3 +150,40 @@ describe('RBAC — permission via JWT', () => {
     expect((await call('/api/admin/users', { headers: { Authorization: `Bearer ${freshJwt}` } })).status).toBe(200)
   })
 })
+
+describe('JWT — cache hasil verifikasi', () => {
+  test('verifikasi pertama mengisi cache (TTL ≤ sisa umur); berikutnya dari cache', async () => {
+    const { MemoryCache } = await import('../src/lib/cache.ts')
+    const { jwtCacheKey, verifyJwtCached, JWT_CACHE_MAX_SECONDS } = await import('../src/middleware/auth.ts')
+    const u = await signUp()
+    const token = await issueJwt(u.cookie)
+    const c = new MemoryCache()
+
+    const first = await verifyJwtCached(token, c)
+    expect(first?.email).toBe(u.email)
+    expect(first?.authMethod).toBe('jwt')
+    const stored = await c.get<{ email: string }>(jwtCacheKey(token))
+    expect(stored?.email).toBe(u.email)
+    expect(JWT_CACHE_MAX_SECONDS).toBe(15 * 60)
+
+    // Entri cache dipakai apa adanya — tanpa verifikasi ulang
+    await c.set(jwtCacheKey(token), { ...first!, name: 'Dari Cache' }, 60)
+    expect((await verifyJwtCached(token, c))?.name).toBe('Dari Cache')
+
+    // Token tidak valid → null dan tidak disimpan
+    expect(await verifyJwtCached('a.b.c', c)).toBeNull()
+    expect(await c.get(jwtCacheKey('a.b.c'))).toBeUndefined()
+    expect(jwtCacheKey(token)).toMatch(/^jwt:[0-9a-f]{64}$/)
+  })
+
+  test('requireAuth memakai cache singleton: token yang sama tidak diverifikasi ulang', async () => {
+    const { cache } = await import('../src/cache.ts')
+    const { jwtCacheKey } = await import('../src/middleware/auth.ts')
+    const u = await signUp()
+    const token = await issueJwt(u.cookie)
+    await cache.delete(jwtCacheKey(token))
+    const res = await call('/api/admin/me', { headers: { Authorization: `Bearer ${token}` } })
+    expect(res.status).toBe(200)
+    expect(await cache.get(jwtCacheKey(token))).toBeDefined()
+  })
+})

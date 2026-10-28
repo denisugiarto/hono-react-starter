@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   noteSchema,
   type Note,
@@ -42,7 +43,28 @@ export function useCreateNote() {
   })
 }
 
-/** Toggle selesai / belum (mutation) */
+type Snapshot = { previous?: Note[] }
+
+/**
+ * Optimistic update (pola TanStack Query):
+ *   onMutate  → batalkan refetch yang sedang berjalan, simpan snapshot, ubah cache lokal
+ *   onError   → kembalikan snapshot + toast
+ *   onSettled → invalidate agar cache disamakan dengan server (sukses maupun gagal)
+ * UI berubah seketika; server tetap sumber kebenaran.
+ */
+async function optimistic(qc: ReturnType<typeof useQueryClient>, update: (notes: Note[]) => Note[]): Promise<Snapshot> {
+  await qc.cancelQueries({ queryKey: notesKeys.all })
+  const previous = qc.getQueryData<Note[]>(notesKeys.all)
+  if (previous) qc.setQueryData<Note[]>(notesKeys.all, update(previous))
+  return { previous }
+}
+
+function rollback(qc: ReturnType<typeof useQueryClient>, snapshot: Snapshot | undefined, err: Error) {
+  if (snapshot?.previous) qc.setQueryData(notesKeys.all, snapshot.previous)
+  toast.error(err.message || 'Perubahan gagal disimpan')
+}
+
+/** Toggle selesai / belum (mutation, optimistic) */
 export function useToggleNote() {
   const qc = useQueryClient()
   return useMutation({
@@ -51,15 +73,19 @@ export function useToggleNote() {
         method: 'PATCH',
         body: JSON.stringify({ done } satisfies NoteUpdateInput),
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
+    onMutate: ({ id, done }) => optimistic(qc, (notes) => notes.map((n) => (n.id === id ? { ...n, done } : n))),
+    onError: (err, _vars, snapshot) => rollback(qc, snapshot, err),
+    onSettled: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
   })
 }
 
-/** Hapus note (mutation) */
+/** Hapus note (mutation, optimistic) */
 export function useDeleteNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => request<{ id: string }>(`/api/notes/${id}`, { method: 'DELETE' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
+    onMutate: (id) => optimistic(qc, (notes) => notes.filter((n) => n.id !== id)),
+    onError: (err, _id, snapshot) => rollback(qc, snapshot, err),
+    onSettled: () => qc.invalidateQueries({ queryKey: notesKeys.all }),
   })
 }

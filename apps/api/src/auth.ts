@@ -10,6 +10,7 @@ import {
   readAuthSecret,
   readBaseUrl,
   readEmailVerificationRequired,
+  readSessionCacheSeconds,
   readTrustedOrigins,
   type AuthRateLimitConfig,
 } from './env.ts'
@@ -35,6 +36,8 @@ export type AuthOptions = {
   mailer?: Mailer
   /** Rate limit /api/auth/*. Default dari env AUTH_RATE_LIMIT_* (nonaktif saat test); `false` mematikan. */
   rateLimit?: AuthRateLimitConfig | false
+  /** Cookie cache sesi (detik). Default dari env AUTH_SESSION_CACHE_SECONDS; 0 = nonaktif. */
+  sessionCacheSeconds?: number
 }
 
 /**
@@ -47,6 +50,7 @@ export function createAuth(options: AuthOptions = {}) {
   const mailer = options.mailer ?? defaultMailer
   const requireEmailVerification = options.requireEmailVerification ?? readEmailVerificationRequired()
   const rateLimit = options.rateLimit ?? readAuthRateLimit()
+  const sessionCacheSeconds = options.sessionCacheSeconds ?? readSessionCacheSeconds()
 
   return betterAuth({
     appName: APP_NAME,
@@ -84,6 +88,12 @@ export function createAuth(options: AuthOptions = {}) {
       sendOnSignIn: true,
       autoSignInAfterVerification: true,
       expiresIn: EMAIL_VERIFICATION_EXPIRES_IN,
+    },
+    session: {
+      // Cookie cache: salinan sesi+user di cookie bertanda tangan (better-auth.session_data)
+      // selama N detik → getSession tanpa query DB. Dicabut saat sign-out/ganti password;
+      // perubahan role/ban terasa paling lama N detik kemudian (AUTH_SESSION_CACHE_SECONDS).
+      cookieCache: { enabled: sessionCacheSeconds > 0, maxAge: sessionCacheSeconds },
     },
     advanced: {
       // Di belakang reverse proxy (nginx/Caddy/Fly/Railway/Cloudflare) IP asli

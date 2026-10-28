@@ -9,7 +9,7 @@ export const fetchCalls: Call[] = []
 type NoteRow = Record<string, unknown> & { id: string }
 export const apiMock = {
   notes: [] as NoteRow[],
-  fail: { create: false, notes: false, admin: false, health: false, hello: false, audit: false },
+  fail: { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false },
   /** Jumlah entri audit yang disajikan (dua halaman bila > pageSize). */
   auditTotal: 3,
 }
@@ -52,7 +52,7 @@ const originalFetch = globalThis.fetch
 export function resetApiMock() {
   fetchCalls.length = 0
   apiMock.notes = [sampleNote()]
-  apiMock.fail = { create: false, notes: false, admin: false, health: false, hello: false, audit: false }
+  apiMock.fail = { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false }
   apiMock.auditTotal = 3
 }
 
@@ -83,10 +83,12 @@ export function installFetchMock() {
       return jsonResponse(created, 201, 'Catatan dibuat')
     }
     if (url.startsWith('/api/notes/') && method === 'PATCH') {
+      if (apiMock.fail.update) return jsonResponse({ code: 'X', message: 'Gagal mengubah' }, 500)
       apiMock.notes = apiMock.notes.map((n) => (url.endsWith(n.id) ? { ...n, ...body } : n))
       return jsonResponse(apiMock.notes[0])
     }
     if (url.startsWith('/api/notes/') && method === 'DELETE') {
+      if (apiMock.fail.delete) return jsonResponse({ code: 'X', message: 'Gagal menghapus' }, 500)
       apiMock.notes = apiMock.notes.filter((n) => !url.endsWith(n.id))
       return jsonResponse({ id: 'x' }, 200, 'Catatan dihapus')
     }

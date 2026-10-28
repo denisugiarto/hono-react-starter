@@ -1,6 +1,9 @@
 import { app } from './app.ts'
 import { client } from './db/index.ts'
-import { readPort } from './env.ts'
+import { readLogConfig, readPort } from './env.ts'
+import { Logger } from './lib/logger.ts'
+
+const log = new Logger({ ...readLogConfig(), base: { service: 'hono-react-starter' } })
 
 /**
  * Entry server.
@@ -18,12 +21,20 @@ export default {
 // (Hanya saat dieksekusi langsung oleh Bun — di dev via vite-dev-server
 // import.meta.main bernilai false.)
 if (import.meta.main) {
-  console.log(`Server berjalan di http://localhost:${readPort()}`)
+  log.info('server started', { port: readPort(), nodeEnv: process.env.NODE_ENV ?? 'development' })
+
   const shutdown = async (signal: string) => {
-    console.log(`${signal} diterima, menutup koneksi database...`)
+    log.info('shutting down', { signal })
     await client.end({ timeout: 5 }).catch(() => {})
     process.exit(0)
   }
   process.on('SIGINT', () => void shutdown('SIGINT'))
   process.on('SIGTERM', () => void shutdown('SIGTERM'))
+
+  // Error di luar siklus request (timer, promise lepas) tetap tercatat terstruktur.
+  process.on('unhandledRejection', (reason) => log.error('unhandled rejection', { err: reason }))
+  process.on('uncaughtException', (err) => {
+    log.error('uncaught exception', { err })
+    process.exit(1)
+  })
 }

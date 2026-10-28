@@ -1,3 +1,5 @@
+import { LOG_LEVELS, type LogFormat, type LogLevel } from './lib/logger.ts'
+
 /**
  * Validasi environment variables — fail-fast di startup.
  * Mencegah misconfigurasi diam-diam di production.
@@ -95,4 +97,29 @@ export function readApiRateLimit(): ApiRateLimitConfig | false {
     fail('API_RATE_LIMIT_WINDOW', `harus bilangan bulat ≥ 1 detik: "${rawWindow}"`)
   }
   return { max, windowSeconds }
+}
+
+export type LogConfig = { level: LogLevel; format: LogFormat }
+
+/**
+ * Konfigurasi logging.
+ * - LOG_LEVEL: debug | info | warn | error | silent
+ *   (default: production → info, test → silent, lainnya → debug)
+ * - LOG_FORMAT: json | pretty (default: production → json, lainnya → pretty)
+ */
+export function readLogConfig(): LogConfig {
+  const rawLevel = process.env.LOG_LEVEL
+  const rawFormat = process.env.LOG_FORMAT
+
+  let level: LogLevel
+  if (rawLevel === undefined) level = envIsProd() ? 'info' : envIsTest() ? 'silent' : 'debug'
+  else if ((LOG_LEVELS as readonly string[]).includes(rawLevel)) level = rawLevel as LogLevel
+  else fail('LOG_LEVEL', `harus salah satu dari ${LOG_LEVELS.join('|')}: "${rawLevel}"`)
+
+  let format: LogFormat
+  if (rawFormat === undefined) format = envIsProd() ? 'json' : 'pretty'
+  else if (rawFormat === 'json' || rawFormat === 'pretty') format = rawFormat
+  else fail('LOG_FORMAT', `harus json|pretty: "${rawFormat}"`)
+
+  return { level, format }
 }

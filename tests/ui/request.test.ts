@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { ApiError, request, requestEnvelope } from '../../src/lib/api/request.ts'
+import { ApiError, describeError, request, requestEnvelope } from '../../src/lib/api/request.ts'
 
 const originalFetch = globalThis.fetch
 afterEach(() => {
@@ -62,5 +62,18 @@ describe('request() / requestEnvelope()', () => {
   test('status 200 tetapi body bukan envelope → tetap error', async () => {
     stub(Response.json({ foo: 1 }))
     await expect(request('/x')).rejects.toMatchObject({ message: 'HTTP 200' })
+  })
+})
+
+describe('describeError()', () => {
+  test('ApiError 500 dengan requestId → sertakan ref untuk dilaporkan', () => {
+    const e = new ApiError('Terjadi kesalahan internal', 500, 'INTERNAL_ERROR', { requestId: 'abc-123' })
+    expect(describeError(e)).toBe('Terjadi kesalahan internal (ref: abc-123)')
+  })
+  test('ApiError tanpa requestId, Error biasa, nilai lain', () => {
+    expect(describeError(new ApiError('Tidak valid', 400, 'VALIDATION_ERROR', { title: ['x'] }))).toBe('Tidak valid')
+    expect(describeError(new ApiError('Nope', 404))).toBe('Nope')
+    expect(describeError(new Error('biasa'))).toBe('biasa')
+    expect(describeError('string')).toBe('Terjadi kesalahan')
   })
 })

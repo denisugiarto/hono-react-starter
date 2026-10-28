@@ -267,9 +267,21 @@ Verifikasi iterasi 2:
 - Test diperbarui (helper `readData`), total 109 (81 server + 28 UI), coverage tetap 100 % per file.
 - `/api/auth/*` tidak diubah (format Better Auth).
 
+## Iterasi 7 — Logging terstruktur & tracing error (2026-10-28)
+
+- `src/server/lib/logger.ts`: Logger tanpa dependency (json/pretty, level, child, sink), `serializeError`
+  (name/message/stack/cause + code/detail/constraint/table Postgres), `createCapturingSink` untuk test.
+- `middleware/request-log.ts`: satu baris per request (requestId, method, path, status, durationMs,
+  ip, userId, userAgent; level by status) + `c.get('log')` (child ber-requestId). Menggantikan `hono/logger`.
+- `app.onError`: `unhandled error` (error, stack + konteks) / `http exception` (warn); `details.requestId`
+  di respons 500 = requestId di log. `types.ts` (`AppEnv`) agar `c.get('log')`/`c.get('user')` bertipe.
+- `index.ts`: log start/stop terstruktur, `unhandledRejection` & `uncaughtException`.
+- Client: `describeError()` menampilkan `(ref: <requestId>)` pada error 500 di UI.
+- Env: `LOG_LEVEL`, `LOG_FORMAT` (+ validasi, test). Total 125 test, coverage 100 % per file.
+
 ## Next Steps
 
-- Push iterasi 6 ke GitHub (CI).
+- Push iterasi 7 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

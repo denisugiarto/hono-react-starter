@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
 import { and, desc, eq } from 'drizzle-orm'
 import { noteCreateSchema, noteUpdateSchema } from '../../shared/notes.ts'
-import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
+import { requireAuth, requirePermission } from '../middleware/auth.ts'
+import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { notes } from '../db/schema.ts'
 import { fail, ok } from '../lib/response.ts'
 
-export const notesRoutes = new Hono<AuthEnv>()
+export const notesRoutes = new Hono<AppEnv>()
 
 // Semua route notes wajib terautentikasi (sesi cookie atau JWT bearer);
 // permission dicek per aksi dan setiap query dibatasi ke pemilik (user_id).
@@ -44,6 +45,7 @@ notesRoutes.post('/', requirePermission({ note: ['create'] }), async (c) => {
     .values({ userId, title: parsed.data.title, content: parsed.data.content })
     .returning()
 
+  c.get('log').info('note created', { noteId: note!.id })
   return ok(c, note, { status: 201, message: 'Catatan dibuat' })
 })
 
@@ -82,5 +84,6 @@ notesRoutes.delete('/:id', requirePermission({ note: ['delete'] }), async (c) =>
     .where(and(eq(notes.id, id), eq(notes.userId, userId)))
     .returning({ id: notes.id })
   if (deleted.length === 0) return fail(c, 404, 'NOT_FOUND', NOT_FOUND)
+  c.get('log').info('note deleted', { noteId: id })
   return ok(c, { id }, { message: 'Catatan dihapus' })
 })

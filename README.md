@@ -78,9 +78,13 @@ hono-react-starter/
         ├── app.ts          # createApp(): middleware, API, auth, static, SPA fallback
         ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
         ├── env.ts          # Validasi environment variables (fail-fast)
-        ├── lib/response.ts # ok() / fail() — helper envelope respons
+        ├── types.ts        # AppEnv: requestId, log (logger per-request), user
+        ├── lib/
+        │   ├── logger.ts   # Logger terstruktur (json/pretty, child, serializeError)
+        │   └── response.ts # ok() / fail() — helper envelope respons
         ├── middleware/
         │   ├── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
+        │   ├── request-log.ts # Satu baris log per request + c.get('log')
         │   └── rate-limit.ts # Rate limit /api/* (hono-rate-limiter + store PostgreSQL)
         ├── routes/
         │   ├── api.ts      # Endpoint contoh
@@ -127,6 +131,8 @@ Semua env di `.env` (jangan di-commit). Salin `.env.example` lalu sesuaikan.
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
+| `LOG_LEVEL` | Tidak | prod `info`, dev `debug`, test `silent` | `debug` / `info` / `warn` / `error` / `silent` |
+| `LOG_FORMAT` | Tidak | prod `json`, lainnya `pretty` | Format baris log |
 | `ADMIN_EMAIL` | Ya (production, saat seed) | `admin@example.com` (dev) | Email akun admin saat `db:seed` |
 | `ADMIN_PASSWORD` | Ya (production, saat seed) | `admin123456` (dev) | Password admin saat `db:seed`, min 8 karakter |
 | `ADMIN_NAME` | Tidak | `Admin` | Nama admin saat `db:seed` |
@@ -365,8 +371,8 @@ return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten
 `{ success, data, message }` (dipakai `useCreateNote` untuk menampilkan pesan). Error dilempar
 sebagai `ApiError { status, code, message, details }`.
 
-**Log error** — 500 dicatat ke stderr dengan `X-Request-Id`; nilai yang sama dikirim ke client di
-`details.requestId` sehingga laporan pengguna bisa dicocokkan dengan log.
+**Log error** — lihat bagian [Logging & Tracing](#logging--tracing): 500 dicatat lengkap (stack,
+cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di respons.
 
 | Method | Path | Deskripsi |
 | --- | --- | --- |
@@ -430,6 +436,48 @@ Pola yang dipakai agar jalur production bisa diuji tanpa mengubah `NODE_ENV`:
 `createApp({ isProd, distDir, extend })` di `src/server/app.ts` dan `createApiRoutes({ ping })`
 di `routes/api.ts` (simulasi DB down → 503).
 
+## Logging & Tracing
+
+Logger terstruktur tanpa dependency di `src/server/lib/logger.ts` (format JSON di production,
+`pretty` di development; atur via `LOG_LEVEL` / `LOG_FORMAT`).
+
+**Setiap request** menghasilkan satu baris setelah respons selesai (`middleware/request-log.ts`):
+
+```json
+{"time":"2026-10-28T05:49:15.832Z","level":"info","msg":"request","service":"hono-react-starter",
+ "requestId":"4f2c…","method":"GET","path":"/api/hello","status":200,"durationMs":1.3,
+ "ip":"203.0.113.9","userId":"u_01","userAgent":"curl/8.4"}
+```
+
+Level otomatis: 2xx/3xx → `info`, 4xx → `warn`, 5xx → `error`. `warn`/`error` ditulis ke stderr,
+sisanya ke stdout.
+
+**Error 500** dicatat sebelum baris request, dengan `requestId` yang sama:
+
+```json
+{"level":"error","msg":"unhandled error","requestId":"4f2c…","method":"POST","path":"/api/notes",
+ "userId":"u_01","err":{"name":"PostgresError","message":"duplicate key value…","code":"23505",
+ "detail":"Key (email)=(a@b) already exists.","constraint":"user_email_unique","stack":"…"}}
+```
+
+Client menerima `{ success:false, code:"INTERNAL_ERROR", details:{ requestId:"4f2c…" } }` dan UI
+menampilkan `… (ref: 4f2c…)` (`describeError()` di `src/lib/api/request.ts`). Alur trace:
+**pengguna melaporkan ref → cari `requestId` di log → baris `unhandled error` (stack, kode DB) + baris
+`request` (user, IP, durasi)**. Header `X-Request-Id` juga ada di setiap respons; reverse proxy
+bisa meneruskannya ke log akses.
+
+**Di handler** pakai logger per-request yang sudah membawa `requestId`:
+
+```ts
+c.get('log').info('note created', { noteId: note.id })
+c.get('log').warn('stok menipis', { productId, sisa })
+c.get('log').error('gagal kirim email', { err })   // err diserialisasi otomatis
+```
+
+Error di luar siklus request (`unhandledRejection`, `uncaughtException`) dan start/stop server
+juga dicatat (`src/server/index.ts`). `createApp({ logger })` menerima logger kustom (test memakai
+`createCapturingSink()` untuk memeriksa baris log).
+
 ## Security & Hardening
 
 Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
@@ -445,7 +493,7 @@ Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
 | JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
 | RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
-| Error | `onError` → envelope `INTERNAL_ERROR` + `details.requestId`, log stack di server dengan `X-Request-Id`, tidak bocorkan stack |
+| Error | `onError` → envelope `INTERNAL_ERROR` + `details.requestId`; log terstruktur berisi stack/cause/kode DB dengan `requestId` yang sama; stack tidak pernah dikirim ke client |
 
 Catatan rate limit: kunci per IP diambil dari header proxy. Pastikan reverse proxy **menimpa**
 `X-Forwarded-For`/`X-Real-IP` dengan alamat koneksi asli (bukan meneruskan nilai dari klien),

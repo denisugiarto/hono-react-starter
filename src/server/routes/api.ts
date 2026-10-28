@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { sql } from 'drizzle-orm'
 import { db } from '../db/index.ts'
+import { Logger } from '../lib/logger.ts'
 import { fail, ok } from '../lib/response.ts'
+import type { AppEnv } from '../types.ts'
 
 export type ApiOptions = {
   /** Pengecekan kesiapan DB; default `select 1`. Bisa diganti di test. */
@@ -9,13 +11,15 @@ export type ApiOptions = {
 }
 
 const defaultPing = () => db.execute(sql`select 1`)
+// Fallback bila route dipakai tanpa middleware requestLog (mis. test unit)
+const rootLogger = new Logger({ level: 'silent' })
 
 /**
  * Route API umum (health, contoh hello/echo). `api` di bawah adalah instance
  * runtime; `createApiRoutes()` dipakai test untuk menyimulasikan DB down.
  */
 export function createApiRoutes({ ping = defaultPing }: ApiOptions = {}) {
-  const api = new Hono()
+  const api = new Hono<AppEnv>()
 
   /**
    * GET /api/health — liveness + readiness.
@@ -28,7 +32,7 @@ export function createApiRoutes({ ping = defaultPing }: ApiOptions = {}) {
       await ping()
       return ok(c, { status: 'ok', database: 'ok', uptime: process.uptime(), timestamp })
     } catch (err) {
-      console.error('[health] database unreachable:', err)
+      ;(c.get('log') ?? rootLogger).error('health check: database unreachable', { err })
       return fail(c, 503, 'SERVICE_UNAVAILABLE', 'Database tidak dapat dihubungi', {
         status: 'degraded',
         database: 'unreachable',

@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
 import { desc } from 'drizzle-orm'
 import type { AdminUser } from '../../shared/auth.ts'
-import { requireAuth, requirePermission, type AuthEnv } from '../middleware/auth.ts'
+import { requireAuth, requirePermission } from '../middleware/auth.ts'
+import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { user } from '../db/schema.ts'
 import { ok } from '../lib/response.ts'
 
-export const adminRoutes = new Hono<AuthEnv>()
+export const adminRoutes = new Hono<AppEnv>()
 
 // Semua route admin wajib terautentikasi (sesi atau JWT); permission dicek per route.
 adminRoutes.use('*', requireAuth)

@@ -52,3 +52,18 @@ export async function requestEnvelope<T>(
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return (await requestEnvelope<T>(url, init)).data
 }
+
+/**
+ * Pesan error untuk ditampilkan ke pengguna. Bila server menyertakan
+ * `details.requestId` (error 500), ID ikut ditampilkan agar pengguna bisa
+ * melaporkannya dan tim mencocokkannya dengan log server.
+ */
+export function describeError(err: unknown): string {
+  if (err instanceof ApiError) {
+    const details = err.details as { requestId?: unknown } | undefined
+    const requestId = details && typeof details.requestId === 'string' ? details.requestId : null
+    return requestId ? `${err.message} (ref: ${requestId})` : err.message
+  }
+  if (err instanceof Error) return err.message
+  return 'Terjadi kesalahan'
+}

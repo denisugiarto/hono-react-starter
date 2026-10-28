@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { HTTPException } from 'hono/http-exception'
 import { createApp } from '../../src/server/app.ts'
+import { Logger, createCapturingSink } from '../../src/server/lib/logger.ts'
 import { requireAuth, requireRole } from '../../src/server/middleware/auth.ts'
 import { ORIGIN, signUp } from './helpers.ts'
 
@@ -107,23 +108,16 @@ describe('createApp — error handler & middleware role', () => {
   })
 
   test('error tak terduga → 500 JSON generik (tanpa stack)', async () => {
-    const original = console.error
-    const logged: unknown[] = []
-    console.error = (...args: unknown[]) => void logged.push(args)
-    try {
-      const res = await app.fetch(req('/api/__test/boom'))
-      expect(res.status).toBe(500)
-      const body = (await res.json()) as Record<string, unknown>
-      expect(body).toEqual({
-        success: false,
-        code: 'INTERNAL_ERROR',
-        message: 'Terjadi kesalahan internal',
-        details: { requestId: expect.any(String) },
-      })
-      expect(logged.length).toBe(1)
-    } finally {
-      console.error = original
-    }
+    const res = await app.fetch(req('/api/__test/boom'))
+    expect(res.status).toBe(500)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body).toEqual({
+      success: false,
+      code: 'INTERNAL_ERROR',
+      message: 'Terjadi kesalahan internal',
+      details: { requestId: expect.any(String) },
+    })
+    expect(JSON.stringify(body)).not.toContain('meledak') // pesan internal tidak bocor
   })
 
   test('HTTPException → status & pesan asli', async () => {
@@ -148,5 +142,91 @@ describe('createApp — error handler & middleware role', () => {
     const ok = await app.fetch(req('/api/__test/chained', { headers: { Cookie: u.cookie } }))
     expect(ok.status).toBe(200)
     expect(((await ok.json()) as { role: string }).role).toBe('user') // route test mengembalikan JSON mentah
+  })
+})
+
+describe('createApp — request log & error log (tracing)', () => {
+  const { sink, lines } = createCapturingSink()
+  const logger = new Logger({ level: 'debug', sink, base: { service: 'test' } })
+  const app = createApp({
+    logger,
+    extend: (a) => {
+      a.get('/api/__log/ok', (c) => {
+        c.get('log').info('custom event', { foo: 'bar' })
+        return c.json({ ok: true })
+      })
+      a.get('/api/__log/boom', () => {
+        throw Object.assign(new Error('db exploded'), { code: '23505', detail: 'dup' })
+      })
+      a.get('/api/__log/teapot', () => {
+        throw new HTTPException(418, { message: 'teko' })
+      })
+    },
+  })
+  const last = () => lines[lines.length - 1]!.json()
+
+  test('setiap request → satu baris "request" dengan requestId = header X-Request-Id', async () => {
+    lines.length = 0
+    const res = await app.fetch(req('/api/__log/ok', { headers: { 'user-agent': 'bun-test' } }))
+    expect(res.status).toBe(200)
+    const requestId = res.headers.get('x-request-id')
+    expect(requestId).toBeTruthy()
+
+    const custom = lines.find((l) => l.json().msg === 'custom event')!.json()
+    expect(custom.requestId).toBe(requestId)
+    expect(custom.foo).toBe('bar')
+    expect(custom.service).toBe('test')
+
+    const row = last()
+    expect(row.msg).toBe('request')
+    expect(row.level).toBe('info')
+    expect(row.requestId).toBe(requestId)
+    expect(row.method).toBe('GET')
+    expect(row.path).toBe('/api/__log/ok')
+    expect(row.status).toBe(200)
+    expect(typeof row.durationMs).toBe('number')
+    expect(row.ip).toBe('unknown')
+    expect(row.userAgent).toBe('bun-test')
+  })
+
+  test('500 → log error dengan stack + kode Postgres, requestId sama dengan details.requestId', async () => {
+    lines.length = 0
+    const res = await app.fetch(req('/api/__log/boom'))
+    expect(res.status).toBe(500)
+    const body = (await res.json()) as { details: { requestId: string } }
+
+    const errLine = lines.find((l) => l.json().msg === 'unhandled error')!.json()
+    expect(errLine.level).toBe('error')
+    expect(errLine.requestId).toBe(body.details.requestId)
+    expect(errLine.path).toBe('/api/__log/boom')
+    const err = errLine.err as { message: string; stack: string; code: string; detail: string }
+    expect(err.message).toBe('db exploded')
+    expect(err.stack).toContain('db exploded')
+    expect(err.code).toBe('23505')
+    expect(err.detail).toBe('dup')
+
+    expect(last().msg).toBe('request')
+    expect(last().level).toBe('error')
+    expect(last().status).toBe(500)
+  })
+
+  test('HTTPException → warn "http exception"; 4xx request → warn; userId tercatat saat login', async () => {
+    lines.length = 0
+    await app.fetch(req('/api/__log/teapot'))
+    expect(lines.find((l) => l.json().msg === 'http exception')!.json().status).toBe(418)
+    expect(last().level).toBe('warn')
+
+    const u = await signUp()
+    lines.length = 0
+    await app.fetch(req('/api/notes', { headers: { Cookie: u.cookie, 'x-real-ip': '9.9.9.9' } }))
+    expect(last().userId).toBe(u.user.id)
+    expect(last().ip).toBe('9.9.9.9')
+  })
+
+  test('silent: true → tidak ada log sama sekali', async () => {
+    const { sink: s2, lines: l2 } = createCapturingSink()
+    const quiet = createApp({ silent: true, logger: new Logger({ sink: s2 }) })
+    await quiet.fetch(req('/api/health'))
+    expect(l2.length).toBe(0)
   })
 })

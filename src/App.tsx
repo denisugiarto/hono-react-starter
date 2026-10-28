@@ -28,7 +28,7 @@ import {
   useToggleNote,
 } from '@/lib/api/notes'
 import { useAdminUsers } from '@/lib/api/admin'
-import { request } from '@/lib/api/request'
+import { describeError, request } from '@/lib/api/request'
 import {
   can,
   healthResponseSchema,
@@ -221,7 +221,7 @@ function App() {
                 <Skeleton className="h-4 w-1/2" />
               </div>
             ) : healthQuery.isError ? (
-              <p className="text-destructive">{healthQuery.error.message}</p>
+              <p className="text-destructive">{describeError(healthQuery.error)}</p>
             ) : healthQuery.data ? (
               <>
                 <p>
@@ -343,7 +343,7 @@ function App() {
                     </div>
                   ) : adminQuery.isError ? (
                     <p className="text-sm text-destructive">
-                      {adminQuery.error.message}
+                      {describeError(adminQuery.error)}
                     </p>
                   ) : (
                     <ul className="space-y-2">
@@ -509,7 +509,7 @@ function App() {
           </form>
 
           {createNote.isError && (
-            <p className="text-sm text-destructive">{createNote.error.message}</p>
+            <p className="text-sm text-destructive">{describeError(createNote.error)}</p>
           )}
           {createNote.isSuccess && createNote.data.message && (
             <p className="text-sm text-muted-foreground" role="status">
@@ -523,7 +523,7 @@ function App() {
               <Skeleton className="h-10 w-full" />
             </div>
           ) : notesQuery.isError ? (
-            <p className="text-sm text-destructive">{notesQuery.error.message}</p>
+            <p className="text-sm text-destructive">{describeError(notesQuery.error)}</p>
           ) : notesQuery.data.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
               Belum ada catatan. Tambahkan satu di atas!

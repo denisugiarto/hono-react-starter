@@ -66,9 +66,7 @@ describe('GET /api/health — DB down', () => {
         throw new Error('connection refused')
       },
     })
-    const original = console.error
-    console.error = () => {}
-    try {
+    {
       const res = await api.fetch(new Request('http://localhost/health'))
       expect(res.status).toBe(503)
       const body = (await res.json()) as {
@@ -80,8 +78,6 @@ describe('GET /api/health — DB down', () => {
       expect(body.code).toBe('SERVICE_UNAVAILABLE')
       expect(body.details.status).toBe('degraded')
       expect(body.details.database).toBe('unreachable')
-    } finally {
-      console.error = original
     }
   })
 

@@ -279,9 +279,28 @@ Verifikasi iterasi 2:
 - Client: `describeError()` menampilkan `(ref: <requestId>)` pada error 500 di UI.
 - Env: `LOG_LEVEL`, `LOG_FORMAT` (+ validasi, test). Total 125 test, coverage 100 % per file.
 
+## Iterasi 8 — Monorepo Nx: pisah frontend & backend (2026-10-28)
+
+- Struktur baru: `apps/api` (Hono/Bun, `@hono-react-starter/api`), `apps/web` (React/Vite,
+  `@hono-react-starter/web`), `packages/shared` (`@hono-react-starter/shared`, `exports` ke sumber TS —
+  tanpa build). Bun workspaces + Nx 24 (`nx.json`: cache, `namedInputs`, `dependsOn`, `continuous` dev).
+- Dev tidak lagi memakai `@hono/vite-dev-server`: `bun run dev` = `nx run-many -t dev` → api
+  (`bun --watch`, :3000) + web (Vite :5173, proxy `/api`). Better Auth menerima origin Vite lewat
+  env baru `TRUSTED_ORIGINS` (`readTrustedOrigins()`, default dev `http://localhost:5173`).
+- Production: api menyajikan `apps/web/dist` (`defaultDistDir()` relatif file, override `WEB_DIST_DIR`);
+  di mode dev route non-API → 404 JSON. `AppEnv` tanpa binding Vite. Folder migrasi relatif file
+  (`db/migrations-dir.ts`) agar tidak bergantung cwd.
+- Alias `@/*` dan `@hono-react-starter/shared` didefinisikan di `tsconfig.base.json` — Bun tidak membaca
+  `paths` dari tsconfig anak saat `extends` (dan `baseUrl` sudah deprecated di TS 6).
+- Coverage per proyek (`bunfig.toml` masing-masing); shared dikecualikan saat dimuat api/web.
+- Dockerfile multi-stage untuk workspace (manifest → install → `bun run build` → runtime
+  `apps/api` + `apps/web/dist`), `.dockerignore`, CI memakai `nx run-many` + `nrwl/nx-set-shas`.
+- `.env` pindah ke `apps/api/.env` (Bun memuat dari cwd proyek). Total 131 test (8 shared + 93 api
+  + 30 web), coverage 100 % per file, smoke dev (proxy + sign-up/sign-in/notes) dan prod lolos.
+
 ## Next Steps
 
-- Push iterasi 7 ke GitHub (CI).
+- Push iterasi 8 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.
@@ -289,4 +308,4 @@ Verifikasi iterasi 2:
 ## Final Result
 
 Starter lengkap & terverifikasi di `/Users/user/Dev/hono-react-starter`.
-Jalankan: `cp .env.example .env && createdb hono_react_starter && bun install && bun run db:migrate && bun run db:seed && bun run dev`
+Jalankan: `cp apps/api/.env.example apps/api/.env && createdb hono_react_starter && bun install && bun run db:migrate && bun run db:seed && bun run dev` (web http://localhost:5173, api http://localhost:3000)

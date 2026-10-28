@@ -1,0 +1,16 @@
+[test]
+# Preload: tests/setup.ts (DB test + migrasi) — lihat script "test" di package.json.
+coverage = true
+coverageSkipTestFiles = true
+# Gagal bila cakupan di bawah 90 % (baris & fungsi). Catatan: Bun menerapkan
+# ambang ini PER FILE untuk setiap file yang dimuat, bukan hanya total.
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+# Dikecualikan: kode pendukung test, deklarasi schema Drizzle (tanpa logika,
+# auth-schema di-generate CLI Better Auth) dan packages/shared (diuji sendiri
+# di packages/shared/tests).
+coveragePathIgnorePatterns = [
+  "tests/**",
+  "src/db/schema.ts",
+  "src/db/auth-schema.ts",
+  "**/packages/shared/**",
+]

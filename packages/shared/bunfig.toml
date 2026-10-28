@@ -1,0 +1,6 @@
+[test]
+coverage = true
+coverageSkipTestFiles = true
+# Ambang 90 % berlaku PER FILE (perilaku Bun).
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+coveragePathIgnorePatterns = ["tests/**"]

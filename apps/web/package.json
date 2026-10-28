@@ -1,0 +1,47 @@
+{
+  "name": "@hono-react-starter/web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Frontend React + Vite + Tailwind + shadcn/ui; dev memproxy /api ke apps/api",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint -c ../../.oxlintrc.json .",
+    "test": "bun test --preload ./tests/setup.ts ./tests"
+  },
+  "nx": {
+    "name": "web"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@hono-react-starter/shared": "workspace:*",
+    "@hookform/resolvers": "^5.7.1",
+    "@tanstack/react-query": "^5.101.4",
+    "better-auth": "^1.6.26",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.30.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.85.0",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "shadcn": "^4.16.2",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.0"
+  }
+}

@@ -30,6 +30,8 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-compose-dev-only-secret-change-me-0123456789}
       # Di production BETTER_AUTH_URL wajib https://
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      # Frontend (apps/web) ikut disajikan oleh API dari apps/web/dist (same-origin),
+      # jadi TRUSTED_ORIGINS tidak perlu diisi.
     depends_on:
       db:
         condition: service_healthy

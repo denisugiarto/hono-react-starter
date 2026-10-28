@@ -25,3 +25,10 @@ dist-ssr
 
 # Local env
 .env
+
+# Nx
+.nx/cache
+.nx/workspace-data
+
+# Coverage
+coverage

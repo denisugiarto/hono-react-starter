@@ -1,0 +1,13 @@
+[test]
+# Preload: tests/setup.ts (happy-dom) — lihat script "test" di package.json.
+coverage = true
+coverageSkipTestFiles = true
+# Ambang 90 % berlaku PER FILE (perilaku Bun).
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+# Dikecualikan: pendukung test, primitif shadcn/ui (vendored), dan
+# packages/shared (diuji sendiri di packages/shared/tests).
+coveragePathIgnorePatterns = [
+  "tests/**",
+  "src/components/ui/**",
+  "**/packages/shared/**",
+]

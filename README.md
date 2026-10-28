@@ -7,12 +7,14 @@
 ![Drizzle](https://img.shields.io/badge/ORM-Drizzle-c5f74f)
 ![Better Auth](https://img.shields.io/badge/Auth-Better%20Auth-8b5cf6)
 
-Template starter fullstack **TypeScript** — satu repo, satu dev server, siap production.
+Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend dan backend terpisah
+(`apps/web`, `apps/api`) plus paket schema bersama (`packages/shared`), siap production.
 
 | Layer | Teknologi |
 | --- | --- |
-| Frontend | React 19 + Vite |
-| Backend | Hono 4 (Web Standard, fetch-based) |
+| Monorepo | Nx + Bun workspaces (`apps/web`, `apps/api`, `packages/shared`) |
+| Frontend | React 19 + Vite (`apps/web`) |
+| Backend | Hono 4 (Web Standard, fetch-based) (`apps/api`) |
 | Runtime | Bun |
 | Database | PostgreSQL + Drizzle ORM |
 | Autentikasi | Better Auth: sesi cookie + JWT (bearer) + RBAC berbasis permission |
@@ -23,12 +25,13 @@ Template starter fullstack **TypeScript** — satu repo, satu dev server, siap p
 
 ## Fitur
 
-- **Satu dev server, satu port** — `@hono/vite-dev-server` menjalankan Hono di atas Vite. React dapat HMR (Fast Refresh), API dapat hot reload.
-- **Database terpasang** — Drizzle ORM + driver `postgres` (postgres.js), schema di `src/server/db/`, migrasi versioned di `drizzle/`.
+- **Frontend & backend terpisah, satu perintah** — `bun run dev` (Nx) menjalankan `apps/api` (`bun --watch`, port 3000) dan `apps/web` (Vite + HMR, port 5173) sekaligus; Vite memproxy `/api` ke backend sehingga cookie sesi tetap same-origin. Di production, API menyajikan hasil build `apps/web/dist`.
+- **Nx** — task graph + cache (`typecheck`, `lint`, `test`, `build`), `nx affected` untuk CI, `nx graph` untuk melihat dependensi antar proyek.
+- **Database terpasang** — Drizzle ORM + driver `postgres` (postgres.js), schema di `apps/api/src/db/`, migrasi versioned di `apps/api/drizzle/`.
 - **Autentikasi siap pakai** — Better Auth: sign-up / sign-in email-password, sesi via cookie, tabel auth dibuat lewat migrasi.
 - **JWT untuk API client** — `GET /api/auth/token` menerbitkan JWT (EdDSA, 15 menit) yang diverifikasi stateless lewat JWKS (`/api/auth/jwks`). Semua route API menerima sesi cookie **atau** `Authorization: Bearer <jwt>`.
-- **RBAC berbasis permission** — role `admin` / `user` dipetakan ke permission (`src/shared/permissions.ts`, dipakai server & client). Middleware `requireAuth` / `requireRole(...)` / `requirePermission({...})`; akun admin via `bun run db:seed`.
-- **Shared schema** — `src/shared/` berisi tipe & validasi Zod dipakai frontend DAN backend (satu sumber kebenaran, tanpa drift).
+- **RBAC berbasis permission** — role `admin` / `user` dipetakan ke permission (`packages/shared/src/permissions.ts`, dipakai server & client). Middleware `requireAuth` / `requireRole(...)` / `requirePermission({...})`; akun admin via `bun run db:seed`.
+- **Shared schema** — paket `@hono-react-starter/shared` (`packages/shared`) berisi tipe & validasi Zod dipakai frontend DAN backend (satu sumber kebenaran, tanpa drift).
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
 - **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check yang mengecek DB, graceful shutdown, migrasi otomatis saat start, cache header asset.
@@ -38,65 +41,63 @@ Template starter fullstack **TypeScript** — satu repo, satu dev server, siap p
 
 ## Struktur
 
+Monorepo Nx dengan Bun workspaces. Tiap proyek punya `package.json`, `tsconfig.json`,
+dan `bunfig.toml` sendiri; Nx membaca script `package.json` sebagai target.
+
 ```
 hono-react-starter/
-├── Dockerfile              # Image production (multi-stage, oven/bun)
+├── nx.json                 # Konfigurasi Nx: cache, inputs, dependsOn antar target
+├── package.json            # Root: workspaces + script `nx run-many` (dev, build, test, …)
+├── tsconfig.base.json      # Opsi TS bersama + alias (@/*, @hono-react-starter/shared)
+├── Dockerfile              # Image production (multi-stage, oven/bun) — build web, serve lewat api
 ├── docker-compose.yml      # Stack lokal: app + PostgreSQL
-├── .github/workflows/ci.yml# CI: typecheck, lint, test, build, smoke, docker
-├── tests/
-│   ├── server/             # Test integrasi API (bun test, DB test)
-│   └── ui/                 # Test komponen React (happy-dom + Testing Library)
-├── index.html              # Shell SPA (dev: ditransform Vite, prod: hasil build)
-├── vite.config.ts          # React + Tailwind + Hono dev server + alias @
-├── components.json         # Konfigurasi shadcn/ui
-├── drizzle.config.ts       # Konfigurasi Drizzle Kit
-├── drizzle/                # Migrasi SQL versioned (di-generate)
-├── .env.example            # Contoh environment variables
-└── src/
-    ├── main.tsx            # Entry React (ErrorBoundary + QueryClientProvider)
-    ├── App.tsx             # Demo: auth + notes + API
-    ├── index.css           # Tailwind v4 + tema shadcn
-    ├── components/
-    │   ├── ui/             # Komponen shadcn/ui
-    │   └── error-boundary.tsx
-    ├── lib/
-    │   ├── utils.ts        # Helper cn()
-    │   ├── auth-client.ts  # Client Better Auth untuk React
-    │   ├── query-client.ts # Konfigurasi TanStack Query
-    │   └── api/            # Hooks data fetching (TanStack Query + shared schema)
-    │       ├── request.ts  #   helper fetch + ApiError (kode error dari API)
-    │       ├── notes.ts    #   useNotes, useCreateNote, useToggleNote, useDeleteNote
-    │       └── admin.ts    #   useAdminUsers
-    ├── shared/             # ⭐ Tipe & validasi Zod dipakai frontend+backend
-    │   ├── api.ts          #   Envelope respons (success/data/message, code), health, hello
-    │   ├── auth.ts         #   AdminUser, JwtPayload, signInSchema, signUpSchema
-    │   ├── permissions.ts  #   RBAC: statements, roles, can() (server + client)
-    │   ├── notes.ts        #   Note + schema create/update
-    │   └── index.ts        #   Barrel export
-    └── server/
-        ├── index.ts        # Entry: serve + graceful shutdown
-        ├── app.ts          # createApp(): middleware, API, auth, static, SPA fallback
-        ├── auth.ts         # Better Auth (admin+ac, bearer, jwt, rate limit, proxy IP)
-        ├── env.ts          # Validasi environment variables (fail-fast)
-        ├── types.ts        # AppEnv: requestId, log (logger per-request), user
-        ├── lib/
-        │   ├── logger.ts   # Logger terstruktur (json/pretty, child, serializeError)
-        │   └── response.ts # ok() / fail() — helper envelope respons
-        ├── middleware/
-        │   ├── auth.ts     # requireAuth / requireRole / requirePermission (sesi atau JWT)
-        │   ├── request-log.ts # Satu baris log per request + c.get('log')
-        │   └── rate-limit.ts # Rate limit /api/* (hono-rate-limiter + store PostgreSQL)
-        ├── routes/
-        │   ├── api.ts      # Endpoint contoh
-        │   ├── notes.ts    # CRUD notes per-user (requireAuth + validasi shared)
-        │   └── admin.ts    # Route khusus admin (list users)
-        └── db/
-            ├── index.ts    # Koneksi database (postgres.js + drizzle)
-            ├── schema.ts   # Schema: notes, rate_limit, tabel auth
-            ├── auth-schema.ts # Schema auth (di-generate Better Auth CLI)
-            ├── migrate.ts  # Runner migrasi
-            └── seed.ts     # Seed akun admin
+├── .github/workflows/ci.yml# CI: nx run-many (typecheck, lint, test, build), smoke, docker
+│
+├── apps/
+│   ├── api/                # ⚙️ Backend Hono (Bun) — @hono-react-starter/api
+│   │   ├── .env.example    #   Env backend (DATABASE_URL, BETTER_AUTH_*, …) → salin ke .env
+│   │   ├── drizzle.config.ts
+│   │   ├── drizzle/        #   Migrasi SQL versioned (di-generate)
+│   │   ├── bunfig.toml     #   Coverage ≥ 90 % per file
+│   │   ├── src/
+│   │   │   ├── index.ts    #   Entry: serve + graceful shutdown
+│   │   │   ├── app.ts      #   createApp(): middleware, API, auth, static apps/web/dist, SPA fallback
+│   │   │   ├── auth.ts     #   Better Auth (admin+ac, bearer, jwt, rate limit, trusted origins)
+│   │   │   ├── env.ts      #   Validasi environment variables (fail-fast)
+│   │   │   ├── types.ts    #   AppEnv: requestId, log, user
+│   │   │   ├── lib/        #   logger.ts (terstruktur), response.ts (ok/fail)
+│   │   │   ├── middleware/ #   auth (requireAuth/Role/Permission), request-log, rate-limit
+│   │   │   ├── routes/     #   api.ts, notes.ts, admin.ts
+│   │   │   └── db/         #   index.ts, schema.ts, auth-schema.ts, migrate.ts, seed.ts
+│   │   └── tests/          #   Test integrasi API (bun test, DB test) + fixtures/build
+│   │
+│   └── web/                # 🎨 Frontend React + Vite — @hono-react-starter/web
+│       ├── index.html      #   Shell SPA
+│       ├── vite.config.ts  #   React + Tailwind + alias @ + proxy /api → apps/api
+│       ├── components.json #   Konfigurasi shadcn/ui
+│       ├── bunfig.toml     #   Coverage ≥ 90 % per file
+│       ├── public/
+│       ├── src/
+│       │   ├── main.tsx    #   Entry React (ErrorBoundary + QueryClientProvider)
+│       │   ├── App.tsx     #   Demo: auth + notes + API
+│       │   ├── index.css   #   Tailwind v4 + tema shadcn
+│       │   ├── components/ #   ui/ (shadcn) + error-boundary.tsx
+│       │   └── lib/        #   auth-client.ts, query-client.ts, utils.ts, api/ (hooks TanStack Query)
+│       └── tests/          #   Test komponen React (happy-dom + Testing Library)
+│
+└── packages/
+    └── shared/             # ⭐ @hono-react-starter/shared — dipakai api & web
+        ├── src/
+        │   ├── api.ts      #   Envelope respons (success/data/message, code), health, hello
+        │   ├── auth.ts     #   AdminUser, JwtPayload, signInSchema, signUpSchema
+        │   ├── permissions.ts # RBAC: statements, roles, can()
+        │   ├── notes.ts    #   Note + schema create/update
+        │   └── index.ts    #   Barrel export
+        └── tests/
 ```
+
+Aturan dependensi (diverifikasi Nx): `api → shared`, `web → shared`. `api` **tidak** mengimpor
+`web` (hanya menyajikan hasil build-nya), dan `shared` tidak mengimpor keduanya.
 
 ## Quick Start
 
@@ -104,30 +105,36 @@ hono-react-starter/
 # Prasyarat: Bun + PostgreSQL lokal
 # macOS: brew install postgresql@17 && brew services start postgresql@17
 
-cp .env.example .env          # isi BETTER_AUTH_SECRET (openssl rand -base64 32)
-createdb hono_react_starter   # sekali saja
+cp apps/api/.env.example apps/api/.env   # isi BETTER_AUTH_SECRET (openssl rand -base64 32)
+createdb hono_react_starter              # sekali saja
 
-bun install
-bun run db:migrate            # buat tabel (notes, auth, rate_limit)
-bun run db:seed               # opsional: akun admin
-bun run dev                   # http://localhost:3000
+bun install                 # install semua workspace (apps/*, packages/*)
+bun run db:migrate          # buat tabel (notes, auth, rate_limit)
+bun run db:seed             # opsional: akun admin
+bun run dev                 # api → http://localhost:3000, web → http://localhost:5173
 ```
 
-Atau seluruh stack via Docker: `docker compose up --build` (app + PostgreSQL).
+Buka **http://localhost:5173** (Vite). Semua request `/api/*` diproxy ke backend di port 3000,
+jadi cookie sesi Better Auth bekerja seperti same-origin. Hanya ingin salah satu:
+`bunx nx dev api` atau `bunx nx dev web`.
 
-> **Penting:** `dev` memakai `bunx --bun vite` agar Vite berjalan di runtime
-> Bun (server mengimpor `hono/bun`).
+Atau seluruh stack via Docker: `docker compose up --build` (app + PostgreSQL, http://localhost:3000).
 
 ## Environment Variables
 
-Semua env di `.env` (jangan di-commit). Salin `.env.example` lalu sesuaikan.
+Semua env dibaca **backend** dari `apps/api/.env` (jangan di-commit; Bun memuatnya otomatis
+karena script berjalan dengan cwd `apps/api`). Salin `apps/api/.env.example` lalu sesuaikan.
+Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan `API_URL` /
+`API_PORT` (target proxy, default `http://localhost:3000`).
 
 | Variabel | Wajib | Default | Keterangan |
 | --- | --- | --- | --- |
 | `DATABASE_URL` | Ya (production) | `postgresql://localhost:5432/hono_react_starter` (dev) | URL koneksi PostgreSQL. Fail-fast di production bila kosong |
 | `BETTER_AUTH_SECRET` | Ya | — | Rahasia Better Auth, min 32 karakter. Buat: `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | Ya (production) | `http://localhost:PORT` (dev) | Origin publik aplikasi, mis. `https://app.example.com`. Wajib `https://` di production (trusted origin + cookie Secure) |
-| `PORT` | Tidak | `3000` | Port server (dev & production) |
+| `PORT` | Tidak | `3000` | Port server API (dev & production) |
+| `TRUSTED_ORIGINS` | Tidak | dev: `http://localhost:5173`; prod: kosong | Origin lain yang dipercaya Better Auth (CSRF), dipisah koma — mis. Vite dev server. Tidak perlu di production bila API menyajikan frontend (same-origin) |
+| `WEB_DIST_DIR` | Tidak | `apps/web/dist` | Folder hasil build frontend yang disajikan API di production |
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
@@ -139,31 +146,33 @@ Semua env di `.env` (jangan di-commit). Salin `.env.example` lalu sesuaikan.
 
 ## Script
 
-| Script | Deskripsi |
+Script root memanggil Nx (`nx run-many`) sehingga berjalan untuk semua proyek, dengan cache:
+task yang input-nya tidak berubah tidak dijalankan ulang.
+
+| Script (root) | Deskripsi |
 | --- | --- |
-| `bun run dev` | Dev server (Hono + Vite, HMR) |
-| `bun run build` | Typecheck (`tsc -b`) + build client ke `dist/` |
-| `bun run start` | Migrasi otomatis + server production (port dari `PORT`) |
+| `bun run dev` | Jalankan `api` (bun --watch :3000) + `web` (Vite :5173) bersamaan |
+| `bun run build` | Build frontend ke `apps/web/dist` (backend tidak perlu build) |
+| `bun run start` | Migrasi otomatis + server production `apps/api` (menyajikan `apps/web/dist`) |
 | `bun run preview` | Build lalu start production |
-| `bun run typecheck` | Cek tipe TypeScript |
-| `bun run lint` | Lint dengan Oxlint |
-| `bun run test` | Semua test (server + UI) + coverage, gagal bila < 90 % per file |
-| `bun run test:server` | Test integrasi API terhadap database test |
-| `bun run test:ui` | Test komponen React (happy-dom) |
+| `bun run typecheck` | `tsc` untuk shared, api, web |
+| `bun run lint` | Oxlint untuk semua proyek |
+| `bun run test` | Semua test (shared + api + web) + coverage, gagal bila < 90 % per file |
 | `bun run check` | typecheck + lint + test (sama seperti CI) |
-| `bun run db:test:create` | Buat database test lokal (`hono_react_starter_test`) |
-| `bun run db:generate` | Generate migrasi Drizzle dari schema |
-| `bun run db:migrate` | Terapkan migrasi ke database |
-| `bun run db:push` | Push schema langsung (tanpa migrasi versioned) |
-| `bun run db:studio` | Buka Drizzle Studio untuk inspeksi data |
-| `bun run db:seed` | Buat / upgrade akun admin |
+| `bun run affected` | Hanya proyek yang terdampak perubahan sejak `main` (`nx affected`) |
+| `bun run graph` | Buka graf dependensi proyek di browser |
+| `bun run db:generate` / `db:migrate` / `db:push` / `db:studio` / `db:seed` / `db:test:create` | Diteruskan ke `apps/api` |
+
+Menjalankan target satu proyek: `bunx nx <target> <proyek>`, mis. `bunx nx test api`,
+`bunx nx dev web`, `bunx nx typecheck shared`. Atau langsung di foldernya:
+`cd apps/api && bun run test`.
 
 ## Database (Drizzle ORM + PostgreSQL)
 
 Koneksi dibaca dari `DATABASE_URL`. **Alur kerja migrasi:**
 
 ```bash
-# 1. Ubah schema di src/server/db/schema.ts
+# 1. Ubah schema di apps/api/src/db/schema.ts
 # 2. Generate file migrasi SQL
 bun run db:generate
 # 3. Terapkan
@@ -177,13 +186,13 @@ Schema saat ini:
 - `user`, `session`, `account`, `verification` — tabel Better Auth
 - `jwks` — kunci penandatangan JWT (kunci privat terenkripsi dengan `BETTER_AUTH_SECRET`)
 
-## Shared Schema (`src/shared/`)
+## Shared Schema (`packages/shared`)
 
 Tipe dan validasi untuk kontrak API ditulis **sekali**, dipakai server (validasi
 input) dan client (tipe data / form):
 
 ```ts
-// src/shared/notes.ts
+// packages/shared/src/notes.ts
 export const noteCreateSchema = z.object({
   title: z.string().trim().min(1, 'title wajib diisi').max(200),
   content: z.string().optional().default(''),
@@ -192,15 +201,17 @@ export type NoteCreateInput = z.infer<typeof noteCreateSchema>
 ```
 
 - **Server**: `noteCreateSchema.safeParse(body)` di `routes/notes.ts` → `fail(c, 400, 'VALIDATION_ERROR', …, fieldErrors)`
-- **Client**: `import type { Note, AdminUser } from '@/shared'` di komponen
+- **Client**: `import type { Note, AdminUser } from '@hono-react-starter/shared'` di komponen
 
-Aturan: isi `src/shared/` harus **runtime-agnostic** (tanpa DOM/Node API) agar
-aman dipakai di kedua sisi. Client mengimpor via alias `@/shared`, server via
-path relatif (karena runtime Bun tidak kenal alias).
+Aturan: isi `packages/shared` harus **runtime-agnostic** (tanpa DOM/Node API) agar
+aman dipakai di kedua sisi. Keduanya mengimpor paket workspace yang sama:
+`@hono-react-starter/shared` (barrel) atau `@hono-react-starter/shared/<modul>`
+(sub-path, lewat `exports` di `packages/shared/package.json`). Tidak ada langkah build:
+Bun dan Vite membaca sumber TypeScript-nya langsung.
 
 ## Data Fetching & Form
 
-### TanStack Query (`src/lib/api/`, `src/lib/query-client.ts`)
+### TanStack Query (`apps/web/src/lib/api/`, `apps/web/src/lib/query-client.ts`)
 
 Query & mutation terpusat dengan validasi shared schema saat menerima data:
 
@@ -226,7 +237,7 @@ export function useCreateNote() {
 
 - Query: `useNotes()` → `{ data, isPending, isError, error }`
 - Mutation: `createNote.mutate(...)` → cache di-refresh otomatis via `invalidateQueries`
-- Konfigurasi di `src/lib/query-client.ts` (staleTime, retry, refetchOnWindowFocus)
+- Konfigurasi di `apps/web/src/lib/query-client.ts` (staleTime, retry, refetchOnWindowFocus)
 
 ### React Hook Form + Zod
 
@@ -250,22 +261,23 @@ const noteForm = useForm<
 
 Pola 3 generik `useForm<input, context, output>` digunakan agar tipe hasil
 parse zod (mis. `content` ber-default `''`) terbawa benar ke `onSubmit`.
-Form auth (masuk/daftar) memakai `signInSchema` / `signUpSchema` dari `src/shared/auth.ts`.
+Form auth (masuk/daftar) memakai `signInSchema` / `signUpSchema` dari `packages/shared/src/auth.ts`.
 
 ## Autentikasi (Better Auth)
 
-- Konfigurasi: `src/server/auth.ts` (adapter Drizzle, email/password, admin plugin, rate limit, `trustHost`)
+- Konfigurasi: `apps/api/src/auth.ts` (adapter Drizzle, email/password, admin plugin, rate limit, `trustedOrigins`)
 - Endpoint: semua request `POST`/`GET` ke `/api/auth/*` ditangani Better Auth
-- Client React: `src/lib/auth-client.ts` (`useSession()`, `signIn`, `signUp`, `signOut`)
+- Client React: `apps/web/src/lib/auth-client.ts` (`useSession()`, `signIn`, `signUp`, `signOut`)
 
 **Menambah plugin** (mis. OAuth Google, two-factor):
 
 ```bash
-# 1. Tambahkan plugin di src/server/auth.ts
-# 2. Regenerate schema auth + migrasi
-bunx better-auth generate --config src/server/auth.ts --output src/server/db/auth-schema.ts -y
+# 1. Tambahkan plugin di apps/api/src/auth.ts
+# 2. Regenerate schema auth + migrasi (dari folder apps/api)
+cd apps/api
+bunx better-auth generate --config src/auth.ts --output src/db/auth-schema.ts -y
 bun run db:generate && bun run db:migrate
-# 3. Client plugin di src/lib/auth-client.ts
+# 3. Client plugin di apps/web/src/lib/auth-client.ts
 ```
 
 ## JWT (API client non-browser)
@@ -290,7 +302,7 @@ curl -s http://localhost:3000/api/auth/token -H "Authorization: Bearer <session 
 curl -s http://localhost:3000/api/notes -H "Authorization: Bearer <jwt>"
 ```
 
-- Klaim JWT: `sub`, `id`, `email`, `name`, `role` (+ `iss`, `aud`, `exp`, `iat`) — lihat `definePayload` di `src/server/auth.ts` dan `jwtPayloadSchema` di `src/shared/auth.ts`.
+- Klaim JWT: `sub`, `id`, `email`, `name`, `role` (+ `iss`, `aud`, `exp`, `iat`) — lihat `definePayload` di `apps/api/src/auth.ts` dan `jwtPayloadSchema` di `packages/shared/src/auth.ts`.
 - Kunci: EdDSA (Ed25519) di tabel `jwks`; publik di `GET /api/auth/jwks` sehingga **service lain** bisa memverifikasi token tanpa memanggil server ini.
 - `GET /api/auth/get-session` juga mengirim JWT di header `set-auth-jwt`.
 - Di UI, kartu Autentikasi punya tombol **Buat token** sebagai demo.
@@ -299,11 +311,11 @@ curl -s http://localhost:3000/api/notes -H "Authorization: Bearer <jwt>"
 ## RBAC (Role-Based Access Control)
 
 Role disimpan di kolom `user.role` (`admin` / `user`, default `user`). Permission
-didefinisikan **sekali** di `src/shared/permissions.ts` (Better Auth access control)
+didefinisikan **sekali** di `packages/shared/src/permissions.ts` (Better Auth access control)
 dan dipakai server maupun client:
 
 ```ts
-// src/shared/permissions.ts
+// packages/shared/src/permissions.ts
 export const statements = { ...defaultStatements, note: ['create', 'read', 'update', 'delete'] } as const
 export const roles = {
   user: ac.newRole({ note: ['create', 'read', 'update', 'delete'] }),
@@ -312,7 +324,7 @@ export const roles = {
 can('user', { user: ['list'] }) // false
 ```
 
-**Melindungi route di Hono** (`src/server/middleware/auth.ts`) — semua menerima sesi cookie atau JWT:
+**Melindungi route di Hono** (`apps/api/src/middleware/auth.ts`) — semua menerima sesi cookie atau JWT:
 
 ```ts
 app.get('/api/profil', requireAuth, (c) => c.json(c.get('user')))          // cukup login
@@ -342,7 +354,7 @@ menampilkan/menyembunyikan UI (contoh panel admin di `App.tsx`). Client admin te
 ### Format respons standar
 
 Semua endpoint `/api/*` (kecuali `/api/auth/*` milik Better Auth) memakai satu envelope,
-didefinisikan di `src/shared/api.ts` dan dipakai server + client:
+didefinisikan di `packages/shared/src/api.ts` dan dipakai server + client:
 
 ```jsonc
 // Sukses (200/201)
@@ -359,7 +371,7 @@ didefinisikan di `src/shared/api.ts` dan dipakai server + client:
   `SERVICE_UNAVAILABLE`. `details` — opsional (error field, `requestId` untuk 500, dsb).
 - HTTP status tetap bermakna; client tidak perlu memeriksa `success` secara manual.
 
-**Server** — helper di `src/server/lib/response.ts`:
+**Server** — helper di `apps/api/src/lib/response.ts`:
 
 ```ts
 return ok(c, note, { status: 201, message: 'Catatan dibuat' })
@@ -396,49 +408,53 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 
 Pola yang dipakai di template ini (agar tetap mudah di-maintain):
 
-1. **Schema** → tulis tipe & validasi di `src/shared/<fitur>.ts` (Zod)
-2. **Database** → tambah tabel di `src/server/db/schema.ts`, lalu `db:generate` + `db:migrate`
-3. **API** → buat router di `src/server/routes/<fitur>.ts`, validasi dengan schema shared, mount di `src/server/index.ts` (pasang `requireAuth` / `requireAdmin` bila perlu)
-4. **Hooks** → buat query/mutation di `src/lib/api/<fitur>.ts` (TanStack Query + zod parse)
-5. **UI** → komponen baru di `src/` memakai hooks + React Hook Form (bila ada form) + komponen shadcn
+1. **Schema** → tulis tipe & validasi di `packages/shared/src/<fitur>.ts` (Zod), ekspor dari `index.ts`
+2. **Database** → tambah tabel di `apps/api/src/db/schema.ts`, lalu `db:generate` + `db:migrate`
+3. **API** → buat router di `apps/api/src/routes/<fitur>.ts`, validasi dengan schema shared, mount di `apps/api/src/app.ts` (pasang `requireAuth` / `requirePermission` bila perlu)
+4. **Hooks** → buat query/mutation di `apps/web/src/lib/api/<fitur>.ts` (TanStack Query + zod parse)
+5. **UI** → komponen baru di `apps/web/src/` memakai hooks + React Hook Form (bila ada form) + komponen shadcn
+6. **Test** → `apps/api/tests/<fitur>.test.ts` dan/atau `apps/web/tests/`; `bun run affected` menjalankan hanya proyek yang terdampak
 
 ## Menambah Komponen shadcn/ui
 
 ```bash
-bunx shadcn add button dialog form table
+cd apps/web && bunx shadcn add button dialog form table
 ```
 
 ## Testing
 
-Test memakai `bun test` bawaan (tanpa Vitest/Jest).
+Test memakai `bun test` bawaan (tanpa Vitest/Jest), dijalankan per proyek lewat Nx.
 
 ```bash
 bun run db:test:create   # sekali: database test lokal
-bun run test             # server + UI
+bun run test             # shared + api + web (nx run-many -t test)
+bunx nx test api         # hanya backend
 ```
 
-- **`tests/server/`** — test integrasi: memanggil `app.fetch` langsung (tanpa port) terhadap
-  database test. Preload `tests/server/setup.ts` mengarahkan `DATABASE_URL` ke DB test
+- **`apps/api/tests/`** — test integrasi: memanggil `app.fetch` langsung (tanpa port) terhadap
+  database test. Preload `tests/setup.ts` mengarahkan `DATABASE_URL` ke DB test
   (`TEST_DATABASE_URL` atau nama DB + `_test`), menjalankan migrasi, lalu mengosongkan tabel.
   Rate limit Better Auth otomatis nonaktif saat `NODE_ENV=test`.
-- **`tests/ui/`** — test komponen React dengan happy-dom + Testing Library. `app.test.tsx`
+- **`apps/web/tests/`** — test komponen React dengan happy-dom + Testing Library. `app.test.tsx`
   menunjukkan pola mock `useSession` (via `mock.module`) dan `fetch`; `app-interactions.test.tsx`
   menguji alur form, CRUD notes, JWT, dan panel admin lewat `fireEvent`.
+- **`packages/shared/tests/`** — test schema Zod dan `can()` RBAC.
 
-**Coverage** selalu aktif (`bunfig.toml`) dengan ambang **90 % baris & fungsi**. Bun menerapkan
-ambang ini **per file** untuk setiap file yang dimuat, jadi file baru harus ikut diuji atau
-`bun test` gagal (CI ikut merah). Dikecualikan dari perhitungan: `tests/**`, deklarasi schema
-Drizzle (`src/server/db/schema.ts`, `auth-schema.ts` hasil generate CLI) dan primitif shadcn
-(`src/components/ui/**`). Kode yang hanya berjalan saat proses start (`src/server/index.ts`,
-`migrate.ts`, `seed.ts`, `src/main.tsx`) tidak dimuat test dan diverifikasi lewat smoke test CI.
+**Coverage** selalu aktif (`bunfig.toml` di tiap proyek) dengan ambang **90 % baris & fungsi**.
+Bun menerapkan ambang ini **per file** untuk setiap file yang dimuat, jadi file baru harus ikut
+diuji atau `bun test` gagal (CI ikut merah). Dikecualikan dari perhitungan: `tests/**`, deklarasi
+schema Drizzle (`apps/api/src/db/schema.ts`, `auth-schema.ts` hasil generate CLI), primitif shadcn
+(`apps/web/src/components/ui/**`), dan `packages/shared` saat dimuat oleh api/web (sudah diuji
+sendiri). Kode yang hanya berjalan saat proses start (`apps/api/src/index.ts`, `migrate.ts`,
+`seed.ts`, `apps/web/src/main.tsx`) tidak dimuat test dan diverifikasi lewat smoke test CI.
 
 Pola yang dipakai agar jalur production bisa diuji tanpa mengubah `NODE_ENV`:
-`createApp({ isProd, distDir, extend })` di `src/server/app.ts` dan `createApiRoutes({ ping })`
+`createApp({ isProd, distDir, extend })` di `apps/api/src/app.ts` dan `createApiRoutes({ ping })`
 di `routes/api.ts` (simulasi DB down → 503).
 
 ## Logging & Tracing
 
-Logger terstruktur tanpa dependency di `src/server/lib/logger.ts` (format JSON di production,
+Logger terstruktur tanpa dependency di `apps/api/src/lib/logger.ts` (format JSON di production,
 `pretty` di development; atur via `LOG_LEVEL` / `LOG_FORMAT`).
 
 **Setiap request** menghasilkan satu baris setelah respons selesai (`middleware/request-log.ts`):
@@ -461,7 +477,7 @@ sisanya ke stdout.
 ```
 
 Client menerima `{ success:false, code:"INTERNAL_ERROR", details:{ requestId:"4f2c…" } }` dan UI
-menampilkan `… (ref: 4f2c…)` (`describeError()` di `src/lib/api/request.ts`). Alur trace:
+menampilkan `… (ref: 4f2c…)` (`describeError()` di `apps/web/src/lib/api/request.ts`). Alur trace:
 **pengguna melaporkan ref → cari `requestId` di log → baris `unhandled error` (stack, kode DB) + baris
 `request` (user, IP, durasi)**. Header `X-Request-Id` juga ada di setiap respons; reverse proxy
 bisa meneruskannya ke log akses.
@@ -475,12 +491,12 @@ c.get('log').error('gagal kirim email', { err })   // err diserialisasi otomatis
 ```
 
 Error di luar siklus request (`unhandledRejection`, `uncaughtException`) dan start/stop server
-juga dicatat (`src/server/index.ts`). `createApp({ logger })` menerima logger kustom (test memakai
+juga dicatat (`apps/api/src/index.ts`). `createApp({ logger })` menerima logger kustom (test memakai
 `createCapturingSink()` untuk memeriksa baris log).
 
 ## Security & Hardening
 
-Yang sudah terpasang di `src/server/app.ts` / `auth.ts`:
+Yang sudah terpasang di `apps/api/src/app.ts` / `auth.ts`:
 
 | Area | Implementasi |
 | --- | --- |
@@ -512,7 +528,7 @@ App memakai Web Standard (fetch) sehingga bisa dideploy di banyak platform.
 **Docker (direkomendasikan):**
 
 ```bash
-docker build -t hono-react-starter .
+docker build -t hono-react-starter .      # build apps/web, runtime = apps/api + apps/web/dist
 docker run -p 3000:3000 \
   -e DATABASE_URL=postgresql://user:pass@host/db \
   -e BETTER_AUTH_SECRET=$(openssl rand -base64 32) \
@@ -540,33 +556,42 @@ export BETTER_AUTH_URL=https://app.example.com
 export PORT=3000
 
 bun install --frozen-lockfile
-bun run build
-bun run start    # migrasi otomatis, lalu serve production
+bun run build                 # apps/web/dist
+bun run start                 # nx run api:start → migrasi otomatis, lalu serve production
+# atau tanpa Nx: cd apps/api && bun run start
 ```
 
+**Frontend di-host terpisah (CDN / static hosting):** deploy `apps/web/dist` ke hosting statis,
+jalankan `apps/api` di server, lalu set `TRUSTED_ORIGINS=https://web.example.com` di API dan
+tambahkan middleware `cors` Hono (`hono/cors`) dengan `credentials: true` di `app.ts` — atau
+lebih sederhana, letakkan keduanya di balik satu reverse proxy (same-origin).
+
 **Vercel / Cloudflare Workers:** tambahkan adapter `@hono/vercel` /
-`@hono/cloudflare-workers`, build client dengan `bun run build`, dan sesuaikan
+`@hono/cloudflare-workers` di `apps/api`, build client dengan `bun run build`, dan sesuaikan
 entry server sesuai platform.
 
 ## Troubleshooting
 
 | Masalah | Solusi |
 | --- | --- |
-| `dev` gagal dengan `Bun is not defined` | Jalankan Vite di runtime Bun — sudah otomatis via `bunx --bun vite`; jangan panggil `vite` langsung |
 | PostgreSQL gagal start di macOS (`postmaster became multithreaded`) | Set locale valid: `LC_ALL=en_US.UTF-8` saat start (`pg_ctl` / service) |
-| Port 3000 sudah terpakai (mis. VS Code) | Vite otomatis pilih port berikutnya, atau set `PORT=3100` |
+| Port 3000 / 5173 sudah terpakai | API: set `PORT` di `apps/api/.env` dan `API_PORT` untuk Vite. Web: `PORT=5174 bunx nx dev web` lalu tambahkan origin itu ke `TRUSTED_ORIGINS` |
+| Sign-in dari Vite → `403 INVALID_ORIGIN` | Origin Vite tidak dipercaya Better Auth — pastikan `TRUSTED_ORIGINS` memuat `http://localhost:<port Vite>` (default 5173 sudah otomatis di dev) |
+| Alias `@/` tidak ditemukan saat `bun test` | Alias didefinisikan di `tsconfig.base.json` (Bun hanya membaca `paths` dari config dasar saat `extends`) — jangan pindahkan ke tsconfig proyek |
+| Nx memakai hasil cache lama | `bunx nx reset` lalu jalankan ulang, atau tambahkan `--skip-nx-cache` |
 | `EADDRINUSE` saat start | Bun v1.2 auto-serve dari default export — jangan panggil `Bun.serve` manual di entry |
 | Migrasi gagal `multiple primary keys` | Migrasi lama yang merubah PK perlu diedit manual (keterbatasan drizzle-kit) |
-| `BETTER_AUTH_SECRET` error saat start | Pastikan env terisi ≥32 karakter (lihat `.env.example`) |
+| `BETTER_AUTH_SECRET` error saat start | Pastikan env terisi ≥32 karakter (lihat `apps/api/.env.example`) |
 | `BETTER_AUTH_URL harus https://` saat start production | Set origin publik https; untuk uji lokal pakai `NODE_ENV` selain production |
 | `bun test` gagal menyiapkan database | Jalankan `bun run db:test:create` atau set `TEST_DATABASE_URL` |
-| Migrasi `0005` gagal (`user_id` NOT NULL) | Tabel `notes` berisi data tanpa pemilik — lihat komentar di `drizzle/0005_notes_user_id.sql` |
+| Migrasi `0005` gagal (`user_id` NOT NULL) | Tabel `notes` berisi data tanpa pemilik — lihat komentar di `apps/api/drizzle/0005_notes_user_id.sql` |
 
 ## Roadmap
 
 - [x] Proteksi route notes per-user (pemilik catatan)
 - [x] Test otomatis (bun test + Testing Library)
 - [x] Dockerfile + CI (GitHub Actions)
+- [x] Monorepo Nx: `apps/api`, `apps/web`, `packages/shared`
 - [ ] OAuth Google/GitHub (plugin Better Auth)
 - [ ] Verifikasi email (plugin Better Auth + provider email)
 - [ ] React Router untuk multi-halaman

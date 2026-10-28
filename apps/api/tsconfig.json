@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../../node_modules/.tmp/api.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["bun", "node"]
+  },
+  "include": ["src", "tests", "drizzle.config.ts"]
+}

@@ -1,0 +1,27 @@
+{
+  // Opsi TypeScript bersama. Tiap proyek (apps/*, packages/*) meng-extend file ini.
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "allowArbitraryExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    // Alias path. Didefinisikan DI SINI (bukan di tsconfig proyek) karena Bun
+    // hanya membaca `paths` dari config dasar saat `extends` dipakai tanpa baseUrl
+    // (baseUrl sudah deprecated di TS 6). Path relatif terhadap root repo.
+    "paths": {
+      "@/*": ["./apps/web/src/*"],
+      "@hono-react-starter/shared": ["./packages/shared/src/index.ts"],
+      "@hono-react-starter/shared/*": ["./packages/shared/src/*.ts"]
+    }
+  }
+}

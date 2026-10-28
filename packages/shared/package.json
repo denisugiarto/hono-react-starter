@@ -1,0 +1,23 @@
+{
+  "name": "@hono-react-starter/shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Schema Zod, tipe, dan definisi RBAC yang dipakai frontend + backend",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint -c ../../.oxlintrc.json .",
+    "test": "bun test ./tests"
+  },
+  "nx": {
+    "name": "shared"
+  },
+  "dependencies": {
+    "better-auth": "^1.6.26",
+    "zod": "^4.4.3"
+  }
+}

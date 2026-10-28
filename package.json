@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "nx run-many -t dev",
     "build": "nx run-many -t build",
@@ -12,6 +15,8 @@
     "typecheck": "nx run-many -t typecheck",
     "lint": "nx run-many -t lint",
     "test": "nx run-many -t test",
+    "e2e": "nx run e2e:e2e",
+    "e2e:ui": "bun run --cwd apps/e2e e2e:ui",
     "check": "nx run-many -t typecheck lint test",
     "affected": "nx affected -t typecheck lint test build",
     "graph": "nx graph",
@@ -20,6 +25,7 @@
     "db:push": "bun run --cwd apps/api db:push",
     "db:studio": "bun run --cwd apps/api db:studio",
     "db:seed": "bun run --cwd apps/api db:seed",
+    "db:seed:demo": "bun run --cwd apps/api db:seed:demo",
     "db:test:create": "bun run --cwd apps/api db:test:create"
   },
   "devDependencies": {

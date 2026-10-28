@@ -46,12 +46,12 @@ export function ChangePasswordCard() {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="cp-current">Password saat ini</FieldLabel>
-              <Input id="cp-current" type="password" autoComplete="current-password" aria-invalid={Boolean(errors.currentPassword)} {...form.register('currentPassword')} />
+              <Input id="cp-current" data-testid="cp-current" type="password" autoComplete="current-password" aria-invalid={Boolean(errors.currentPassword)} {...form.register('currentPassword')} />
               <FieldError errors={[errors.currentPassword]} />
             </Field>
             <Field>
               <FieldLabel htmlFor="cp-new">Password baru</FieldLabel>
-              <Input id="cp-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
+              <Input id="cp-new" data-testid="cp-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
               <FieldError errors={[errors.newPassword]} />
             </Field>
             <Field orientation="horizontal">
@@ -64,7 +64,7 @@ export function ChangePasswordCard() {
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" data-testid="cp-submit" disabled={isSubmitting}>
               Simpan password
             </Button>
           </FieldGroup>

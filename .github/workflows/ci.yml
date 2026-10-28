@@ -80,6 +80,54 @@ jobs:
           kill %1 || true
           cat server.log
 
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: check
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hono_react_starter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hono_react_starter_test
+      BETTER_AUTH_SECRET: ci-only-secret-not-for-production-0123456789
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.19'
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Install Chromium (Playwright)
+        run: bunx playwright install --with-deps chromium
+      # Target e2e bergantung pada web:build (Nx) → server apps/api menyajikan dist +
+      # migrasi + seed demo (akun di packages/shared/src/demo.ts), lalu Playwright berjalan.
+      - name: Playwright
+        run: bunx nx run e2e:e2e --output-style=static
+      - name: Laporan Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          retention-days: 7
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest

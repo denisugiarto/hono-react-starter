@@ -53,6 +53,7 @@ export function TwoFactorForm({ onSuccess }: Props) {
           <FieldLabel htmlFor="totp-code">{useBackup ? 'Kode cadangan' : 'Kode authenticator'}</FieldLabel>
           <Input
             id="totp-code"
+            data-testid="totp-code"
             inputMode={useBackup ? 'text' : 'numeric'}
             autoComplete="one-time-code"
             placeholder={useBackup ? 'xxxxx-xxxxx' : '123456'}
@@ -67,19 +68,19 @@ export function TwoFactorForm({ onSuccess }: Props) {
           <FieldError errors={[errors.code]} />
         </Field>
         <Field orientation="horizontal">
-          <Switch id="trust-device" checked={trustDevice} onCheckedChange={setTrustDevice} />
+          <Switch id="trust-device" data-testid="totp-trust-device" checked={trustDevice} onCheckedChange={setTrustDevice} />
           <FieldLabel htmlFor="trust-device">Percayai perangkat ini selama 30 hari</FieldLabel>
         </Field>
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" data-testid="totp-error" className="text-sm text-destructive">
             {error}
           </p>
         )}
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          <Button type="submit" className="flex-1" data-testid="totp-submit" disabled={isSubmitting}>
             Verifikasi
           </Button>
-          <Button type="button" variant="outline" className="flex-1" onClick={toggleBackup}>
+          <Button type="button" variant="outline" className="flex-1" data-testid="totp-toggle-backup" onClick={toggleBackup}>
             {useBackup ? 'Pakai kode authenticator' : 'Pakai kode cadangan'}
           </Button>
         </div>

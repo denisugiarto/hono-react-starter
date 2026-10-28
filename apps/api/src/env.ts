@@ -121,6 +121,35 @@ export function readApiRateLimit(): ApiRateLimitConfig | false {
   return { max, windowSeconds }
 }
 
+export type AuthRateLimitConfig = { max: number; windowSeconds: number }
+
+/**
+ * Rate limit bawaan Better Auth untuk /api/auth/* (proteksi brute-force,
+ * per IP per endpoint, store tabel rate_limit).
+ * - AUTH_RATE_LIMIT_MAX: request per jendela (default 20; `0` = nonaktif)
+ * - AUTH_RATE_LIMIT_WINDOW: panjang jendela, detik (default 60)
+ * Saat NODE_ENV=test nonaktif kecuali AUTH_RATE_LIMIT_MAX diisi eksplisit.
+ * `/get-session` selalu dikecualikan (lihat auth.ts) karena dipanggil SPA
+ * berulang dan tidak bisa dipakai menebak kredensial.
+ */
+export function readAuthRateLimit(): AuthRateLimitConfig | false {
+  const rawMax = process.env.AUTH_RATE_LIMIT_MAX
+  const rawWindow = process.env.AUTH_RATE_LIMIT_WINDOW
+  if (rawMax === undefined && envIsTest()) return false
+
+  const max = rawMax === undefined ? 20 : Number(rawMax)
+  if (!Number.isInteger(max) || max < 0) {
+    fail('AUTH_RATE_LIMIT_MAX', `harus bilangan bulat ≥ 0: "${rawMax}"`)
+  }
+  if (max === 0) return false
+
+  const windowSeconds = rawWindow === undefined ? 60 : Number(rawWindow)
+  if (!Number.isInteger(windowSeconds) || windowSeconds < 1) {
+    fail('AUTH_RATE_LIMIT_WINDOW', `harus bilangan bulat ≥ 1 detik: "${rawWindow}"`)
+  }
+  return { max, windowSeconds }
+}
+
 export type LogConfig = { level: LogLevel; format: LogFormat }
 
 /**
@@ -193,4 +222,30 @@ export function readEmailVerificationRequired(): boolean {
     fail('AUTH_REQUIRE_EMAIL_VERIFICATION', 'butuh MAIL_PROVIDER=resend di production (email harus benar-benar terkirim)')
   }
   return required
+}
+
+/**
+ * SERVE_WEB_DIST (default: true di production, false lainnya): sajikan hasil
+ * build apps/web (dist) dari server API. Di luar production dipakai E2E dan
+ * staging lokal agar satu proses melayani frontend + API tanpa Vite.
+ */
+export function readServeWebDist(): boolean {
+  return readBool('SERVE_WEB_DIST', envIsProd())
+}
+
+/**
+ * API_DOCS_ENABLED (default: false di production, true lainnya): aktifkan
+ * `GET /api/openapi.json` dan halaman `GET /api/docs`. Di production
+ * nyalakan secara sadar (mis. staging untuk tester).
+ */
+export function readApiDocsEnabled(): boolean {
+  return readBool('API_DOCS_ENABLED', !envIsProd())
+}
+
+/**
+ * ALLOW_DEMO_SEED (default false): izinkan `bun run db:seed:demo` di production.
+ * Seed demo membuat akun dengan password publik, jadi hanya untuk staging/E2E.
+ */
+export function readDemoSeedAllowed(): boolean {
+  return !envIsProd() || readBool('ALLOW_DEMO_SEED', false)
 }

@@ -14,7 +14,7 @@ export function UsersTable() {
   if (users.data.length === 0) return <EmptyState title="Belum ada pengguna" />
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border" data-testid="users-table">
       <Table>
         <TableHeader>
           <TableRow>
@@ -26,7 +26,7 @@ export function UsersTable() {
         </TableHeader>
         <TableBody>
           {users.data.map((u) => (
-            <TableRow key={u.id}>
+            <TableRow key={u.id} data-testid="user-row" data-email={u.email}>
               <TableCell className="font-medium">{u.name}</TableCell>
               <TableCell className="text-muted-foreground">{u.email}</TableCell>
               <TableCell>

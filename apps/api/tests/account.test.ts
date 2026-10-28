@@ -304,8 +304,10 @@ describe('2FA (TOTP + backup code)', () => {
     const row = (await audits(u.user.id)).find((r) => r.action === 'auth.two_factor_verified' && r.metadata?.trustDevice === true)!
     expect(row.success).toBe(true)
 
-    const twoFactorRequired = (await db.select().from(auditLog).where(eq(auditLog.action, 'auth.sign_in_two_factor_required')).limit(1))[0]!
-    expect(twoFactorRequired.metadata).toEqual({ email: u.email })
+    const twoFactorRequired = (await db.select().from(auditLog).where(eq(auditLog.action, 'auth.sign_in_two_factor_required'))).find(
+      (r) => (r.metadata as { email?: string } | null)?.email === u.email,
+    )
+    expect(twoFactorRequired?.metadata).toEqual({ email: u.email })
   })
 
   test('backup code: sekali pakai, memberi sesi; disable {password} mematikan 2FA', async () => {

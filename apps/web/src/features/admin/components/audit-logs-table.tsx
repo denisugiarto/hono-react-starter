@@ -32,6 +32,7 @@ export function AuditLogsTable() {
           <Label htmlFor="audit-action">Aksi</Label>
           <select
             id="audit-action"
+            data-testid="audit-action"
             className="h-9 rounded-md border bg-background px-2 text-sm"
             value={filters.action ?? ''}
             onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value || undefined }))}
@@ -47,6 +48,7 @@ export function AuditLogsTable() {
           <Label htmlFor="audit-success">Status</Label>
           <select
             id="audit-success"
+            data-testid="audit-success"
             className="h-9 rounded-md border bg-background px-2 text-sm"
             value={filters.success ?? ''}
             onChange={(e) => setFilters((f) => ({ ...f, success: (e.target.value || undefined) as AuditLogFilters['success'] }))}
@@ -68,7 +70,7 @@ export function AuditLogsTable() {
       ) : items.length === 0 ? (
         <EmptyState title="Belum ada entri audit" description="Aksi yang diaudit akan muncul di sini." />
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-md border" data-testid="audit-table">
           <Table>
             <TableHeader>
               <TableRow>
@@ -83,7 +85,7 @@ export function AuditLogsTable() {
             </TableHeader>
             <TableBody>
               {items.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} data-testid="audit-row" data-action={row.action}>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{formatTime(row.at)}</TableCell>
                   <TableCell className="font-mono text-xs">{row.action}</TableCell>
                   <TableCell>{row.actorEmail ?? row.actorId ?? <span className="text-muted-foreground">anonim</span>}</TableCell>
@@ -103,7 +105,7 @@ export function AuditLogsTable() {
       )}
 
       {logs.hasNextPage && (
-        <Button variant="outline" onClick={() => logs.fetchNextPage()} disabled={logs.isFetchingNextPage}>
+        <Button variant="outline" data-testid="audit-load-more" onClick={() => logs.fetchNextPage()} disabled={logs.isFetchingNextPage}>
           {logs.isFetchingNextPage ? 'Memuat…' : 'Muat lebih banyak'}
         </Button>
       )}

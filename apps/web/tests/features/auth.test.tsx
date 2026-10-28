@@ -20,11 +20,8 @@ describe('AuthForm — masuk', () => {
     typeInto(screen.getByLabelText('Password'), 'password123')
     fireEvent.click(screen.getByRole('button', { name: 'Masuk' }))
     await waitFor(() => expect(authCalls[0]?.kind).toBe('signIn'))
-    expect(authCalls[0]?.payload).toEqual({
-      email: 'alice@test.local',
-      password: 'password123',
-      callbackURL: 'http://localhost:5173/verify-email',
-    })
+    // Tanpa callbackURL: bila dikirim, Better Auth membalas redirect dan browser pindah halaman
+    expect(authCalls[0]?.payload).toEqual({ email: 'alice@test.local', password: 'password123' })
     expect(await screen.findByText('Selamat datang kembali')).toBeTruthy()
     // kembali ke tujuan semula (/notes); mock sesi masih tamu → dipantulkan lagi ke /login
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))

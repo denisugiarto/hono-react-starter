@@ -226,3 +226,81 @@ describe('env — MAIL_PROVIDER / AUTH_REQUIRE_EMAIL_VERIFICATION', () => {
     expect(readEmailVerificationRequired()).toBe(true)
   })
 })
+
+describe('env — SERVE_WEB_DIST / API_DOCS_ENABLED / ALLOW_DEMO_SEED', () => {
+  const EXTRA = ['SERVE_WEB_DIST', 'API_DOCS_ENABLED', 'ALLOW_DEMO_SEED'] as const
+  const savedExtra: Partial<Record<(typeof EXTRA)[number], string | undefined>> = {}
+  beforeEach(() => {
+    for (const k of EXTRA) savedExtra[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of EXTRA) {
+      if (savedExtra[k] === undefined) delete process.env[k]
+      else process.env[k] = savedExtra[k]
+    }
+  })
+
+  test('default mengikuti mode: production → serve dist, docs mati, seed demo ditolak', async () => {
+    const { readApiDocsEnabled, readDemoSeedAllowed, readServeWebDist } = await import('../src/env.ts')
+    for (const k of EXTRA) delete process.env[k]
+    process.env.NODE_ENV = 'development'
+    expect(readServeWebDist()).toBe(false)
+    expect(readApiDocsEnabled()).toBe(true)
+    expect(readDemoSeedAllowed()).toBe(true)
+    asProd()
+    expect(readServeWebDist()).toBe(true)
+    expect(readApiDocsEnabled()).toBe(false)
+    expect(readDemoSeedAllowed()).toBe(false)
+  })
+
+  test('nilai eksplisit menimpa default; nilai aneh → error', async () => {
+    const { readApiDocsEnabled, readDemoSeedAllowed, readServeWebDist } = await import('../src/env.ts')
+    process.env.NODE_ENV = 'development'
+    process.env.SERVE_WEB_DIST = 'true'
+    expect(readServeWebDist()).toBe(true)
+    process.env.API_DOCS_ENABLED = '0'
+    expect(readApiDocsEnabled()).toBe(false)
+    asProd()
+    process.env.ALLOW_DEMO_SEED = 'yes'
+    expect(readDemoSeedAllowed()).toBe(true)
+    process.env.SERVE_WEB_DIST = 'mungkin'
+    expect(() => readServeWebDist()).toThrow(/SERVE_WEB_DIST/)
+  })
+})
+
+describe('env — AUTH_RATE_LIMIT_*', () => {
+  const EXTRA = ['AUTH_RATE_LIMIT_MAX', 'AUTH_RATE_LIMIT_WINDOW'] as const
+  const savedExtra: Partial<Record<(typeof EXTRA)[number], string | undefined>> = {}
+  beforeEach(() => {
+    for (const k of EXTRA) savedExtra[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of EXTRA) {
+      if (savedExtra[k] === undefined) delete process.env[k]
+      else process.env[k] = savedExtra[k]
+    }
+  })
+
+  test('test env tanpa nilai → nonaktif; dev tanpa nilai → 20/60', async () => {
+    const { readAuthRateLimit } = await import('../src/env.ts')
+    for (const k of EXTRA) delete process.env[k]
+    process.env.NODE_ENV = 'test'
+    expect(readAuthRateLimit()).toBe(false)
+    process.env.NODE_ENV = 'development'
+    expect(readAuthRateLimit()).toEqual({ max: 20, windowSeconds: 60 })
+  })
+
+  test('nilai eksplisit; 0 → nonaktif; tidak valid → error', async () => {
+    const { readAuthRateLimit } = await import('../src/env.ts')
+    process.env.AUTH_RATE_LIMIT_MAX = '5'
+    process.env.AUTH_RATE_LIMIT_WINDOW = '10'
+    expect(readAuthRateLimit()).toEqual({ max: 5, windowSeconds: 10 })
+    process.env.AUTH_RATE_LIMIT_MAX = '0'
+    expect(readAuthRateLimit()).toBe(false)
+    process.env.AUTH_RATE_LIMIT_MAX = '-1'
+    expect(() => readAuthRateLimit()).toThrow(/AUTH_RATE_LIMIT_MAX/)
+    process.env.AUTH_RATE_LIMIT_MAX = '5'
+    process.env.AUTH_RATE_LIMIT_WINDOW = '0'
+    expect(() => readAuthRateLimit()).toThrow(/AUTH_RATE_LIMIT_WINDOW/)
+  })
+})

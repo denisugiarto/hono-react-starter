@@ -38,7 +38,8 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
 - **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check terpisah (`/api/health/live` & `/api/health/ready`), graceful shutdown, migrasi otomatis saat start, cache header asset.
-- **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library).
+- **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library); **Playwright E2E** (`apps/e2e`) di browser asli terhadap build production + akun demo.
+- **Siap untuk tester** — `bun run db:seed:demo` membuat akun demo (admin, user dengan catatan, akun 2FA dengan secret tetap, akun diblokir), dokumentasi **OpenAPI** dari schema Zod (`/api/openapi.json` + UI `/api/docs`), selector `data-testid` konsisten, panduan QA (`docs/QA.md`), dan stack **staging** HTTPS (`docker-compose.staging.yml`, Caddy).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
 - **Frontend terstruktur** — React Router + folder berbasis fitur (`app/`, `pages/`, `features/`, `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/`), header dengan navigasi (desktop + Sheet mobile), menu pengguna, tema gelap, toast (sonner).
 - **shadcn/ui lengkap** — 22 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`.
@@ -55,7 +56,9 @@ hono-react-starter/
 ├── tsconfig.base.json      # Opsi TS bersama + alias (@/*, @hono-react-starter/shared)
 ├── Dockerfile              # Image production (multi-stage, oven/bun) — build web, serve lewat api
 ├── docker-compose.yml      # Stack lokal: app + PostgreSQL
-├── .github/workflows/ci.yml# CI: nx run-many (typecheck, lint, test, build), smoke, docker
+├── docker-compose.staging.yml # Staging tester: Caddy (HTTPS) + app + db + seed demo (deploy/staging/)
+├── docs/QA.md              # Panduan tester: akun demo, skenario, selector, E2E
+├── .github/workflows/ci.yml# CI: nx run-many (typecheck, lint, test, build), smoke, e2e, docker
 │
 ├── apps/
 │   ├── api/                # ⚙️ Backend Hono (Bun) — @hono-react-starter/api
@@ -68,14 +71,17 @@ hono-react-starter/
 │   │   │   ├── app.ts      #   createApp(): middleware, API, auth, static apps/web/dist, SPA fallback
 │   │   │   ├── auth.ts     #   createAuth(): Better Auth (admin+ac, bearer, jwt, two-factor, email verif, reset password)
 │   │   │   ├── auth-audit.ts # Pembungkus auth.handler → audit_log (sign-in/out, reset, 2FA, aksi admin)
+│   │   │   ├── openapi.ts  #   Dokumen OpenAPI dari schema shared + /api/openapi.json, /api/docs (Scalar)
 │   │   │   ├── mailer.ts   #   Singleton Mailer (MAIL_PROVIDER: console | memory | resend)
 │   │   │   ├── env.ts      #   Validasi environment variables (fail-fast)
 │   │   │   ├── types.ts    #   AppEnv: requestId, log, user
 │   │   │   ├── lib/        #   logger, response (ok/fail), mailer, emails (template), audit, request-context
 │   │   │   ├── middleware/ #   auth (requireAuth/Role/Permission), request-log, rate-limit
 │   │   │   ├── routes/     #   api.ts (health live/ready, hello), notes.ts, admin.ts (users, audit-logs)
-│   │   │   └── db/         #   index.ts, schema.ts (+ audit_log), auth-schema.ts (+ two_factor), migrate.ts, seed.ts
+│   │   │   └── db/         #   index.ts, schema.ts (+ audit_log), auth-schema.ts (+ two_factor), migrate.ts, seed.ts, demo.ts + seed-demo.ts
 │   │   └── tests/          #   Test integrasi API (bun test, DB test) + fixtures/build
+│   │
+│   ├── e2e/                # 🧪 Playwright — @hono-react-starter/e2e (playwright.config.ts, tests/*.spec.ts)
 │   │
 │   └── web/                # 🎨 Frontend React + Vite — @hono-react-starter/web
 │       ├── index.html      #   Shell SPA
@@ -103,12 +109,14 @@ hono-react-starter/
         │   ├── auth.ts     #   AdminUser, JwtPayload, schema form (sign-in/up, reset, ganti password, TOTP)
         │   ├── permissions.ts # RBAC: statements, roles, can()
         │   ├── notes.ts    #   Note + schema create/update
+        │   ├── demo.ts     #   Akun & data demo (seed, test API, Playwright) — bukan production
         │   └── index.ts    #   Barrel export
         └── tests/
 ```
 
-Aturan dependensi (diverifikasi Nx): `api → shared`, `web → shared`. `api` **tidak** mengimpor
-`web` (hanya menyajikan hasil build-nya), dan `shared` tidak mengimpor keduanya.
+Aturan dependensi (diverifikasi Nx): `api → shared`, `web → shared`, `e2e → api, web, shared`
+(hanya saat runtime/build, tanpa impor kode api). `api` **tidak** mengimpor `web` (hanya
+menyajikan hasil build-nya), dan `shared` tidak mengimpor keduanya.
 
 ## Quick Start
 
@@ -153,6 +161,12 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
+| `AUTH_RATE_LIMIT_MAX` | Tidak | `20` (test: nonaktif) | Rate limit Better Auth `/api/auth/*` per IP per endpoint; `0` = nonaktif. Sign-in/sign-up punya aturan bawaan lebih ketat (3 per 10 detik); `/get-session` selalu dikecualikan |
+| `AUTH_RATE_LIMIT_WINDOW` | Tidak | `60` | Jendela rate limit Better Auth (detik) |
+| `SERVE_WEB_DIST` | Tidak | prod `true`, lainnya `false` | Sajikan `apps/web/dist` dari API di luar production (dipakai E2E & staging lokal) |
+| `API_DOCS_ENABLED` | Tidak | prod `false`, lainnya `true` | Aktifkan `GET /api/openapi.json` + `GET /api/docs` |
+| `ALLOW_DEMO_SEED` | Tidak | `false` | Izinkan `db:seed:demo` di production (hanya staging; password akun demo publik) |
+| `E2E_PORT` / `E2E_DATABASE_URL` | Tidak | `3199` / DB test | Port & database server yang dijalankan Playwright (`apps/e2e`) |
 | `LOG_LEVEL` | Tidak | prod `info`, dev `debug`, test `silent` | `debug` / `info` / `warn` / `error` / `silent` |
 | `LOG_FORMAT` | Tidak | prod `json`, lainnya `pretty` | Format baris log |
 | `ADMIN_EMAIL` | Ya (production, saat seed) | `admin@example.com` (dev) | Email akun admin saat `db:seed` |
@@ -173,10 +187,12 @@ task yang input-nya tidak berubah tidak dijalankan ulang.
 | `bun run typecheck` | `tsc` untuk shared, api, web |
 | `bun run lint` | Oxlint untuk semua proyek |
 | `bun run test` | Semua test (shared + api + web) + coverage, gagal bila < 90 % per file |
+| `bun run e2e` / `e2e:ui` | Playwright E2E (`apps/e2e`): build web → server api + seed demo → browser (lihat `docs/QA.md`) |
 | `bun run check` | typecheck + lint + test (sama seperti CI) |
 | `bun run affected` | Hanya proyek yang terdampak perubahan sejak `main` (`nx affected`) |
 | `bun run graph` | Buka graf dependensi proyek di browser |
 | `bun run db:generate` / `db:migrate` / `db:push` / `db:studio` / `db:seed` / `db:test:create` | Diteruskan ke `apps/api` |
+| `bun run db:seed:demo` | Akun & data demo untuk tester/E2E/staging (idempoten; ditolak di production tanpa `ALLOW_DEMO_SEED`) |
 
 Menjalankan target satu proyek: `bunx nx <target> <proyek>`, mis. `bunx nx test api`,
 `bunx nx dev web`, `bunx nx typecheck shared`. Atau langsung di foldernya:
@@ -448,6 +464,19 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword, revokeOtherSessions }` (butuh sesi) |
 | POST | `/api/auth/two-factor/enable` · `verify-totp` · `verify-backup-code` · `disable` · `generate-backup-codes` | 2FA (lihat "Alur akun") |
 
+### Dokumentasi OpenAPI
+
+`apps/api/src/openapi.ts` membangun dokumen OpenAPI 3.0 dari schema Zod `packages/shared`
+(`z.toJSONSchema`), jadi tipe di dokumentasi sama dengan validasi runtime. Endpoint Better Auth
+yang dipakai aplikasi didokumentasikan ringkas di bagian `auth`.
+
+- `GET /api/openapi.json` — spesifikasi (impor ke Postman/Insomnia/Bruno).
+- `GET /api/docs` — UI interaktif [Scalar](https://scalar.com) (dimuat dari CDN, tanpa dependency server).
+
+Aktif otomatis di luar production; di production/staging set `API_DOCS_ENABLED=true`. Endpoint
+baru: tambahkan entri di `paths` pada `buildOpenApiDocument()` (test `tests/openapi.test.ts`
+memastikan setiap operasi punya tag & responses).
+
 ### Audit log
 
 Setiap aksi penting ditulis ke tabel `audit_log` (`apps/api/src/lib/audit.ts`), **append-only**, tanpa FK ke
@@ -562,6 +591,14 @@ bunx nx test api         # hanya backend
   `createMemoryRouter`) + `setupEach`/`teardownEach`; `tests/mocks/` berisi mock `@/lib/auth-client`
   (`asGuest()`, `asUser()`, `asAdmin()`) dan mock `fetch` API in-memory (`apiMock.fail.*`).
 - **`packages/shared/tests/`** — test schema Zod dan `can()` RBAC.
+- **`apps/e2e/`** — Playwright di Chromium terhadap `apps/api` yang menyajikan build `apps/web`
+  (`SERVE_WEB_DIST=true`, port 3199, DB test, migrasi + `db:seed:demo` otomatis lewat `webServer`).
+  `bun run e2e` (Nx membangun web dulu) atau `bun run e2e:ui`. Sekali: `bunx playwright install chromium`.
+  Test memakai akun demo dari `packages/shared/src/demo.ts` dan selector `data-testid`
+  (daftar di `docs/QA.md`). Rate limit dimatikan di E2E; berjalan berurutan (`workers: 1`).
+
+Panduan lengkap untuk tester manual (akun demo, skenario, cara membaca email di log, pelaporan
+bug): **[`docs/QA.md`](docs/QA.md)**.
 
 **Coverage** selalu aktif (`bunfig.toml` di tiap proyek) dengan ambang **90 % baris & fungsi**.
 Bun menerapkan ambang ini **per file** untuk setiap file yang dimuat, jadi file baru harus ikut
@@ -675,6 +712,18 @@ Untuk lokal: `docker compose up --build`.
 5. Pantau `/api/health/ready` (mengembalikan `503` saat DB down), `/api/health/live`, log `X-Request-Id`,
    dan tabel `audit_log` (mis. lonjakan `auth.sign_in` dengan `success=false`).
 6. Backup PostgreSQL terjadwal (termasuk `audit_log`; pertimbangkan retensi/arsip sesuai kebijakan).
+
+**Staging untuk tester (HTTPS, akun demo):**
+
+```bash
+cp deploy/staging/.env.staging.example .env.staging     # STAGING_DOMAIN + BETTER_AUTH_SECRET
+docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build
+docker compose --env-file .env.staging -f docker-compose.staging.yml run --rm seed   # reset akun demo
+```
+
+Caddy mengurus sertifikat untuk `STAGING_DOMAIN` dan meneruskan `X-Forwarded-For`; app berjalan
+dengan `NODE_ENV=production` plus `API_DOCS_ENABLED=true` dan `ALLOW_DEMO_SEED=true`. Jangan
+pakai compose ini untuk production (akun demo berpassword publik).
 
 **Tanpa Docker (VPS/Railway/Fly):**
 

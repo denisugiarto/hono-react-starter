@@ -15,6 +15,7 @@ bunx nx reset                                    # cache Nx aneh
 ```
 
 - Lolos = `NX Successfully ran targets …`. `bun test` dengan semua test lolos tapi exit 1 = coverage per file (skill `writing-tests`).
+- Perubahan UI/alur auth/route: jalankan juga E2E — `bun run e2e` (Nx build web → Playwright start `apps/api` di port 3199 dengan `SERVE_WEB_DIST=true`, migrasi, `db:seed:demo`; sekali: `bunx playwright install chromium`). Test unit web me-mock `auth-client`, jadi perilaku client Better Auth asli (mis. redirect) hanya terlihat di E2E. Gagal → baca `apps/e2e/test-results/*/error-context.md` (snapshot aksesibilitas halaman).
 - Setelah CI merah di Linux saja: biasanya urutan file test berbeda (mock ter-register terlambat) — jalankan `bun test` dengan urutan file yang sama seperti log CI.
 
 ## Smoke test server
@@ -27,7 +28,7 @@ curl -s localhost:3199/api/health/live; curl -s localhost:3199/api/health/ready
 kill $PID
 ```
 
-Mode production lokal: `bun run build` lalu `NODE_ENV=production BETTER_AUTH_URL=https://x.example.com PORT=3199 bun run start` dari `apps/api` (`/`, deep route, `/assets/*` harus 200).
+Mode production lokal: `bun run build` lalu `NODE_ENV=production BETTER_AUTH_URL=https://x.example.com PORT=3199 bun run start` dari `apps/api` (`/`, deep route, `/assets/*` harus 200). Untuk klik-klik manual di browser lewat http: `SERVE_WEB_DIST=true PORT=3199 BETTER_AUTH_URL=http://localhost:3199 bun src/index.ts` (production mode menolak origin http). Server E2E yang dibiarkan hidup di 3199 akan dipakai ulang Playwright (`reuseExistingServer`) — matikan bila env-nya berubah.
 
 ## Commit & CI
 

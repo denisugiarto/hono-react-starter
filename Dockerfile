@@ -12,6 +12,7 @@ FROM base AS deps
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/e2e/package.json apps/e2e/
 COPY packages/shared/package.json packages/shared/
 # --ignore-scripts: dependency transitif (better-sqlite3 dari CLI Better Auth)
 # punya skrip native yang gagal di image; app ini tidak memakai SQLite.
@@ -28,6 +29,7 @@ FROM base AS prod-deps
 COPY package.json bun.lock ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
+COPY apps/e2e/package.json apps/e2e/
 COPY packages/shared/package.json packages/shared/
 RUN bun install --frozen-lockfile --production --ignore-scripts
 

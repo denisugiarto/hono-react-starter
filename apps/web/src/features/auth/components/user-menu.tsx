@@ -25,7 +25,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="sm" className="gap-2 px-2" aria-label="Menu pengguna" />}
+        render={<Button variant="ghost" size="sm" className="gap-2 px-2" aria-label="Menu pengguna" data-testid="user-menu-trigger" />}
       >
         <Avatar className="size-6">
           <AvatarFallback className="text-xs">{initialsOf(user.name)}</AvatarFallback>
@@ -40,27 +40,27 @@ export function UserMenu() {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link to={paths.notes} />}>
+        <DropdownMenuItem data-testid="user-menu-notes" render={<Link to={paths.notes} />}>
           <NotebookPenIcon /> Catatan
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link to={paths.security} />}>
+        <DropdownMenuItem data-testid="user-menu-security" render={<Link to={paths.security} />}>
           <ShieldCheckIcon /> Keamanan
         </DropdownMenuItem>
-        <DropdownMenuItem render={<Link to={paths.apiToken} />}>
+        <DropdownMenuItem data-testid="user-menu-api-token" render={<Link to={paths.apiToken} />}>
           <KeyRoundIcon /> Token API
         </DropdownMenuItem>
         {can({ user: ['list'] }) && (
-          <DropdownMenuItem render={<Link to={paths.adminUsers} />}>
+          <DropdownMenuItem data-testid="user-menu-users" render={<Link to={paths.adminUsers} />}>
             <UsersIcon /> Pengguna
           </DropdownMenuItem>
         )}
         {can({ audit: ['list'] }) && (
-          <DropdownMenuItem render={<Link to={paths.adminAuditLogs} />}>
+          <DropdownMenuItem data-testid="user-menu-audit" render={<Link to={paths.adminAuditLogs} />}>
             <ScrollTextIcon /> Audit log
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={signOut}>
+        <DropdownMenuItem variant="destructive" data-testid="user-menu-sign-out" onClick={signOut}>
           <LogOutIcon /> Keluar
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -5,7 +5,14 @@ import { bearer } from 'better-auth/plugins/bearer'
 import { jwt } from 'better-auth/plugins/jwt'
 import { twoFactor } from 'better-auth/plugins/two-factor'
 import { ac, roles } from '@hono-react-starter/shared/permissions'
-import { envIsTest, readAuthSecret, readBaseUrl, readEmailVerificationRequired, readTrustedOrigins } from './env.ts'
+import {
+  readAuthRateLimit,
+  readAuthSecret,
+  readBaseUrl,
+  readEmailVerificationRequired,
+  readTrustedOrigins,
+  type AuthRateLimitConfig,
+} from './env.ts'
 import { db } from './db/index.ts'
 import * as schema from './db/schema.ts'
 import { resetPasswordEmail, verificationEmail } from './lib/emails.ts'
@@ -26,6 +33,8 @@ export type AuthOptions = {
   requireEmailVerification?: boolean
   /** Pengirim email. Default: singleton src/mailer.ts (provider dari MAIL_PROVIDER). */
   mailer?: Mailer
+  /** Rate limit /api/auth/*. Default dari env AUTH_RATE_LIMIT_* (nonaktif saat test); `false` mematikan. */
+  rateLimit?: AuthRateLimitConfig | false
 }
 
 /**
@@ -37,6 +46,7 @@ export function createAuth(options: AuthOptions = {}) {
   const baseURL = readBaseUrl()
   const mailer = options.mailer ?? defaultMailer
   const requireEmailVerification = options.requireEmailVerification ?? readEmailVerificationRequired()
+  const rateLimit = options.rateLimit ?? readAuthRateLimit()
 
   return betterAuth({
     appName: APP_NAME,
@@ -82,13 +92,17 @@ export function createAuth(options: AuthOptions = {}) {
         ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'],
       },
     },
-    // Proteksi brute-force pada endpoint auth (sign-in/sign-up, dst.).
-    // Dimatikan saat test agar suite tidak kena 429.
+    // Proteksi brute-force pada endpoint auth (sign-in/sign-up, dst.), per IP
+    // per endpoint. Konfigurasi dari AUTH_RATE_LIMIT_* (nonaktif saat test agar
+    // suite tidak kena 429). /get-session dikecualikan: dipanggil SPA berulang
+    // (tiap tab/refresh) dan tidak berguna untuk menebak kredensial — tanpa
+    // pengecualian ini banyak pengguna di balik satu NAT akan "terlempar" dari sesi.
     rateLimit: {
-      enabled: !envIsTest(),
-      window: 60, // detik
-      max: 20, // request per window per IP per endpoint
+      enabled: rateLimit !== false,
+      window: rateLimit ? rateLimit.windowSeconds : 60,
+      max: rateLimit ? rateLimit.max : 20,
       storage: 'database', // tabel rate_limit
+      customRules: { '/get-session': false },
     },
     plugins: [
       // RBAC: role di kolom user.role + permission (ac/roles dari packages/shared/src/permissions.ts)

@@ -35,6 +35,7 @@ export function NoteForm() {
           <FieldLabel htmlFor="note-title">Judul</FieldLabel>
           <Input
             id="note-title"
+            data-testid="note-title"
             placeholder="Mis. Belajar Drizzle"
             aria-invalid={Boolean(errors.title)}
             {...form.register('title')}
@@ -43,11 +44,11 @@ export function NoteForm() {
         </Field>
         <Field>
           <FieldLabel htmlFor="note-content">Isi (opsional)</FieldLabel>
-          <Textarea id="note-content" placeholder="Catatan singkat…" {...form.register('content')} />
+          <Textarea id="note-content" data-testid="note-content" placeholder="Catatan singkat…" {...form.register('content')} />
         </Field>
       </FieldGroup>
       {createNote.isError && <ErrorMessage error={createNote.error} />}
-      <Button type="submit" disabled={createNote.isPending || isSubmitting}>
+      <Button type="submit" data-testid="note-submit" disabled={createNote.isPending || isSubmitting}>
         Tambah
       </Button>
     </form>

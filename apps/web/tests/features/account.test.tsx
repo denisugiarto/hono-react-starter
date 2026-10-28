@@ -20,8 +20,8 @@ describe('AuthForm — 2FA & verifikasi email', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/login/two-factor'))
     expect(router.state.location.state).toEqual({ from: '/notes' })
     expect(await screen.findByText(/Masukkan kode dari aplikasi authenticator/)).toBeTruthy()
-    // callbackURL absolut ikut dikirim (verifikasi email)
-    expect((authCalls[0]!.payload as { callbackURL: string }).callbackURL).toBe('http://localhost:5173/verify-email')
+    // Sign-in TANPA callbackURL (kalau ada, Better Auth membalas redirect dan browser pindah halaman)
+    expect(authCalls[0]!.payload).toEqual({ email: 'alice@test.local', password: 'password123' })
   })
 
   test('EMAIL_NOT_VERIFIED → tombol kirim ulang → sendVerificationEmail + toast', async () => {

@@ -1,0 +1,73 @@
+# Staging untuk tester: Caddy (HTTPS otomatis) → app (production build) → PostgreSQL,
+# plus seed akun demo (docs/QA.md). Jalankan di VPS yang DNS-nya mengarah ke STAGING_DOMAIN:
+#
+#   cp deploy/staging/.env.staging.example .env.staging   # isi STAGING_DOMAIN & BETTER_AUTH_SECRET
+#   docker compose --env-file .env.staging -f docker-compose.staging.yml up -d --build
+#   docker compose --env-file .env.staging -f docker-compose.staging.yml run --rm seed   # reset data demo
+#
+# Perbedaan dengan production: dokumentasi API aktif (/api/docs), seed demo diizinkan,
+# email hanya dicatat di log (MAIL_PROVIDER=console) kecuali diisi RESEND_*.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: hono_react_starter
+    volumes:
+      - pgdata-staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d hono_react_starter']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: hono-react-starter:staging
+    restart: unless-stopped
+    environment: &app-env
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/hono_react_starter
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?isi BETTER_AUTH_SECRET di .env.staging}
+      BETTER_AUTH_URL: https://${STAGING_DOMAIN:?isi STAGING_DOMAIN di .env.staging}
+      API_DOCS_ENABLED: 'true'
+      ALLOW_DEMO_SEED: 'true'
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
+      MAIL_FROM: ${MAIL_FROM:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # One-shot: `run --rm seed` — membuat/mereset akun & catatan demo (idempoten).
+  seed:
+    image: hono-react-starter:staging
+    profiles: [tools]
+    environment: *app-env
+    command: ['bun', 'src/db/seed-demo.ts']
+    depends_on:
+      app:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      STAGING_DOMAIN: ${STAGING_DOMAIN}
+    volumes:
+      - ./deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  pgdata-staging:
+  caddy-data:
+  caddy-config:

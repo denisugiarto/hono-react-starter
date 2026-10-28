@@ -8,6 +8,7 @@ export function ForbiddenPage() {
   useDocumentTitle('Akses ditolak')
   return (
     <EmptyState
+      data-testid="forbidden"
       className="mx-auto max-w-md"
       title="403 — Akses ditolak"
       description="Akun Anda tidak memiliki izin untuk membuka halaman ini."

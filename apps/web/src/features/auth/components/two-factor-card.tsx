@@ -77,7 +77,7 @@ export function TwoFactorCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Autentikasi dua faktor (2FA)
-          <Badge variant={enabled ? 'default' : 'secondary'}>{enabled ? 'Aktif' : 'Nonaktif'}</Badge>
+          <Badge data-testid="tf-status" variant={enabled ? 'default' : 'secondary'}>{enabled ? 'Aktif' : 'Nonaktif'}</Badge>
         </CardTitle>
         <CardDescription>
           Kode 6 digit dari aplikasi authenticator diminta setiap kali masuk. Simpan kode cadangan di tempat aman.
@@ -92,9 +92,9 @@ export function TwoFactorCard() {
               </div>
               <div className="space-y-2 text-sm">
                 <p>Pindai QR dengan aplikasi authenticator, atau masukkan secret ini secara manual:</p>
-                <code className="block break-all rounded bg-muted px-2 py-1 text-xs">{secretFromTotpUri(setup.totpURI)}</code>
+                <code data-testid="tf-secret" className="block break-all rounded bg-muted px-2 py-1 text-xs">{secretFromTotpUri(setup.totpURI)}</code>
                 <p className="font-medium">Kode cadangan (sekali pakai):</p>
-                <ul className="grid grid-cols-2 gap-1 font-mono text-xs" aria-label="Kode cadangan">
+                <ul data-testid="tf-backup-codes" className="grid grid-cols-2 gap-1 font-mono text-xs" aria-label="Kode cadangan">
                   {setup.backupCodes.map((c) => (
                     <li key={c}>{c}</li>
                   ))}
@@ -104,13 +104,13 @@ export function TwoFactorCard() {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="tf-code">Kode dari aplikasi</FieldLabel>
-                <Input id="tf-code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" aria-invalid={Boolean(codeForm.formState.errors.code)} {...codeForm.register('code')} />
+                <Input id="tf-code" data-testid="tf-code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" aria-invalid={Boolean(codeForm.formState.errors.code)} {...codeForm.register('code')} />
                 <FieldDescription>Masukkan kode untuk memastikan aplikasi sudah terpasang benar.</FieldDescription>
                 <FieldError errors={[codeForm.formState.errors.code]} />
               </Field>
               {errorBlock}
               <div className="flex gap-2">
-                <Button type="submit" disabled={codeForm.formState.isSubmitting}>
+                <Button type="submit" data-testid="tf-confirm" disabled={codeForm.formState.isSubmitting}>
                   Aktifkan 2FA
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setSetup(null)}>
@@ -124,11 +124,11 @@ export function TwoFactorCard() {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="tf-password">Konfirmasi password</FieldLabel>
-                <Input id="tf-password" type="password" autoComplete="current-password" aria-invalid={Boolean(passwordForm.formState.errors.password)} {...passwordForm.register('password')} />
+                <Input id="tf-password" data-testid="tf-password" type="password" autoComplete="current-password" aria-invalid={Boolean(passwordForm.formState.errors.password)} {...passwordForm.register('password')} />
                 <FieldError errors={[passwordForm.formState.errors.password]} />
               </Field>
               {errorBlock}
-              <Button type="submit" variant={enabled ? 'destructive' : 'default'} disabled={passwordForm.formState.isSubmitting}>
+              <Button type="submit" data-testid="tf-submit" variant={enabled ? 'destructive' : 'default'} disabled={passwordForm.formState.isSubmitting}>
                 {enabled ? 'Nonaktifkan 2FA' : 'Mulai aktivasi 2FA'}
               </Button>
             </FieldGroup>

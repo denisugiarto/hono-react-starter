@@ -61,11 +61,18 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
   const submit = async (values: SignUpInput) => {
     setError(null)
     setUnverifiedEmail(null)
-    const callbackURL = absoluteUrl(paths.verifyEmail)
+    // callbackURL hanya untuk daftar (tujuan tautan verifikasi). JANGAN dikirim saat
+    // masuk: Better Auth membalas `{ redirect: true, url }` dan client akan
+    // memindahkan browser ke URL itu, bukan ke halaman tujuan.
     const res =
       mode === 'signup'
-        ? await signUp.email({ email: values.email, password: values.password, name: values.name, callbackURL })
-        : await signIn.email({ email: values.email, password: values.password, callbackURL })
+        ? await signUp.email({
+            email: values.email,
+            password: values.password,
+            name: values.name,
+            callbackURL: absoluteUrl(paths.verifyEmail),
+          })
+        : await signIn.email({ email: values.email, password: values.password })
     if (res.error) {
       if (res.error.code === 'EMAIL_NOT_VERIFIED') setUnverifiedEmail(values.email)
       setError(res.error.message ?? 'Gagal autentikasi')
@@ -90,7 +97,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
 
   if (checkInbox) {
     return (
-      <Alert>
+      <Alert data-testid="auth-check-inbox">
         <AlertTitle>Periksa email Anda</AlertTitle>
         <AlertDescription>
           Kami mengirim tautan verifikasi ke <strong>{checkInbox}</strong>. Buka tautan itu untuk mengaktifkan akun, lalu
@@ -109,7 +116,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
         {mode === 'signup' && (
           <Field>
             <FieldLabel htmlFor="auth-name">Nama</FieldLabel>
-            <Input id="auth-name" placeholder="Budi" aria-invalid={Boolean(errors.name)} {...form.register('name')} />
+            <Input id="auth-name" data-testid="auth-name" placeholder="Budi" aria-invalid={Boolean(errors.name)} {...form.register('name')} />
             <FieldError errors={[errors.name]} />
           </Field>
         )}
@@ -117,6 +124,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
           <FieldLabel htmlFor="auth-email">Email</FieldLabel>
           <Input
             id="auth-email"
+            data-testid="auth-email"
             type="email"
             placeholder="budi@example.com"
             aria-invalid={Boolean(errors.email)}
@@ -128,13 +136,14 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
           <div className="flex items-center justify-between">
             <FieldLabel htmlFor="auth-password">Password</FieldLabel>
             {mode === 'signin' && (
-              <Link to={paths.forgotPassword} className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+              <Link to={paths.forgotPassword} data-testid="auth-forgot-link" className="text-xs text-muted-foreground underline-offset-4 hover:underline">
                 Lupa password?
               </Link>
             )}
           </div>
           <Input
             id="auth-password"
+            data-testid="auth-password"
             type="password"
             placeholder="••••••••"
             aria-invalid={Boolean(errors.password)}
@@ -144,10 +153,10 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
         </Field>
 
         {error && (
-          <div role="alert" className="space-y-2 text-sm text-destructive">
+          <div role="alert" data-testid="auth-error" className="space-y-2 text-sm text-destructive">
             <p>{error}</p>
             {unverifiedEmail && (
-              <Button type="button" variant="outline" size="sm" onClick={resend}>
+              <Button type="button" variant="outline" size="sm" data-testid="auth-resend-verification" onClick={resend}>
                 Kirim ulang email verifikasi
               </Button>
             )}
@@ -155,10 +164,10 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
         )}
 
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          <Button type="submit" className="flex-1" data-testid="auth-submit" disabled={isSubmitting}>
             {mode === 'signin' ? 'Masuk' : 'Daftar'}
           </Button>
-          <Button type="button" variant="outline" className="flex-1" onClick={switchMode}>
+          <Button type="button" variant="outline" className="flex-1" data-testid="auth-switch-mode" onClick={switchMode}>
             {mode === 'signin' ? 'Daftar akun baru' : 'Sudah punya akun'}
           </Button>
         </div>

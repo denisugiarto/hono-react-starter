@@ -32,7 +32,7 @@ export function ForgotPasswordForm() {
 
   if (sentTo) {
     return (
-      <Alert>
+      <Alert data-testid="forgot-sent">
         <AlertTitle>Periksa email Anda</AlertTitle>
         <AlertDescription>
           Jika <strong>{sentTo}</strong> terdaftar, kami mengirim tautan untuk mengatur ulang password. Tautan berlaku 1
@@ -50,7 +50,7 @@ export function ForgotPasswordForm() {
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="forgot-email">Email</FieldLabel>
-          <Input id="forgot-email" type="email" placeholder="budi@example.com" aria-invalid={Boolean(errors.email)} {...form.register('email')} />
+          <Input id="forgot-email" data-testid="forgot-email" type="email" placeholder="budi@example.com" aria-invalid={Boolean(errors.email)} {...form.register('email')} />
           <FieldDescription>Kami akan mengirim tautan untuk mengatur ulang password.</FieldDescription>
           <FieldError errors={[errors.email]} />
         </Field>
@@ -60,7 +60,7 @@ export function ForgotPasswordForm() {
           </p>
         )}
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          <Button type="submit" className="flex-1" data-testid="forgot-submit" disabled={isSubmitting}>
             Kirim tautan
           </Button>
           <Button type="button" variant="outline" className="flex-1" render={<Link to={paths.login} />}>

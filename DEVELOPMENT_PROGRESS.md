@@ -351,10 +351,37 @@ Verifikasi iterasi 2:
   skill (ragu soal `exports` shared, bentuk mock API web, wildcard permission) → skill direvisi → uji ulang dengan skill.
 - README: bagian "Skill untuk agen AI (Claude Code)".
 
+## Iterasi 12 — Kesiapan tester: seed demo, Playwright E2E, OpenAPI, staging (2026-10-29)
+
+- **Seed demo**: `packages/shared/src/demo.ts` (akun admin/user/totp/banned, catatan contoh, kode cadangan
+  tetap — konstanta murni agar bisa diimpor Playwright), `apps/api/src/db/demo.ts` (`seedDemo()` idempoten;
+  2FA dipasang langsung ke tabel `two_factor` dengan `symmetricEncrypt` Better Auth agar secret TOTP tetap),
+  entry `seed-demo.ts` (`bun run db:seed:demo`; ditolak di production tanpa `ALLOW_DEMO_SEED`).
+- **OpenAPI**: `apps/api/src/openapi.ts` — dokumen 3.0 dari schema Zod shared (`z.toJSONSchema`), ringkasan
+  endpoint Better Auth, `GET /api/openapi.json` (cache) + `GET /api/docs` (Scalar via CDN); `API_DOCS_ENABLED`.
+- **E2E**: proyek Nx `apps/e2e` (Playwright, Chromium). `webServer` menjalankan `apps/api` dengan
+  `SERVE_WEB_DIST=true` (opsi baru `createApp({ serveWeb })`, dipisah dari HSTS/`isProd`), migrasi + seed demo,
+  DB test, port 3199. 18 skenario: smoke/404/docs, daftar, login salah/benar/banned, redirect guard, lupa
+  password, catatan CRUD + validasi, 2FA TOTP (kode dari secret tetap), admin users/audit + filter, RBAC 403/401.
+  CI: job `e2e` (artefak laporan saat gagal). `data-testid` di form auth, 2FA, catatan, header/menu, tabel admin.
+- **Rate limit Better Auth** kini dari env `AUTH_RATE_LIMIT_MAX/WINDOW` (`createAuth({ rateLimit })`),
+  `/get-session` dikecualikan lewat `customRules` — ditemukan E2E: SPA memanggil get-session berulang dari
+  satu IP sehingga 20/menit membuat sesi "hilang" (429). Aturan bawaan sign-in 3/10 detik tetap berlaku.
+- **Bug nyata yang terungkap E2E**: `signIn.email` dikirim dengan `callbackURL` → Better Auth membalas
+  `{ redirect: true, url }` dan client memindahkan browser ke `/verify-email` setelah login. Test unit tidak
+  menangkapnya karena auth-client di-mock. Diperbaiki: callbackURL hanya untuk sign-up/kirim ulang.
+- **Staging**: `docker-compose.staging.yml` (Caddy HTTPS otomatis + app production + db + service `seed`),
+  `deploy/staging/{Caddyfile,.env.staging.example}`. Dockerfile menyalin `apps/e2e/package.json` (workspace).
+- **Dokumentasi**: `docs/QA.md` (lingkungan, akun demo, cara baca email di log, OpenAPI, checklist skenario,
+  tabel `data-testid`, E2E, pelaporan bug), README (Fitur, Struktur, Env, Script, OpenAPI, Testing, Staging),
+  `.env.example`, skill `verifying-changes` / `writing-tests` / `adding-feature` diperbarui.
+- Test: api 148 (+19), web 80, shared 15 (+1), e2e 18. Coverage per file tetap ≥ 90 %.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).
-- OpenTelemetry (tracing/metrics) + Sentry; OpenAPI dari schema Zod; Playwright E2E.
+- OpenTelemetry (tracing/metrics) + Sentry.
+- E2E: alur reset password & verifikasi email lewat tautan (butuh inbox uji, mis. endpoint `memory` khusus staging).
 - Hygiene repo: LICENSE, CONTRIBUTING, SECURITY.md, CODEOWNERS, Renovate, scan dependensi di CI.
 - Content-Security-Policy ber-nonce di production.
 

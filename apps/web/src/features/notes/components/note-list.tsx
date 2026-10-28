@@ -13,8 +13,9 @@ type ItemProps = { note: Note; onToggle: (note: Note) => void; onDelete: (note: 
 
 export function NoteItem({ note, onToggle, onDelete, busy }: ItemProps) {
   return (
-    <li className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+    <li data-testid="note-item" data-note-id={note.id} className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
       <Checkbox
+        data-testid="note-toggle"
         checked={note.done}
         onCheckedChange={() => onToggle(note)}
         aria-label={`Tandai "${note.title}" selesai`}
@@ -24,6 +25,7 @@ export function NoteItem({ note, onToggle, onDelete, busy }: ItemProps) {
         {note.content && <p className="truncate text-sm text-muted-foreground">{note.content}</p>}
       </div>
       <Button
+        data-testid="note-delete"
         variant="ghost"
         size="icon-sm"
         disabled={busy}
@@ -45,11 +47,11 @@ export function NoteList() {
   if (notes.isPending) return <LoadingState rows={2} label="Memuat catatan…" />
   if (notes.isError) return <ErrorMessage error={notes.error} />
   if (notes.data.length === 0) {
-    return <EmptyState title="Belum ada catatan" description="Tambahkan satu lewat form di atas." />
+    return <EmptyState data-testid="notes-empty" title="Belum ada catatan" description="Tambahkan satu lewat form di atas." />
   }
 
   return (
-    <ul className="space-y-2">
+    <ul data-testid="note-list" className="space-y-2">
       {notes.data.map((note) => (
         <NoteItem
           key={note.id}

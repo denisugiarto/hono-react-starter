@@ -32,3 +32,11 @@ dist-ssr
 
 # Coverage
 coverage
+
+# Playwright (apps/e2e)
+test-results
+playwright-report
+blob-report
+
+# Staging (docker-compose.staging.yml)
+.env.staging

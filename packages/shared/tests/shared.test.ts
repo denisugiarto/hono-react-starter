@@ -132,3 +132,19 @@ describe('Shared schema — form akun', () => {
     expect(passwordConfirmSchema.safeParse({ password: '' }).success).toBe(false)
   })
 })
+
+describe('Shared demo — akun uji', () => {
+  test('email unik, password ≥ 8, satu admin, satu akun 2FA dengan secret 32 karakter', async () => {
+    const { DEMO_ACCOUNTS, DEMO_BACKUP_CODES, DEMO_NOTES, demoAccount } = await import('../src/demo.ts')
+    const emails = DEMO_ACCOUNTS.map((a) => a.email)
+    expect(new Set(emails).size).toBe(emails.length)
+    for (const a of DEMO_ACCOUNTS) expect(signInSchema.safeParse({ email: a.email, password: a.password }).success).toBe(true)
+    for (const a of DEMO_ACCOUNTS) expect(a.password.length).toBeGreaterThanOrEqual(8)
+    expect(DEMO_ACCOUNTS.filter((a) => a.role === 'admin').length).toBe(1)
+    expect(demoAccount('totp').totpSecret?.length).toBe(32)
+    expect(demoAccount('banned').banned).toBe(true)
+    expect(DEMO_BACKUP_CODES.every((c) => /^[a-z0-9]{5}-[a-z0-9]{5}$/.test(c))).toBe(true)
+    expect(DEMO_NOTES.length).toBeGreaterThan(0)
+    for (const n of DEMO_NOTES) expect(noteCreateSchema.safeParse(n).success).toBe(true)
+  })
+})

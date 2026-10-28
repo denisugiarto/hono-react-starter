@@ -1,0 +1,6 @@
+# Reverse proxy staging: TLS otomatis (Let's Encrypt) untuk {$STAGING_DOMAIN}.
+# Header X-Forwarded-For diteruskan otomatis → IP asli dipakai rate limit & audit log.
+{$STAGING_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

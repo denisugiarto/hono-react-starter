@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 export function MainNav({ className }: { className?: string }) {
   const items = useVisibleNav()
   return (
-    <nav aria-label="Navigasi utama" className={cn('flex items-center gap-1', className)}>
+    <nav aria-label="Navigasi utama" data-testid="main-nav" className={cn('flex items-center gap-1', className)}>
       {items.map((item) => (
         <NavLink
           key={item.to}

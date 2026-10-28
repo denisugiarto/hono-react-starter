@@ -60,12 +60,12 @@ export function ResetPasswordForm({ token, errorCode, onSuccess }: Props) {
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="reset-new">Password baru</FieldLabel>
-          <Input id="reset-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
+          <Input id="reset-new" data-testid="reset-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
           <FieldError errors={[errors.newPassword]} />
         </Field>
         <Field>
           <FieldLabel htmlFor="reset-confirm">Ulangi password baru</FieldLabel>
-          <Input id="reset-confirm" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...form.register('confirmPassword')} />
+          <Input id="reset-confirm" data-testid="reset-confirm" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...form.register('confirmPassword')} />
           <FieldError errors={[errors.confirmPassword]} />
         </Field>
         {error && (
@@ -73,7 +73,7 @@ export function ResetPasswordForm({ token, errorCode, onSuccess }: Props) {
             {error}
           </p>
         )}
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" data-testid="reset-submit" disabled={isSubmitting}>
           Simpan password
         </Button>
       </FieldGroup>

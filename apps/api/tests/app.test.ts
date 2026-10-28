@@ -10,6 +10,23 @@ const DIST = path.join(import.meta.dirname, 'fixtures/build')
 
 const req = (path: string, init?: RequestInit) => new Request(`${ORIGIN}${path}`, init)
 
+describe('createApp — serveWeb di luar production (E2E/staging lokal)', () => {
+  test('serveWeb: true tanpa isProd → dist disajikan, HSTS tidak dipasang', async () => {
+    const app = createApp({ isProd: false, serveWeb: true, distDir: DIST, silent: true })
+    const res = await app.fetch(req('/dashboard'))
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('id="root"')
+    expect(res.headers.get('strict-transport-security')).toBeNull()
+  })
+
+  test('isProd: true + serveWeb: false → HSTS aktif, frontend tidak disajikan', async () => {
+    const app = createApp({ isProd: true, serveWeb: false, distDir: DIST, silent: true })
+    const res = await app.fetch(req('/'))
+    expect(res.status).toBe(404)
+    expect(res.headers.get('strict-transport-security')).toContain('max-age=31536000')
+  })
+})
+
 describe('createApp — mode production (static + SPA fallback)', () => {
   const prod = createApp({ isProd: true, distDir: DIST, silent: true })
 

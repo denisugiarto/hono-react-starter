@@ -26,7 +26,7 @@ export function SiteHeader() {
           ) : isAuthenticated ? (
             <UserMenu />
           ) : (
-            <Button size="sm" render={<Link to={paths.login} />}>
+            <Button size="sm" data-testid="login-link" render={<Link to={paths.login} />}>
               Masuk
             </Button>
           )}

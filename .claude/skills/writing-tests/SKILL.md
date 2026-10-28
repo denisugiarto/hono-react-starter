@@ -1,6 +1,6 @@
 ---
 name: writing-tests
-description: Use when writing or fixing tests in apps/api, apps/web, or packages/shared, or when `bun test` passes but exits 1 (coverage threshold), or when a web test fails with "Invalid base URL", "beforeEach is not a function", or "Found multiple elements".
+description: Use when writing or fixing tests in apps/api, apps/web, packages/shared, or Playwright specs in apps/e2e, or when `bun test` passes but exits 1 (coverage threshold), or when a web test fails with "Invalid base URL", "beforeEach is not a function", or "Found multiple elements".
 ---
 
 # Menulis Test (bun test, coverage ≥ 90 % PER FILE)
@@ -14,7 +14,8 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 - DB test terpisah (`TEST_DATABASE_URL` / nama DB + `_test`), migrasi + TRUNCATE sekali di `tests/setup.ts` (preload). Tabel baru → tambah ke TRUNCATE.
 - Email ditangkap `MemoryMailer` (`mailer` dari `src/mailer.ts`; `MAIL_PROVIDER=memory` di setup). Tautan dari `mail.text`, panggil dengan `app.fetch(new Request(url, { redirect: 'manual' }))`.
 - Kode TOTP nyata: `createOTP(secret).totp()` dari `@better-auth/utils/otp`, secret = base32-decode dari `totpURI`.
-- Konfigurasi alternatif tanpa ubah env: `createApp({ isProd, rateLimit, extend })`, `createApiRoutes({ ping })`, `createAuth({ requireEmailVerification, mailer })`.
+- Konfigurasi alternatif tanpa ubah env: `createApp({ isProd, serveWeb, docs, rateLimit, extend })`, `createApiRoutes({ ping })`, `createAuth({ requireEmailVerification, mailer, rateLimit })`.
+- Akun demo (`seedDemo()` dari `src/db/demo.ts`, konstanta di `@hono-react-starter/shared/demo`) boleh dipakai di test API; jangan andalkan urutan global tabel `audit_log` — filter per email/actor karena file test lain (termasuk seed demo) ikut menulis.
 - Arrow `.catch(() => …)` dihitung sebagai fungsi oleh coverage: pastikan ada test yang memicunya (mis. JSON rusak), atau tulis `try/catch` bila jalurnya sulit dipicu.
 
 ## Web (`apps/web/tests/**/*.test.tsx`)
@@ -27,6 +28,13 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 - Selector: `CardTitle` bukan heading → `getByText`; teks toast muncul ganda (live region) → `findAllByText`; header punya link "Masuk" juga → `within(container)`.
 - Navigasi setelah aksi sukses ke route ber-`RequireAuth` butuh `asUser()` dulu, kalau tidak dipantulkan ke `/login`.
 - `src/components/ui/**`, `main.tsx`, `app/router.tsx` dikecualikan dari coverage; helper murni taruh di `src/lib/format.ts` agar bisa diuji tanpa React (dan tidak memicu peringatan `only-export-components`).
+
+## E2E (`apps/e2e/tests/*.spec.ts`, Playwright)
+
+- Pakai `data-testid` (`page.getByTestId('auth-submit')`), bukan teks; daftar selector di `docs/QA.md`. Komponen baru yang berinteraksi (input, tombol, baris, state kosong) wajib diberi `data-testid` berprefix fitur.
+- Helper `tests/helpers.ts`: `login(page, 'user'|'admin')`, `submitLogin(page, key)`, `logout(page)`, `totpCode()` (secret tetap akun `totp`), `uniqueEmail()` untuk sign-up. Akun dari `packages/shared/src/demo.ts` — impor relatif, bukan dari `apps/api` (menarik DB).
+- Server di-start Playwright (`webServer`), seed demo berjalan tiap start → kode cadangan/catatan direset; test yang mengubah akun demo harus idempoten atau memakai akun baru. `workers: 1`.
+- Jangan lewati rate limit dengan menunggu: `AUTH_RATE_LIMIT_MAX=0` sudah diset di config; aturan bawaan Better Auth sign-in adalah 3/10 detik bila limiter aktif.
 
 ## Shared (`packages/shared/tests`)
 

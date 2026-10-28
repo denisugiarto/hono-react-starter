@@ -10,7 +10,16 @@ import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { auth } from './auth.ts'
 import { withAuthAudit } from './auth-audit.ts'
-import { envIsProd, envIsTest, readApiRateLimit, readLogConfig, type ApiRateLimitConfig } from './env.ts'
+import {
+  envIsProd,
+  envIsTest,
+  readApiDocsEnabled,
+  readApiRateLimit,
+  readLogConfig,
+  readServeWebDist,
+  type ApiRateLimitConfig,
+} from './env.ts'
+import { createDocsRoutes } from './openapi.ts'
 import { Logger, serializeError } from './lib/logger.ts'
 import { errorBody, fail } from './lib/response.ts'
 import { requestLog } from './middleware/request-log.ts'
@@ -20,10 +29,17 @@ import { createApiRateLimiter, type ApiRateLimitOptions } from './middleware/rat
 export type App = Hono<AppEnv>
 
 export type AppOptions = {
-  /** Mode production: serve `dist/` + HSTS. Default: NODE_ENV === 'production'. */
+  /** Mode production: HSTS aktif dan (bila `serveWeb` tidak diisi) serve `dist/`. Default: NODE_ENV === 'production'. */
   isProd?: boolean
+  /**
+   * Sajikan hasil build frontend (dist) + SPA fallback dari server ini.
+   * Default: `isProd` bila diberikan, selain itu env SERVE_WEB_DIST (true di production).
+   */
+  serveWeb?: boolean
   /** Folder hasil build frontend. Default: `defaultDistDir()` (apps/web/dist atau WEB_DIST_DIR). */
   distDir?: string
+  /** Dokumentasi API (`/api/openapi.json`, `/api/docs`). Default: env API_DOCS_ENABLED (nonaktif di production). */
+  docs?: boolean
   /** Logger. Default dari env (LOG_LEVEL / LOG_FORMAT; lihat lib/logger.ts). */
   logger?: Logger
   /** Matikan semua log (setara logger level 'silent'). Default: NODE_ENV === 'test'. */
@@ -57,6 +73,8 @@ export function defaultDistDir(): string {
  */
 export function createApp(options: AppOptions = {}): App {
   const isProd = options.isProd ?? envIsProd()
+  const serveWeb = options.serveWeb ?? options.isProd ?? readServeWebDist()
+  const docs = options.docs ?? readApiDocsEnabled()
   const distDir = options.distDir ?? defaultDistDir()
   const silent = options.silent ?? (options.logger ? false : envIsTest())
   const logger = silent
@@ -109,6 +127,8 @@ export function createApp(options: AppOptions = {}): App {
   // API
   // -------------------------------------------------------------------------
   app.route('/api', api)
+  // Dokumentasi: /api/openapi.json (spesifikasi) + /api/docs (UI). Lihat openapi.ts.
+  if (docs) app.route('/api', createDocsRoutes())
   app.route('/api/notes', notesRoutes)
   app.route('/api/admin', adminRoutes)
 
@@ -138,12 +158,13 @@ export function createApp(options: AppOptions = {}): App {
   })
 
   // -------------------------------------------------------------------------
-  // Frontend. Production: sajikan hasil build apps/web (dist). Asset ber-hash
-  // di /assets bersifat immutable → cache agresif; file lain (favicon, dll)
-  // cache singkat; index.html tidak di-cache (SPA fallback untuk semua route).
+  // Frontend. Production (atau SERVE_WEB_DIST=true untuk E2E/staging lokal):
+  // sajikan hasil build apps/web (dist). Asset ber-hash di /assets bersifat
+  // immutable → cache agresif; file lain (favicon, dll) cache singkat;
+  // index.html tidak di-cache (SPA fallback untuk semua route).
   // Development: frontend dilayani Vite (apps/web) yang memproxy /api ke sini.
   // -------------------------------------------------------------------------
-  if (isProd) {
+  if (serveWeb) {
     const serveDist = serveStatic({ root: distDir })
     const noop = async () => {}
 

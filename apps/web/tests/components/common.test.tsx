@@ -5,7 +5,7 @@ import { ErrorMessage } from '../../src/components/common/error-message.tsx'
 import { LoadingState } from '../../src/components/common/loading-state.tsx'
 import { PageHeader } from '../../src/components/common/page-header.tsx'
 import { ApiError } from '../../src/lib/api/request.ts'
-import { initialsOf } from '../../src/features/auth/components/user-menu.tsx'
+import { initialsOf } from '../../src/lib/format.ts'
 
 afterEach(cleanup)
 

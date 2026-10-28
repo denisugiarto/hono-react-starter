@@ -12,15 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { paths } from '@/config/paths'
+import { initialsOf } from '@/lib/format'
 import { useAuth } from '../hooks/use-auth.ts'
 import { useSignOut } from '../hooks/use-sign-out.ts'
-
-/** Inisial nama untuk avatar (maks 2 huruf). */
-export function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  const letters = parts.slice(0, 2).map((p) => p[0]!.toUpperCase())
-  return letters.join('') || '?'
-}
 
 /** Avatar + dropdown: identitas, pintasan halaman, dan keluar. */
 export function UserMenu() {

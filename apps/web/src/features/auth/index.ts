@@ -1,7 +1,7 @@
 export { useAuth, type AuthUser } from './hooks/use-auth.ts'
 export { useSignOut } from './hooks/use-sign-out.ts'
 export { AuthForm, type AuthMode } from './components/auth-form.tsx'
-export { UserMenu, initialsOf } from './components/user-menu.tsx'
+export { UserMenu } from './components/user-menu.tsx'
 export { RequireAuth } from './components/require-auth.tsx'
 export { RequirePermission } from './components/require-permission.tsx'
 export { ApiTokenCard } from './components/api-token-card.tsx'

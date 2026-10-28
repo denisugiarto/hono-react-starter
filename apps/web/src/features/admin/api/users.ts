@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { adminUserSchema, type AdminUser } from '@hono-react-starter/shared'
-import { request } from './request.ts'
+import { request } from '@/lib/api/request'
 
 export const adminKeys = {
   users: ['admin', 'users'] as const,

@@ -1,0 +1,67 @@
+import { KeyRoundIcon, LogOutIcon, NotebookPenIcon, UsersIcon } from 'lucide-react'
+import { Link } from 'react-router'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { paths } from '@/config/paths'
+import { useAuth } from '../hooks/use-auth.ts'
+import { useSignOut } from '../hooks/use-sign-out.ts'
+
+/** Inisial nama untuk avatar (maks 2 huruf). */
+export function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const letters = parts.slice(0, 2).map((p) => p[0]!.toUpperCase())
+  return letters.join('') || '?'
+}
+
+/** Avatar + dropdown: identitas, pintasan halaman, dan keluar. */
+export function UserMenu() {
+  const { user, can } = useAuth()
+  const signOut = useSignOut()
+  if (!user) return null
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="sm" className="gap-2 px-2" aria-label="Menu pengguna" />}
+      >
+        <Avatar className="size-6">
+          <AvatarFallback className="text-xs">{initialsOf(user.name)}</AvatarFallback>
+        </Avatar>
+        <span className="hidden max-w-32 truncate sm:inline">{user.name}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="truncate font-medium">{user.name}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">{user.email}</span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link to={paths.notes} />}>
+          <NotebookPenIcon /> Catatan
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link to={paths.apiToken} />}>
+          <KeyRoundIcon /> Token API
+        </DropdownMenuItem>
+        {can({ user: ['list'] }) && (
+          <DropdownMenuItem render={<Link to={paths.adminUsers} />}>
+            <UsersIcon /> Pengguna
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={signOut}>
+          <LogOutIcon /> Keluar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { ApiError, describeError, request, requestEnvelope } from '../src/lib/api/request.ts'
+import { ApiError, describeError, request, requestEnvelope } from '../../src/lib/api/request.ts'
 
 const originalFetch = globalThis.fetch
 afterEach(() => {

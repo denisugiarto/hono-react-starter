@@ -298,9 +298,27 @@ Verifikasi iterasi 2:
 - `.env` pindah ke `apps/api/.env` (Bun memuat dari cwd proyek). Total 131 test (8 shared + 93 api
   + 30 web), coverage 100 % per file, smoke dev (proxy + sign-up/sign-in/notes) dan prod lolos.
 
+## Iterasi 9 — Frontend: shadcn/ui lengkap + struktur proyek menengah (2026-10-28)
+
+- `apps/web/src` disusun berbasis fitur: `app/` (providers, routes, router), `pages/`, `features/{auth,notes,admin,system}`
+  (api + components + hooks + index), `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/` (site, paths,
+  navigation), `styles/globals.css`. `App.tsx` monolit (592 baris) dipecah.
+- React Router 8 (library mode): `/`, `/login`, `/notes`, `/settings/api-token`, `/admin/users`, 404, errorElement;
+  guard `RequireAuth` (redirect + `state.from`) dan `RequirePermission` (403).
+- shadcn/ui: tambah alert, alert-dialog, avatar, dialog, dropdown-menu, field, select, sheet, sonner, switch, table,
+  tabs, tooltip. CLI menulis ke `apps/web/apps/web/...` (deteksi root monorepo) → dipindahkan; import `cn` diarahkan ke
+  `@/lib/utils` (paket `cn` & `next-themes` dihapus); `sonner.tsx` memakai `useTheme` internal.
+- Layout: `AppShell`, `SiteHeader` (MainNav, MobileNav Sheet, ThemeToggle, UserMenu dropdown / tombol Masuk),
+  `SiteFooter`. Tema light/dark/system (`lib/theme.ts`, `ThemeProvider`, localStorage, ikut perubahan OS).
+- Form memakai `Field`/`FieldLabel`/`FieldError` shadcn + React Hook Form; toast sonner untuk sukses/keluar.
+- Test web ditulis ulang per area (`tests/app`, `features`, `components`, `lib`, `mocks`): `renderAt(path)` dengan
+  `createMemoryRouter`, mock auth-client (`asGuest/asUser/asAdmin`) + mock fetch in-memory. Catatan Bun: `mock.module`
+  harus sebelum `await import()` modul app; hook `beforeEach` tidak bisa dipanggil dari helper (dipanggil di file test).
+- 57 test web (sebelumnya 30), coverage 100 % per file. README: bagian "Struktur Frontend" dan "shadcn/ui".
+
 ## Next Steps
 
-- Push iterasi 8 ke GitHub (CI).
+- Push iterasi 9 ke GitHub (CI).
 - OAuth (Google/GitHub) dan verifikasi email bila diperlukan (plugin Better Auth).
 - React Router untuk multi-halaman.
 - Content-Security-Policy ber-nonce di production.

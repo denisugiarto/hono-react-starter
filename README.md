@@ -18,6 +18,7 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 | Runtime | Bun |
 | Database | PostgreSQL + Drizzle ORM |
 | Autentikasi | Better Auth: sesi cookie + JWT (bearer) + RBAC berbasis permission |
+| Routing | React Router (library mode) |
 | Data fetching | TanStack Query (React Query) |
 | Form | React Hook Form + Zod |
 | Styling | Tailwind CSS v4 + shadcn/ui |
@@ -37,7 +38,8 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check yang mengecek DB, graceful shutdown, migrasi otomatis saat start, cache header asset.
 - **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
-- **shadcn/ui siap pakai** — komponen `Button`, `Card`, `Badge`, `Input`, `Label`, `Checkbox`, `Textarea`, `Separator`, `Skeleton`.
+- **Frontend terstruktur** — React Router + folder berbasis fitur (`app/`, `pages/`, `features/`, `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/`), header dengan navigasi (desktop + Sheet mobile), menu pengguna, tema gelap, toast (sonner).
+- **shadcn/ui lengkap** — 22 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`.
 
 ## Struktur
 
@@ -74,16 +76,20 @@ hono-react-starter/
 │   └── web/                # 🎨 Frontend React + Vite — @hono-react-starter/web
 │       ├── index.html      #   Shell SPA
 │       ├── vite.config.ts  #   React + Tailwind + alias @ + proxy /api → apps/api
-│       ├── components.json #   Konfigurasi shadcn/ui
+│       ├── components.json #   Konfigurasi shadcn/ui (style base-nova, css src/styles/globals.css)
 │       ├── bunfig.toml     #   Coverage ≥ 90 % per file
 │       ├── public/
-│       ├── src/
-│       │   ├── main.tsx    #   Entry React (ErrorBoundary + QueryClientProvider)
-│       │   ├── App.tsx     #   Demo: auth + notes + API
-│       │   ├── index.css   #   Tailwind v4 + tema shadcn
-│       │   ├── components/ #   ui/ (shadcn) + error-boundary.tsx
-│       │   └── lib/        #   auth-client.ts, query-client.ts, utils.ts, api/ (hooks TanStack Query)
-│       └── tests/          #   Test komponen React (happy-dom + Testing Library)
+│       ├── src/            #   Struktur berbasis fitur — lihat "Struktur Frontend" di bawah
+│       │   ├── main.tsx    #   Entry: Providers + RouterProvider
+│       │   ├── app/        #   providers.tsx, routes.tsx, router.tsx
+│       │   ├── pages/      #   Satu komponen per route (tipis, menyusun fitur)
+│       │   ├── features/   #   auth, notes, admin, system (api/ + components/ + hooks/)
+│       │   ├── components/ #   ui/ (shadcn), layout/ (header, nav, shell), common/ (state kosong/error/loading)
+│       │   ├── hooks/      #   use-theme, use-document-title, use-visible-nav
+│       │   ├── lib/        #   api/request, auth-client, query-client, theme, utils
+│       │   ├── config/     #   site.ts, paths.ts, navigation.ts
+│       │   └── styles/     #   globals.css (Tailwind v4 + tema shadcn)
+│       └── tests/          #   Test komponen (happy-dom + Testing Library): app/, features/, components/, lib/, mocks/
 │
 └── packages/
     └── shared/             # ⭐ @hono-react-starter/shared — dipakai api & web
@@ -211,7 +217,7 @@ Bun dan Vite membaca sumber TypeScript-nya langsung.
 
 ## Data Fetching & Form
 
-### TanStack Query (`apps/web/src/lib/api/`, `apps/web/src/lib/query-client.ts`)
+### TanStack Query (`apps/web/src/features/*/api/`, `apps/web/src/lib/query-client.ts`)
 
 Query & mutation terpusat dengan validasi shared schema saat menerima data:
 
@@ -411,15 +417,69 @@ Pola yang dipakai di template ini (agar tetap mudah di-maintain):
 1. **Schema** → tulis tipe & validasi di `packages/shared/src/<fitur>.ts` (Zod), ekspor dari `index.ts`
 2. **Database** → tambah tabel di `apps/api/src/db/schema.ts`, lalu `db:generate` + `db:migrate`
 3. **API** → buat router di `apps/api/src/routes/<fitur>.ts`, validasi dengan schema shared, mount di `apps/api/src/app.ts` (pasang `requireAuth` / `requirePermission` bila perlu)
-4. **Hooks** → buat query/mutation di `apps/web/src/lib/api/<fitur>.ts` (TanStack Query + zod parse)
-5. **UI** → komponen baru di `apps/web/src/` memakai hooks + React Hook Form (bila ada form) + komponen shadcn
+4. **Hooks** → buat query/mutation di `apps/web/src/features/<fitur>/api/<fitur>.ts` (TanStack Query + zod parse)
+5. **UI** → `apps/web/src/features/<fitur>/` (api + components) dan `pages/<fitur>-page.tsx`; daftarkan di `config/paths.ts`, `app/routes.tsx`, `config/navigation.ts`
 6. **Test** → `apps/api/tests/<fitur>.test.ts` dan/atau `apps/web/tests/`; `bun run affected` menjalankan hanya proyek yang terdampak
 
-## Menambah Komponen shadcn/ui
+## Struktur Frontend (`apps/web/src`)
+
+Struktur **berbasis fitur** untuk proyek menengah: kode dikelompokkan per domain, bukan per jenis
+file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
+
+| Folder | Isi | Aturan |
+| --- | --- | --- |
+| `app/` | `providers.tsx` (ErrorBoundary → Theme → QueryClient → Tooltip + Toaster), `routes.tsx` (definisi route + guard), `router.tsx` (createBrowserRouter) | Satu-satunya tempat yang tahu seluruh app |
+| `pages/` | Satu komponen per route: `home-page`, `login-page`, `notes-page`, `settings/api-token-page`, `admin/users-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
+| `features/<fitur>/` | `api/` (hooks TanStack Query + schema shared), `components/`, `hooks/`, `index.ts` (barrel) | Fitur boleh mengimpor `components/`, `hooks/`, `lib/`, `config/`; **hindari** impor antar fitur (lewat `index.ts` bila terpaksa) |
+| `components/ui/` | Primitif shadcn/ui (di-generate CLI, jangan diedit manual kecuali perlu) | Dikecualikan dari coverage |
+| `components/layout/` | `app-shell`, `site-header`, `main-nav`, `mobile-nav` (Sheet), `site-footer` | Kerangka halaman |
+| `components/common/` | `page-header`, `empty-state`, `loading-state`, `error-message`, `theme-toggle`, `error-boundary` | Komponen generik lintas fitur |
+| `hooks/` | `use-theme`, `use-document-title`, `use-visible-nav` | Hook generik (bukan milik satu fitur) |
+| `lib/` | `api/request.ts` (fetch + `ApiError`), `auth-client.ts`, `query-client.ts`, `theme.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
+| `config/` | `site.ts` (nama, stack, repo), `paths.ts` (semua path route), `navigation.ts` (item nav + syarat login/permission) | Konstanta; jangan hardcode path/nama di komponen |
+| `styles/` | `globals.css` | Tailwind v4 + token tema shadcn |
+
+Fitur bawaan: **auth** (`useAuth`, `useSignOut`, `AuthForm`, `UserMenu`, guard `RequireAuth` /
+`RequirePermission`, `ApiTokenCard`), **notes** (hooks CRUD + `NoteForm` + `NoteList`),
+**admin** (`UsersTable`), **system** (`HealthCard`, `HelloCard`).
+
+**Routing** (React Router, `app/routes.tsx`): `/` beranda, `/login`, lalu di bawah `RequireAuth`
+(redirect ke `/login` dengan `state.from`, kembali setelah masuk): `/notes`, `/settings/api-token`,
+dan di bawah `RequirePermission({ user: ['list'] })`: `/admin/users` (403 bila tak berhak).
+Route lain → 404; error render → `RouteErrorPage`.
+
+**Tema**: `ThemeProvider` (light / dark / system, tersimpan di `localStorage`, mengikuti perubahan OS)
++ `ThemeToggle` di header. **Toast**: `toast()` dari `sonner` (Toaster di `Providers`).
+
+**Menambah fitur baru** (mis. `projects`):
+
+```
+features/projects/
+├── api/projects.ts          # useProjects(), useCreateProject() — schema dari @hono-react-starter/shared
+├── components/project-list.tsx
+└── index.ts
+pages/projects-page.tsx      # <PageHeader> + <ProjectList>
+```
+
+lalu daftarkan path di `config/paths.ts`, route di `app/routes.tsx` (di bawah guard yang sesuai),
+dan item nav di `config/navigation.ts`.
+
+## shadcn/ui
+
+Konfigurasi di `apps/web/components.json` (style `base-nova` di atas Base UI, ikon Lucide, alias `@/`).
+Komponen terpasang: `alert`, `alert-dialog`, `avatar`, `badge`, `button`, `card`, `checkbox`,
+`dialog`, `dropdown-menu`, `field`, `input`, `label`, `select`, `separator`, `sheet`, `skeleton`,
+`sonner`, `switch`, `table`, `tabs`, `textarea`, `tooltip`.
 
 ```bash
-cd apps/web && bunx shadcn add button dialog form table
+cd apps/web && bunx shadcn@latest add form combobox data-table
 ```
+
+Catatan untuk monorepo: CLI shadcn mendeteksi root repo dan bisa menulis ke
+`apps/web/apps/web/src/...` — bila itu terjadi, pindahkan file ke `apps/web/src/components/ui/`.
+Komponen generated memakai `cn` dari `@/lib/utils` (clsx + tailwind-merge); `sonner.tsx` sudah
+diadaptasi memakai `useTheme` internal (tanpa `next-themes`). Pola form: `Field` + `FieldLabel` +
+`FieldError errors={[errors.x]}` dengan React Hook Form (lihat `features/auth/components/auth-form.tsx`).
 
 ## Testing
 
@@ -435,16 +495,18 @@ bunx nx test api         # hanya backend
   database test. Preload `tests/setup.ts` mengarahkan `DATABASE_URL` ke DB test
   (`TEST_DATABASE_URL` atau nama DB + `_test`), menjalankan migrasi, lalu mengosongkan tabel.
   Rate limit Better Auth otomatis nonaktif saat `NODE_ENV=test`.
-- **`apps/web/tests/`** — test komponen React dengan happy-dom + Testing Library. `app.test.tsx`
-  menunjukkan pola mock `useSession` (via `mock.module`) dan `fetch`; `app-interactions.test.tsx`
-  menguji alur form, CRUD notes, JWT, dan panel admin lewat `fireEvent`.
+- **`apps/web/tests/`** — test komponen React dengan happy-dom + Testing Library, disusun mengikuti
+  `src`: `app/` (router, guard, layout, tema, menu pengguna), `features/` (auth, notes, admin, system),
+  `components/`, `lib/`. `tests/utils.tsx` menyediakan `renderAt(path)` (seluruh app dengan
+  `createMemoryRouter`) + `setupEach`/`teardownEach`; `tests/mocks/` berisi mock `@/lib/auth-client`
+  (`asGuest()`, `asUser()`, `asAdmin()`) dan mock `fetch` API in-memory (`apiMock.fail.*`).
 - **`packages/shared/tests/`** — test schema Zod dan `can()` RBAC.
 
 **Coverage** selalu aktif (`bunfig.toml` di tiap proyek) dengan ambang **90 % baris & fungsi**.
 Bun menerapkan ambang ini **per file** untuk setiap file yang dimuat, jadi file baru harus ikut
 diuji atau `bun test` gagal (CI ikut merah). Dikecualikan dari perhitungan: `tests/**`, deklarasi
 schema Drizzle (`apps/api/src/db/schema.ts`, `auth-schema.ts` hasil generate CLI), primitif shadcn
-(`apps/web/src/components/ui/**`), dan `packages/shared` saat dimuat oleh api/web (sudah diuji
+(`apps/web/src/components/ui/**`), `main.tsx` dan `app/router.tsx` (hanya dimuat browser), dan `packages/shared` saat dimuat oleh api/web (sudah diuji
 sendiri). Kode yang hanya berjalan saat proses start (`apps/api/src/index.ts`, `migrate.ts`,
 `seed.ts`, `apps/web/src/main.tsx`) tidak dimuat test dan diverifikasi lewat smoke test CI.
 
@@ -592,7 +654,7 @@ entry server sesuai platform.
 - [x] Test otomatis (bun test + Testing Library)
 - [x] Dockerfile + CI (GitHub Actions)
 - [x] Monorepo Nx: `apps/api`, `apps/web`, `packages/shared`
+- [x] React Router + struktur frontend berbasis fitur + set shadcn/ui lengkap + tema gelap
 - [ ] OAuth Google/GitHub (plugin Better Auth)
 - [ ] Verifikasi email (plugin Better Auth + provider email)
-- [ ] React Router untuk multi-halaman
 - [ ] Content-Security-Policy (nonce) di production

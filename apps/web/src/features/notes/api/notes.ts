@@ -5,7 +5,7 @@ import {
   type NoteCreateInput,
   type NoteUpdateInput,
 } from '@hono-react-starter/shared'
-import { request, requestEnvelope } from './request.ts'
+import { request, requestEnvelope } from '@/lib/api/request'
 
 export const notesKeys = {
   all: ['notes'] as const,

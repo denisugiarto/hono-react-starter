@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { ErrorBoundary } from '../src/components/error-boundary.tsx'
+import { ErrorBoundary } from '../../src/components/common/error-boundary.tsx'
 
 afterEach(cleanup)
 

@@ -699,6 +699,26 @@ lebih sederhana, letakkan keduanya di balik satu reverse proxy (same-origin).
 `@hono/cloudflare-workers` di `apps/api`, build client dengan `bun run build`, dan sesuaikan
 entry server sesuai platform.
 
+## Skill untuk agen AI (Claude Code)
+
+Folder `.claude/skills/` berisi panduan singkat per alur kerja yang otomatis tersedia untuk Claude Code
+(dan runtime lain yang membaca format [Agent Skills](https://agentskills.io)) saat bekerja di repo ini.
+Isinya adalah aturan yang **tidak terlihat dari kode** — urutan langkah, perangkap, dan konvensi test —
+sehingga agen tidak perlu menemukannya lewat trial-and-error.
+
+| Skill | Dipakai saat |
+| --- | --- |
+| `adding-feature` | Menambah resource/halaman baru (shared → api → web → test → dokumen) |
+| `db-migrations` | Mengubah schema Drizzle atau menambah tabel plugin Better Auth |
+| `writing-tests` | Menulis/memperbaiki test; `bun test` lolos tapi exit 1 (coverage per file); error mock di test web |
+| `auditing-actions` | Route baru yang mengubah data atau endpoint auth baru harus masuk `audit_log` |
+| `adding-shadcn-component` | `bunx shadcn add` menulis ke folder salah / import `cn` rusak |
+| `verifying-changes` | Sebelum menyatakan selesai, commit, smoke test di port bebas, memantau CI |
+
+Pakai dengan `/adding-feature` dsb. di Claude Code, atau biarkan agen memilih sendiri berdasarkan
+deskripsinya. Menambah skill: buat `.claude/skills/<nama>/SKILL.md` dengan frontmatter `name` +
+`description` ("Use when …"), uji dengan subagent tanpa dan dengan skill, lalu commit.
+
 ## Troubleshooting
 
 | Masalah | Solusi |

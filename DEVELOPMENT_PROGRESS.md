@@ -344,6 +344,13 @@ Verifikasi iterasi 2:
   dilakukan di lapisan Hono. `Button render={<Link/>}` memicu peringatan Base UI `nativeButton` di
   console test — `nativeButton={false}` mengubah role link menjadi button, jadi peringatan dibiarkan.
 
+## Iterasi 11 — Skill Claude Code untuk repo (2026-10-29)
+
+- `.claude/skills/{adding-feature,db-migrations,writing-tests,auditing-actions,adding-shadcn-component,verifying-changes}/SKILL.md`
+  — panduan alur kerja khusus repo (aturan yang tidak terlihat dari kode). Diuji dengan subagent: baseline tanpa
+  skill (ragu soal `exports` shared, bentuk mock API web, wildcard permission) → skill direvisi → uji ulang dengan skill.
+- README: bagian "Skill untuk agen AI (Claude Code)".
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

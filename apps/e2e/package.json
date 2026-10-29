@@ -45,6 +45,6 @@
     "@better-auth/utils": "^0.3.0",
     "@hono-react-starter/shared": "workspace:*",
     "@playwright/test": "^1.64.1",
-    "@types/node": "^24.13.3"
+    "@types/node": "^26.6.5"
   }
 }

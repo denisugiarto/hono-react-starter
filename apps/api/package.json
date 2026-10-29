@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
-    "@types/node": "^24.13.3",
+    "@types/node": "^26.6.5",
     "drizzle-kit": "^0.31.10"
   }
 }

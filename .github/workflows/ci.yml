@@ -59,7 +59,7 @@ jobs:
         run: bun scripts/audit.ts
 
       # Tentukan base/head untuk nx affected (PR: base branch; push: commit sebelumnya)
-      - uses: nrwl/nx-set-shas@v4
+      - uses: nrwl/nx-set-shas@v5
 
       - name: Typecheck · Lint · Test · Build (semua proyek)
         run: bunx nx run-many -t typecheck lint test build --output-style=static

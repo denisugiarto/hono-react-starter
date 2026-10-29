@@ -64,6 +64,13 @@
       "when": 1793215141846,
       "tag": "0008_account_security_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793232530415,
+      "tag": "0009_security_lockout_jwks",
+      "breakpoints": true
     }
   ]
 }

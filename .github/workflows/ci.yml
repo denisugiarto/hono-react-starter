@@ -9,6 +9,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# GITHUB_TOKEN hanya baca; job yang butuh lebih mendeklarasikan sendiri.
+permissions:
+  contents: read
+
 env:
   NX_DAEMON: 'false'
 
@@ -49,6 +53,10 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # Gagal bila ada advisory high/critical yang mengenai versi terpasang (scripts/audit.ts)
+      - name: Audit dependensi
+        run: bun scripts/audit.ts
 
       # Tentukan base/head untuk nx affected (PR: base branch; push: commit sebelumnya)
       - uses: nrwl/nx-set-shas@v4

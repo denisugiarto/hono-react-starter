@@ -321,9 +321,48 @@ function authPaths(): Record<string, unknown> {
 }
 
 const SCALAR_VERSION = '1.25.0'
+const SCALAR_CDN = 'https://cdn.jsdelivr.net'
+
+export type CspOptions = {
+  /** Nonce untuk inline script (hanya /api/docs). */
+  scriptNonce?: string
+  /** Origin tambahan untuk script/style/font (mis. CDN Scalar). */
+  cdn?: string
+}
+
+/**
+ * Content-Security-Policy. Default (SPA): semua dari origin sendiri, tanpa inline
+ * script, tanpa framing, form & base hanya ke origin sendiri. `connect-src 'self'`
+ * sudah mencakup /api. Ubah di sini bila menambah CDN/analytics/iframe.
+ */
+export function buildCsp(options: CspOptions = {}): string {
+  const scriptSrc = ["'self'"]
+  const styleSrc = ["'self'", "'unsafe-inline'"]
+  const fontSrc = ["'self'", 'data:']
+  if (options.scriptNonce) scriptSrc.push(`'nonce-${options.scriptNonce}'`)
+  if (options.cdn) {
+    scriptSrc.push(options.cdn)
+    styleSrc.push(options.cdn)
+    fontSrc.push(options.cdn)
+  }
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(' ')}`,
+    `style-src ${styleSrc.join(' ')}`,
+    `font-src ${fontSrc.join(' ')}`,
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "worker-src 'self' blob:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join('; ')
+}
 
 /** Halaman HTML yang memuat Scalar API Reference dari CDN dan menunjuk ke /api/openapi.json. */
-export function docsHtml(specUrl = '/api/openapi.json'): string {
+export function docsHtml(specUrl = '/api/openapi.json', nonce = ''): string {
+  const nonceAttr = nonce ? ` nonce="${nonce}"` : ''
   return `<!doctype html>
 <html lang="id">
 <head>
@@ -332,20 +371,26 @@ export function docsHtml(specUrl = '/api/openapi.json'): string {
   <title>${APP_NAME} — API Docs</title>
 </head>
 <body>
-  <script id="api-reference" data-url="${specUrl}" data-configuration='{"theme":"default","layout":"modern"}'></script>
-  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@${SCALAR_VERSION}"></script>
+  <script${nonceAttr} id="api-reference" data-url="${specUrl}" data-configuration='{"theme":"default","layout":"modern"}'></script>
+  <script${nonceAttr} src="${SCALAR_CDN}/npm/@scalar/api-reference@${SCALAR_VERSION}"></script>
 </body>
 </html>`
 }
 
 /** Route dokumentasi: dipasang di /api oleh createApp bila docs aktif. */
-export function createDocsRoutes() {
+export function createDocsRoutes(options: { csp?: boolean } = {}) {
   const routes = new Hono<AppEnv>()
   let cached: Record<string, unknown> | undefined
   routes.get('/openapi.json', (c) => {
     cached ??= buildOpenApiDocument()
     return c.json(cached)
   })
-  routes.get('/docs', (c) => c.html(docsHtml()))
+  routes.get('/docs', (c) => {
+    if (!options.csp) return c.html(docsHtml())
+    const nonce = crypto.randomUUID().replaceAll('-', '')
+    return c.html(docsHtml('/api/openapi.json', nonce), 200, {
+      'Content-Security-Policy': buildCsp({ scriptNonce: nonce, cdn: SCALAR_CDN }),
+    })
+  })
   return routes
 }

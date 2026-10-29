@@ -84,6 +84,9 @@ export const jwks = pgTable("jwks", {
   privateKey: text("private_key").notNull(),
   createdAt: timestamp("created_at").notNull(),
   expiresAt: timestamp("expires_at"),
+  // Better Auth ≥ 1.7: algoritma & kurva kunci (nullable untuk kunci lama).
+  alg: text("alg"),
+  crv: text("crv"),
 });
 
 // Plugin two-factor: secret TOTP + backup code (terenkripsi) per user.

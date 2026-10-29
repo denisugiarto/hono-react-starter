@@ -25,6 +25,9 @@ Urutan **shared → tabel/migrasi → api → web → test → dokumen**. Satu s
 
 ## Aturan yang sering terlewat
 
+- Endpoint Better Auth baru yang menerima kredensial/email → pertimbangkan `auth-guards.ts` (lockout / anti-enumerasi) dan aturan audit di `auth-audit.ts`; sumber IP selalu `c.get('clientIp')`, jangan baca `x-forwarded-for` sendiri.
+- Memuat skrip/style/gambar dari origin lain → perbarui `buildCsp()` di `openapi.ts` (CSP akan memblokir diam-diam; E2E `security.spec.ts` menangkap pelanggaran di console).
+
 | Aturan | Alasan |
 | --- | --- |
 | Komponen hanya mengimpor fungsi bernama dari `@/lib/auth-client`, bukan `authClient.*` | Test me-mock modul itu per nama ekspor (`tests/mocks/auth-client.ts`) |

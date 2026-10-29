@@ -39,6 +39,10 @@ export function TwoFactorCard() {
       setError(res.error.message ?? 'Gagal memulai 2FA')
       return
     }
+    if (!('totpURI' in res.data)) {
+      setError('Server tidak mengembalikan secret TOTP')
+      return
+    }
     passwordForm.reset()
     setSetup({ totpURI: res.data.totpURI, backupCodes: res.data.backupCodes })
   }

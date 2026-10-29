@@ -180,6 +180,7 @@ describe('createApp — request log & error log (tracing)', () => {
   const logger = new Logger({ level: 'debug', sink, base: { service: 'test' } })
   const app = createApp({
     logger,
+    trustProxy: true, // test mengirim x-real-ip
     extend: (a) => {
       a.get('/api/__log/ok', (c) => {
         c.get('log').info('custom event', { foo: 'bar' })

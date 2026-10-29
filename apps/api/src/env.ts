@@ -286,3 +286,41 @@ export function readSessionCacheSeconds(): number {
   }
   return seconds
 }
+
+/**
+ * TRUST_PROXY (default false): percayai header IP klien dari reverse proxy
+ * (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`). Nyalakan HANYA bila app
+ * berada di balik proxy yang MENIMPA header itu (Caddy, Nginx, Cloudflare).
+ * Bila false, IP diambil dari koneksi langsung dan header dari klien diabaikan —
+ * tanpa ini rate limit dan audit log bisa dipalsukan dengan satu header.
+ */
+export function readTrustProxy(): boolean {
+  return readBool('TRUST_PROXY', false)
+}
+
+export type LockoutConfig = { maxAttempts: number; lockMinutes: number }
+
+/**
+ * Lockout per akun untuk sign-in (pelengkap rate limit per IP):
+ * - AUTH_LOCKOUT_MAX_ATTEMPTS: kegagalan berturut-turut sebelum dikunci (default 5; 0 = nonaktif)
+ * - AUTH_LOCKOUT_MINUTES: lama kunci (default 15)
+ */
+export function readLockoutConfig(): LockoutConfig | false {
+  const rawMax = process.env.AUTH_LOCKOUT_MAX_ATTEMPTS
+  const rawMinutes = process.env.AUTH_LOCKOUT_MINUTES
+  const maxAttempts = rawMax === undefined ? 5 : Number(rawMax)
+  if (!Number.isInteger(maxAttempts) || maxAttempts < 0) {
+    fail('AUTH_LOCKOUT_MAX_ATTEMPTS', `harus bilangan bulat ≥ 0: "${rawMax}"`)
+  }
+  if (maxAttempts === 0) return false
+  const lockMinutes = rawMinutes === undefined ? 15 : Number(rawMinutes)
+  if (!Number.isInteger(lockMinutes) || lockMinutes < 1) {
+    fail('AUTH_LOCKOUT_MINUTES', `harus bilangan bulat ≥ 1 menit: "${rawMinutes}"`)
+  }
+  return { maxAttempts, lockMinutes }
+}
+
+/** CSP_ENABLED (default true): kirim Content-Security-Policy untuk halaman SPA & /api/docs. */
+export function readCspEnabled(): boolean {
+  return readBool('CSP_ENABLED', true)
+}

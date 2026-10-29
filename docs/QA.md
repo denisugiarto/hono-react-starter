@@ -88,6 +88,13 @@ Centang per rilis. Hasil yang diharapkan ditulis setelah `→`.
 - [ ] User biasa: menu admin tidak ada; `/admin/users` → halaman 403.
 - [ ] Tanpa sesi: `GET /api/admin/users` → `401 { code: "UNAUTHORIZED" }`.
 
+**Keamanan**
+- [ ] 5 password salah berturut-turut → pesan "Terlalu banyak percobaan", password benar pun ditolak ±15 menit;
+      setelah itu masuk normal. Akun lain tidak terpengaruh.
+- [ ] Daftar dengan email yang sudah terdaftar → tampil "Periksa email Anda" (bukan "sudah terdaftar"), tidak masuk.
+- [ ] Console browser tanpa pesan "Content Security Policy" di beranda, login, catatan, keamanan, admin.
+- [ ] Di balik proxy (staging): kolom IP di audit log = IP publik Anda, bukan IP container.
+
 **Sistem**
 - [ ] `/api/health/live` 200 tanpa DB; `/api/health/ready` 503 saat DB dimatikan.
 - [ ] Rate limit: >100 request/menit ke `/api/hello` dari satu IP → `429 RATE_LIMITED` + `Retry-After`;

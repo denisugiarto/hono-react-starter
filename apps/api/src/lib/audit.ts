@@ -73,7 +73,7 @@ export function auditFromContext(
       actor: user ? { id: user.id, email: user.email } : null,
       ...entry,
       requestId: c.get('requestId'),
-      ip: clientIp(c),
+      ip: (c.get('clientIp') as string | undefined) ?? clientIp(c),
       userAgent: c.req.header('user-agent'),
     },
     { log: c.get('log'), ...deps },

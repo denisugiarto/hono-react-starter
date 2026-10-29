@@ -114,7 +114,7 @@ function redirectFailed(res: Response): boolean {
   }
 }
 
-export type AuthHandler = (req: Request) => Promise<Response> | Response
+export type AuthHandler = (req: Request, c: Context<AppEnv>) => Promise<Response> | Response
 
 /**
  * Bungkus `auth.handler` dengan pencatatan audit untuk path yang terdaftar di
@@ -124,12 +124,12 @@ export function withAuthAudit(handler: AuthHandler, deps?: AuditDeps) {
   return async (c: Context<AppEnv>): Promise<Response> => {
     const path = c.req.path.startsWith(AUTH_PREFIX) ? c.req.path.slice(AUTH_PREFIX.length) : c.req.path
     const rule = RULES[path]
-    if (!rule) return handler(c.req.raw)
+    if (!rule) return handler(c.req.raw, c)
 
     const body = await readJsonObject(c.req.raw)
     const sessionActor = rule.actor === 'session' || rule.actor === 'either' ? await sessionActorOf(c.req.raw.headers) : null
 
-    const res = await handler(c.req.raw)
+    const res = await handler(c.req.raw, c)
 
     const success = res.status < 400 && !redirectFailed(res)
     const resBody = rule.actor === 'response' || rule.actor === 'either' || rule.targetUser ? await readJsonObject(res) : null

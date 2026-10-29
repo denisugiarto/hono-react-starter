@@ -52,6 +52,19 @@ export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
 
 /**
+ * Lockout per akun untuk sign-in (lihat src/auth-guards.ts): hitung kegagalan
+ * berturut-turut per email, kunci sementara setelah AUTH_LOCKOUT_MAX_ATTEMPTS.
+ * Baris dihapus saat sign-in berhasil; baris lama dibersihkan sesekali.
+ */
+export const signInLockout = pgTable('sign_in_lockout', {
+  email: text('email').primaryKey(),
+  failedCount: integer('failed_count').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+export type SignInLockoutRow = typeof signInLockout.$inferSelect
+
+/**
  * Audit log: siapa melakukan apa, kapan, dari mana. Ditulis lewat lib/audit.ts
  * (aksi auth via src/auth-audit.ts, aksi data via route). Tidak ada FK ke user
  * agar riwayat tetap utuh setelah akun dihapus. Tabel ini append-only — jangan

@@ -395,6 +395,29 @@ Verifikasi iterasi 2:
   storage), Env, `.env.example`, `docker-compose.yml` (service redis opsional).
 - Test: api 161 (+13), web 82 (+2), shared 15, e2e 18.
 
+## Iterasi 14 — Review keamanan & pengerasan (2026-10-29)
+
+Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sisanya pengerasan:
+
+- **TRUST_PROXY** (default false): `clientIp(c, trustProxy)` hanya membaca header proxy bila diizinkan; `requestLog`
+  menyimpan `c.get('clientIp')` yang dipakai rate limiter & audit. Better Auth kini membaca SATU header internal
+  `x-client-ip` yang selalu ditulis ulang oleh `withClientIp()` di `app.ts` (sebelumnya header `x-forwarded-for`
+  dari klien dipercaya langsung → rate limit & audit bisa dipalsukan). Staging compose: `TRUST_PROXY=true` (Caddy).
+- **Lockout per akun** (`auth-guards.ts`, tabel `sign_in_lockout`, migrasi `0009`): 5 password salah → kunci 15 menit,
+  `423 ACCOUNT_LOCKED` + `Retry-After`; 403 (banned) dan 400 tidak dihitung; berhasil masuk menghapus baris;
+  `AUTH_LOCKOUT_MAX_ATTEMPTS` / `AUTH_LOCKOUT_MINUTES`. Dipasang di dalam `withAuthAudit` agar 423 ikut teraudit.
+- **Anti-enumerasi sign-up**: `maskSignUpConflict` (paling luar) mengubah 422 `USER_ALREADY_EXISTS` menjadi 200
+  `{ token: null }` — UI menampilkan "Periksa email Anda"; audit tetap mencatat kegagalan aslinya.
+- **CSP**: `buildCsp()` — SPA `script-src 'self'` (build Vite tanpa inline script), `style-src 'unsafe-inline'`
+  (atribut style komponen), `frame-ancestors 'none'`; `/api/docs` nonce per request + `https://cdn.jsdelivr.net`.
+  E2E memastikan tidak ada pelanggaran CSP di console saat login, catatan, keamanan.
+- **Dependensi**: better-auth 1.7.14 (jwks +`alg`,`crv`), hono 4.13.14, zod 4.6.7, vite 8.3.5; `overrides` untuk
+  fast-uri, lodash, source-map-js, undici; `scripts/audit.ts` (gagal hanya bila advisory ≥ high mengenai versi
+  terpasang) di CI; `.github/dependabot.yml`; `permissions: contents: read`.
+- Test: api 178, web 82, shared 15, e2e 22 (+4: CSP tanpa pelanggaran, lockout, anti-enumerasi, header).
+- **Belum diputuskan (kebijakan)**: wajib verifikasi email di production, nilai cache sesi, impersonasi admin,
+  hapus endpoint demo `/api/hello` & `/api/echo`, retensi PII di log (`detail` Postgres).
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

@@ -54,3 +54,46 @@ describe('OpenAPI & docs', () => {
     }
   })
 })
+
+describe('Content-Security-Policy', () => {
+  test('buildCsp: default tanpa inline script; nonce & CDN ditambahkan bila diminta', async () => {
+    const { buildCsp } = await import('../src/openapi.ts')
+    const base = buildCsp()
+    expect(base).toContain("default-src 'self'")
+    expect(base).toContain("script-src 'self';")
+    expect(base).toContain("frame-ancestors 'none'")
+    expect(base).not.toContain('nonce')
+    const docs = buildCsp({ scriptNonce: 'abc', cdn: 'https://cdn.example' })
+    expect(docs).toContain("script-src 'self' 'nonce-abc' https://cdn.example")
+    expect(docs).toContain("style-src 'self' 'unsafe-inline' https://cdn.example")
+  })
+
+  test('/api/docs mengirim CSP ber-nonce yang cocok dengan atribut script', async () => {
+    const res = await call('/api/docs')
+    const csp = res.headers.get('content-security-policy')!
+    const nonce = /'nonce-([a-f0-9]+)'/.exec(csp)?.[1]
+    expect(nonce).toBeTruthy()
+    const html = await res.text()
+    expect(html.split(`nonce="${nonce}"`).length - 1).toBe(2)
+    expect(csp).toContain('https://cdn.jsdelivr.net')
+
+    const noCsp = createApp({ silent: true, csp: false })
+    const plain = await noCsp.fetch(new Request('http://localhost/api/docs'))
+    expect(plain.headers.get('content-security-policy')).toBeNull()
+    expect(await plain.text()).not.toContain('nonce=')
+  })
+
+  test('SPA index.html mengirim CSP (serveWeb); csp: false mematikannya', async () => {
+    const path = await import('node:path')
+    const dist = path.join(import.meta.dirname, 'fixtures/build')
+    const withCsp = createApp({ isProd: false, serveWeb: true, distDir: dist, silent: true })
+    const res = await withCsp.fetch(new Request('http://localhost/dashboard'))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-security-policy')).toContain("script-src 'self'")
+    const asset = await withCsp.fetch(new Request('http://localhost/api/health/live'))
+    expect(asset.headers.get('content-security-policy')).toBeNull()
+
+    const off = createApp({ isProd: false, serveWeb: true, distDir: dist, silent: true, csp: false })
+    expect((await off.fetch(new Request('http://localhost/dashboard'))).headers.get('content-security-policy')).toBeNull()
+  })
+})

@@ -12,14 +12,20 @@ import { clientIp } from './rate-limit.ts'
  * `requestContext` (AsyncLocalStorage) agar kode tanpa Context Hono — callback
  * Better Auth, helper audit — tetap tahu requestId/ip/user-agent.
  */
-export function requestLog(logger: Logger) {
+export type RequestLogOptions = {
+  /** Percayai header IP proxy (lihat clientIp / TRUST_PROXY). Default dari env. */
+  trustProxy?: boolean
+}
+
+export function requestLog(logger: Logger, options: RequestLogOptions = {}) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const start = performance.now()
     const requestId = c.get('requestId')
     const log = logger.child({ requestId })
     c.set('log', log)
 
-    const ip = clientIp(c)
+    const ip = clientIp(c, options.trustProxy)
+    c.set('clientIp', ip)
     const userAgent = c.req.header('user-agent')
 
     // error ditangkap app.onError → c.res tetap terisi

@@ -38,7 +38,7 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Data fetching & form** — TanStack Query untuk state server, React Hook Form + `zodResolver` untuk form.
 - **Notes per-user** — contoh resource yang wajib login dan dibatasi ke pemiliknya (`user_id` + `requireAuth`).
 - **Caching berlapis** — aset ber-hash `immutable`, `index.html` `no-cache`, API `no-store` kecuali daftar besar yang memakai **ETag + `private, no-cache`** (304 bila tak berubah); **cookie cache sesi** Better Auth (tanpa query DB per request), **cache aplikasi** (`Cache` interface: memory / Redis bawaan Bun) dipakai untuk hasil verifikasi JWT; di frontend TanStack Query dengan `staleTime` + **optimistic update** (rollback otomatis saat gagal).
-- **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan (`secureHeaders`), batas ukuran body, request ID, rate limiting auth, IP asli di belakang proxy, health check terpisah (`/api/health/live` & `/api/health/ready`), graceful shutdown, migrasi otomatis saat start, cache header asset.
+- **Production hardening** — env fail-fast (secret, `https://` origin), header keamanan + **Content-Security-Policy**, batas ukuran body, request ID, rate limiting API & auth, **lockout per akun** setelah password salah berulang, anti-enumerasi email saat daftar, IP klien hanya dari proxy tepercaya (`TRUST_PROXY`), health check terpisah (`/api/health/live` & `/api/health/ready`), graceful shutdown, migrasi otomatis saat start, cache header asset, gerbang `bun audit` di CI + Dependabot.
 - **Test otomatis** — `bun test`: integrasi API (auth, RBAC, notes) terhadap database test + test komponen React (happy-dom + Testing Library); **Playwright E2E** (`apps/e2e`) di browser asli terhadap build production + akun demo.
 - **Siap untuk tester** — `bun run db:seed:demo` membuat akun demo (admin, user dengan catatan, akun 2FA dengan secret tetap, akun diblokir), dokumentasi **OpenAPI** dari schema Zod (`/api/openapi.json` + UI `/api/docs`), selector `data-testid` konsisten, panduan QA (`docs/QA.md`), dan stack **staging** HTTPS (`docker-compose.staging.yml`, Caddy).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
@@ -59,7 +59,9 @@ hono-react-starter/
 ├── docker-compose.yml      # Stack lokal: app + PostgreSQL
 ├── docker-compose.staging.yml # Staging tester: Caddy (HTTPS) + app + db + seed demo (deploy/staging/)
 ├── docs/QA.md              # Panduan tester: akun demo, skenario, selector, E2E
-├── .github/workflows/ci.yml# CI: nx run-many (typecheck, lint, test, build), smoke, e2e, docker
+├── .github/workflows/ci.yml# CI: audit, nx run-many (typecheck, lint, test, build), smoke, e2e, docker
+├── .github/dependabot.yml  # PR pembaruan dependensi mingguan (bun, actions, docker)
+├── scripts/audit.ts        # Gerbang bun audit: gagal bila advisory high/critical mengenai versi terpasang
 │
 ├── apps/
 │   ├── api/                # ⚙️ Backend Hono (Bun) — @hono-react-starter/api
@@ -72,6 +74,7 @@ hono-react-starter/
 │   │   │   ├── app.ts      #   createApp(): middleware, API, auth, static apps/web/dist, SPA fallback
 │   │   │   ├── auth.ts     #   createAuth(): Better Auth (admin+ac, bearer, jwt, two-factor, email verif, reset password)
 │   │   │   ├── auth-audit.ts # Pembungkus auth.handler → audit_log (sign-in/out, reset, 2FA, aksi admin)
+│   │   │   ├── auth-guards.ts # Lockout per akun (sign_in_lockout) + anti-enumerasi email saat daftar
 │   │   │   ├── openapi.ts  #   Dokumen OpenAPI dari schema shared + /api/openapi.json, /api/docs (Scalar)
 │   │   │   ├── mailer.ts   #   Singleton Mailer (MAIL_PROVIDER: console | memory | resend)
 │   │   │   ├── cache.ts    #   Singleton Cache (CACHE_PROVIDER: memory | redis)
@@ -163,6 +166,10 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
+| `TRUST_PROXY` | Tidak | `false` | Percayai header IP proxy (`cf-connecting-ip`, `x-real-ip`, `x-forwarded-for`). **Wajib `true` di balik reverse proxy** yang menimpa header itu; tanpa proxy biarkan `false` agar IP tidak bisa dipalsukan |
+| `AUTH_LOCKOUT_MAX_ATTEMPTS` | Tidak | `5` | Password salah berturut-turut sebelum akun dikunci (`423 ACCOUNT_LOCKED`); `0` = nonaktif |
+| `AUTH_LOCKOUT_MINUTES` | Tidak | `15` | Lama kunci akun |
+| `CSP_ENABLED` | Tidak | `true` | Kirim `Content-Security-Policy` untuk halaman SPA (`script-src 'self'`) dan `/api/docs` (nonce + CDN Scalar) |
 | `AUTH_RATE_LIMIT_MAX` | Tidak | `20` (test: nonaktif) | Rate limit Better Auth `/api/auth/*` per IP per endpoint; `0` = nonaktif. Sign-in/sign-up punya aturan bawaan lebih ketat (3 per 10 detik); `/get-session` selalu dikecualikan |
 | `AUTH_RATE_LIMIT_WINDOW` | Tidak | `60` | Jendela rate limit Better Auth (detik) |
 | `SERVE_WEB_DIST` | Tidak | prod `true`, lainnya `false` | Sajikan `apps/web/dist` dari API di luar production (dipakai E2E & staging lokal) |
@@ -699,15 +706,21 @@ Yang sudah terpasang di `apps/api/src/app.ts` / `auth.ts`:
 | Area | Implementasi |
 | --- | --- |
 | Env | Fail-fast: `BETTER_AUTH_SECRET` ≥ 32 char, `DATABASE_URL` & `BETTER_AUTH_URL` (https) wajib di production |
-| Header | `secureHeaders()` — nosniff, `X-Frame-Options: DENY`, Referrer-Policy, HSTS (production) |
+| Header | `secureHeaders()` — nosniff, `X-Frame-Options: DENY`, Referrer-Policy, HSTS (production); **CSP** untuk SPA (`default-src 'self'`, tanpa inline script, `frame-ancestors 'none'`) dan `/api/docs` (nonce per request + CDN Scalar) — `buildCsp()` di `openapi.ts`, `CSP_ENABLED` |
+| IP klien | Header proxy hanya dipercaya bila `TRUST_PROXY=true` (di balik Caddy/Nginx/Cloudflare); selain itu alamat koneksi. Better Auth membaca satu header internal `x-client-ip` yang selalu ditulis ulang server (`withClientIp`), jadi klien tidak bisa memalsukan IP untuk rate limit, sesi, maupun audit |
 | Body | `bodyLimit` 1 MB untuk `/api/*` → `413` |
 | Cache | `/api/*` → `no-store`; `/assets/*` immutable 1 tahun; `index.html` no-cache |
-| Auth | Cookie sesi HttpOnly (Secure saat https), CSRF via `trustedOrigins`, rate limit 20 req/menit/IP/endpoint, IP asli dari `cf-connecting-ip` / `x-real-ip` / `x-forwarded-for` |
+| Auth | Cookie sesi HttpOnly (Secure saat https), CSRF via `trustedOrigins`, rate limit Better Auth per IP per endpoint (`AUTH_RATE_LIMIT_*`; sign-in/sign-up 3 req/10 detik bawaan), **lockout per akun** (`auth-guards.ts`: 5 password salah → `423 ACCOUNT_LOCKED` 15 menit, tabel `sign_in_lockout`, direset saat berhasil masuk), **anti-enumerasi**: daftar dengan email yang sudah ada dibalas seperti daftar yang menunggu verifikasi (audit tetap mencatat 422 aslinya), reset password selalu 200 |
 | Rate limit API | `hono-rate-limiter` di `/api/*` (kecuali `/api/auth/*` & `/api/health`): default 100 req/menit/IP, store PostgreSQL (`api_rate_limit`, dibagi antar replika), header `RateLimit-*` + `Retry-After`, `429 RATE_LIMITED` |
 | JWT | EdDSA via JWKS, `iss`/`aud` = `BETTER_AUTH_URL`, exp 15 menit, kunci privat terenkripsi di DB; token dimanipulasi → 401 |
 | Akun | Verifikasi email (opsional wajib), reset password (token 1 jam sekali pakai, sesi lama dicabut), 2FA TOTP + backup code terenkripsi, lockout 15 menit setelah 10 kode salah, rate limit `/two-factor/*` 3 req/10 detik |
 | Audit | `audit_log` append-only untuk auth (termasuk gagal), aksi admin, dan CRUD data — dengan `requestId`, IP, UA |
 | RBAC | Permission dicek di server per route (`requirePermission`); role dari sesi atau klaim JWT yang sudah diverifikasi |
+| Dependensi | `bun scripts/audit.ts` di CI gagal bila ada advisory high/critical yang mengenai versi terpasang; `overrides` di `package.json` untuk paket transitif; Dependabot mingguan (bun, GitHub Actions, Docker); workflow dengan `permissions: contents: read` |
+
+Keputusan yang masih di tangan Anda (lihat review di `DEVELOPMENT_PROGRESS.md` Iterasi 14): wajibkan verifikasi
+email di production (`AUTH_REQUIRE_EMAIL_VERIFICATION=true`), nilai `AUTH_SESSION_CACHE_SECONDS` (jeda pencabutan
+sesi), matikan impersonasi admin bila tidak dibutuhkan, dan hapus endpoint demo `/api/hello` & `/api/echo`.
 | Data | Notes dibatasi ke pemilik di level query; respons admin berupa DTO (tanpa hash password) |
 | Error | `onError` → envelope `INTERNAL_ERROR` + `details.requestId`; log terstruktur berisi stack/cause/kode DB dengan `requestId` yang sama; stack tidak pernah dikirim ke client |
 

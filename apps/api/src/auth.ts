@@ -17,6 +17,7 @@ import {
 import { db } from './db/index.ts'
 import * as schema from './db/schema.ts'
 import { resetPasswordEmail, verificationEmail } from './lib/emails.ts'
+import { CLIENT_IP_HEADER } from './middleware/rate-limit.ts'
 import type { Mailer } from './lib/mailer.ts'
 import { mailer as defaultMailer } from './mailer.ts'
 
@@ -96,10 +97,12 @@ export function createAuth(options: AuthOptions = {}) {
       cookieCache: { enabled: sessionCacheSeconds > 0, maxAge: sessionCacheSeconds },
     },
     advanced: {
-      // Di belakang reverse proxy (nginx/Caddy/Fly/Railway/Cloudflare) IP asli
-      // ada di header berikut — dipakai untuk rate limiting & tracking sesi.
+      // Better Auth hanya menerima Request, jadi tidak tahu alamat koneksi. IP
+      // dibaca dari SATU header internal yang selalu ditulis ulang oleh server ini
+      // (withClientIp di app.ts) berdasarkan TRUST_PROXY — header proxy dari klien
+      // tidak pernah dipercaya langsung.
       ipAddress: {
-        ipAddressHeaders: ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'],
+        ipAddressHeaders: [CLIENT_IP_HEADER],
       },
     },
     // Proteksi brute-force pada endpoint auth (sign-in/sign-up, dst.), per IP

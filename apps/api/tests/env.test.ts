@@ -344,3 +344,43 @@ describe('env — CACHE_PROVIDER / REDIS_URL / AUTH_SESSION_CACHE_SECONDS', () =
     expect(() => readSessionCacheSeconds()).toThrow(/AUTH_SESSION_CACHE_SECONDS/)
   })
 })
+
+describe('env — TRUST_PROXY / AUTH_LOCKOUT_* / CSP_ENABLED', () => {
+  const EXTRA = ['TRUST_PROXY', 'AUTH_LOCKOUT_MAX_ATTEMPTS', 'AUTH_LOCKOUT_MINUTES', 'CSP_ENABLED'] as const
+  const savedExtra: Partial<Record<(typeof EXTRA)[number], string | undefined>> = {}
+  beforeEach(() => {
+    for (const k of EXTRA) savedExtra[k] = process.env[k]
+  })
+  afterEach(() => {
+    for (const k of EXTRA) {
+      if (savedExtra[k] === undefined) delete process.env[k]
+      else process.env[k] = savedExtra[k]
+    }
+  })
+
+  test('default: proxy tidak dipercaya, lockout 5/15, CSP aktif', async () => {
+    const { readCspEnabled, readLockoutConfig, readTrustProxy } = await import('../src/env.ts')
+    for (const k of EXTRA) delete process.env[k]
+    expect(readTrustProxy()).toBe(false)
+    expect(readLockoutConfig()).toEqual({ maxAttempts: 5, lockMinutes: 15 })
+    expect(readCspEnabled()).toBe(true)
+  })
+
+  test('nilai eksplisit; lockout 0 → nonaktif; nilai tidak valid → error', async () => {
+    const { readCspEnabled, readLockoutConfig, readTrustProxy } = await import('../src/env.ts')
+    process.env.TRUST_PROXY = 'true'
+    expect(readTrustProxy()).toBe(true)
+    process.env.CSP_ENABLED = 'false'
+    expect(readCspEnabled()).toBe(false)
+    process.env.AUTH_LOCKOUT_MAX_ATTEMPTS = '3'
+    process.env.AUTH_LOCKOUT_MINUTES = '2'
+    expect(readLockoutConfig()).toEqual({ maxAttempts: 3, lockMinutes: 2 })
+    process.env.AUTH_LOCKOUT_MAX_ATTEMPTS = '0'
+    expect(readLockoutConfig()).toBe(false)
+    process.env.AUTH_LOCKOUT_MAX_ATTEMPTS = '-2'
+    expect(() => readLockoutConfig()).toThrow(/AUTH_LOCKOUT_MAX_ATTEMPTS/)
+    process.env.AUTH_LOCKOUT_MAX_ATTEMPTS = '3'
+    process.env.AUTH_LOCKOUT_MINUTES = '0'
+    expect(() => readLockoutConfig()).toThrow(/AUTH_LOCKOUT_MINUTES/)
+  })
+})

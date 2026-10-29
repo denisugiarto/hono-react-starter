@@ -10,21 +10,24 @@ import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
 import { auth } from './auth.ts'
 import { withAuthAudit } from './auth-audit.ts'
+import { maskSignUpConflict, withSignInLockout } from './auth-guards.ts'
 import {
   envIsProd,
   envIsTest,
   readApiDocsEnabled,
   readApiRateLimit,
+  readCspEnabled,
   readLogConfig,
   readServeWebDist,
+  readTrustProxy,
   type ApiRateLimitConfig,
 } from './env.ts'
-import { createDocsRoutes } from './openapi.ts'
+import { buildCsp, createDocsRoutes } from './openapi.ts'
 import { Logger, serializeError } from './lib/logger.ts'
 import { errorBody, fail } from './lib/response.ts'
 import { requestLog } from './middleware/request-log.ts'
 import type { AppEnv } from './types.ts'
-import { createApiRateLimiter, type ApiRateLimitOptions } from './middleware/rate-limit.ts'
+import { createApiRateLimiter, withClientIp, type ApiRateLimitOptions } from './middleware/rate-limit.ts'
 
 export type App = Hono<AppEnv>
 
@@ -40,6 +43,10 @@ export type AppOptions = {
   distDir?: string
   /** Dokumentasi API (`/api/openapi.json`, `/api/docs`). Default: env API_DOCS_ENABLED (nonaktif di production). */
   docs?: boolean
+  /** Percayai header IP dari reverse proxy. Default: env TRUST_PROXY (false). */
+  trustProxy?: boolean
+  /** Content-Security-Policy untuk halaman SPA & /api/docs. Default: env CSP_ENABLED (true). */
+  csp?: boolean
   /** Logger. Default dari env (LOG_LEVEL / LOG_FORMAT; lihat lib/logger.ts). */
   logger?: Logger
   /** Matikan semua log (setara logger level 'silent'). Default: NODE_ENV === 'test'. */
@@ -75,6 +82,8 @@ export function createApp(options: AppOptions = {}): App {
   const isProd = options.isProd ?? envIsProd()
   const serveWeb = options.serveWeb ?? options.isProd ?? readServeWebDist()
   const docs = options.docs ?? readApiDocsEnabled()
+  const trustProxy = options.trustProxy ?? readTrustProxy()
+  const csp = options.csp ?? readCspEnabled()
   const distDir = options.distDir ?? defaultDistDir()
   const silent = options.silent ?? (options.logger ? false : envIsTest())
   const logger = silent
@@ -88,7 +97,7 @@ export function createApp(options: AppOptions = {}): App {
   // Middleware global
   // -------------------------------------------------------------------------
   app.use('*', requestId()) // header X-Request-Id (dipakai log + details.requestId saat 500)
-  app.use('*', requestLog(logger)) // satu baris log per request + c.get('log')
+  app.use('*', requestLog(logger, { trustProxy })) // satu baris log per request + c.get('log') + c.get('clientIp')
 
   // Header keamanan (X-Frame-Options, nosniff, Referrer-Policy, HSTS di prod, dll).
   // CSP tidak dipasang default agar tidak memblokir HMR Vite — sesuaikan bila perlu.
@@ -128,13 +137,20 @@ export function createApp(options: AppOptions = {}): App {
   // -------------------------------------------------------------------------
   app.route('/api', api)
   // Dokumentasi: /api/openapi.json (spesifikasi) + /api/docs (UI). Lihat openapi.ts.
-  if (docs) app.route('/api', createDocsRoutes())
+  if (docs) app.route('/api', createDocsRoutes({ csp }))
   app.route('/api/notes', notesRoutes)
   app.route('/api/admin', adminRoutes)
 
-  // Better Auth — semua request /api/auth/* di-handle oleh auth; aksi penting
-  // (sign-in/out, reset password, 2FA, aksi admin) dicatat ke audit_log.
-  app.on(['POST', 'GET'], '/api/auth/*', withAuthAudit((req) => auth.handler(req)))
+  // Better Auth — semua request /api/auth/* di-handle oleh auth. Lapisan dari luar ke dalam:
+  //   maskSignUpConflict  → sembunyikan "email sudah terdaftar" (anti-enumerasi)
+  //   withAuthAudit       → audit_log (sign-in/out, reset password, 2FA, aksi admin; sukses & gagal)
+  //   withSignInLockout   → lockout per akun setelah N password salah
+  //   withClientIp        → IP tepercaya diteruskan ke Better Auth lewat satu header internal
+  app.on(
+    ['POST', 'GET'],
+    '/api/auth/*',
+    maskSignUpConflict(withAuthAudit(withSignInLockout((req, c) => auth.handler(withClientIp(req, c.get('clientIp')))))),
+  )
 
   options.extend?.(app)
 
@@ -195,10 +211,14 @@ export function createApp(options: AppOptions = {}): App {
 
     // SPA fallback: semua route non-API → index.html (client-side routing /
     // refresh di path manapun tetap berfungsi). index.html jangan di-cache lama.
+    // CSP: build Vite tidak punya inline script, jadi `script-src 'self'` cukup;
+    // style 'unsafe-inline' dibutuhkan atribut style komponen (Base UI, sonner, QR).
+    const spaHeaders: Record<string, string> = { 'Cache-Control': 'no-cache' }
+    if (csp) spaHeaders['Content-Security-Policy'] = buildCsp()
     app.get('*', async (c) => {
       const file = Bun.file(`${distDir}/index.html`)
       if (await file.exists()) {
-        return c.html(await file.text(), 200, { 'Cache-Control': 'no-cache' })
+        return c.html(await file.text(), 200, spaHeaders)
       }
       return c.notFound()
     })

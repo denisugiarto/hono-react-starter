@@ -83,12 +83,26 @@ describe('clientIp', () => {
   const ctxWith = (headers: Record<string, string>) =>
     ({ req: { raw: new Request(ORIGIN, { headers }) } }) as unknown as Parameters<typeof clientIp>[0]
 
-  test('prioritas: cf-connecting-ip > x-real-ip > x-forwarded-for (pertama) > unknown', () => {
-    expect(clientIp(ctxWith({ 'cf-connecting-ip': '1.1.1.1', 'x-real-ip': '2.2.2.2' }))).toBe('1.1.1.1')
-    expect(clientIp(ctxWith({ 'x-real-ip': ' 2.2.2.2 ' }))).toBe('2.2.2.2')
-    expect(clientIp(ctxWith({ 'x-forwarded-for': '3.3.3.3, 10.0.0.1' }))).toBe('3.3.3.3')
-    expect(clientIp(ctxWith({ 'x-forwarded-for': ' , ' }))).toBe('unknown')
-    expect(clientIp(ctxWith({}))).toBe('unknown')
+  test('trustProxy: prioritas cf-connecting-ip > x-real-ip > x-forwarded-for (pertama) > unknown', () => {
+    expect(clientIp(ctxWith({ 'cf-connecting-ip': '1.1.1.1', 'x-real-ip': '2.2.2.2' }), true)).toBe('1.1.1.1')
+    expect(clientIp(ctxWith({ 'x-real-ip': ' 2.2.2.2 ' }), true)).toBe('2.2.2.2')
+    expect(clientIp(ctxWith({ 'x-forwarded-for': '3.3.3.3, 10.0.0.1' }), true)).toBe('3.3.3.3')
+    expect(clientIp(ctxWith({ 'x-forwarded-for': ' , ' }), true)).toBe('unknown')
+    expect(clientIp(ctxWith({}), true)).toBe('unknown')
+  })
+
+  test('tanpa trustProxy (default TRUST_PROXY=false): semua header IP dari klien diabaikan', () => {
+    expect(clientIp(ctxWith({ 'cf-connecting-ip': '1.1.1.1', 'x-real-ip': '2.2.2.2', 'x-forwarded-for': '3.3.3.3' }))).toBe('unknown')
+    expect(clientIp(ctxWith({ 'x-real-ip': '2.2.2.2' }), false)).toBe('unknown')
+  })
+
+  test('withClientIp: header internal selalu ditimpa, body & method dipertahankan', async () => {
+    const { withClientIp, CLIENT_IP_HEADER } = await import('../src/middleware/rate-limit.ts')
+    const original = new Request(ORIGIN, { method: 'POST', body: '{"a":1}', headers: { [CLIENT_IP_HEADER]: 'palsu', 'content-type': 'application/json' } })
+    const req = withClientIp(original, '5.5.5.5')
+    expect(req.headers.get(CLIENT_IP_HEADER)).toBe('5.5.5.5')
+    expect(req.method).toBe('POST')
+    expect(await req.json()).toEqual({ a: 1 })
   })
 
   test('defaultRateLimitSkip melewati /api/auth/* dan /api/health', () => {
@@ -108,6 +122,7 @@ describe('Rate limit /api/* (middleware)', () => {
   const app = createApp({
     isProd: true,
     silent: true,
+    trustProxy: true, // test membedakan klien lewat x-real-ip
     distDir: path.join(import.meta.dirname, 'fixtures/build'),
     rateLimit: { max: 3, windowSeconds: 60, store },
   })
@@ -152,7 +167,7 @@ describe('Rate limit /api/* (middleware)', () => {
   })
 
   test('rateLimit: false → tanpa pembatasan dan tanpa header RateLimit', async () => {
-    const open = createApp({ silent: true, rateLimit: false })
+    const open = createApp({ silent: true, rateLimit: false, trustProxy: true })
     const ip = freshIp()
     for (let i = 0; i < 5; i++) {
       const res = await open.fetch(new Request(`${ORIGIN}/api/hello`, { headers: { 'x-real-ip': ip } }))

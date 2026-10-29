@@ -34,6 +34,8 @@ services:
       BETTER_AUTH_URL: https://${STAGING_DOMAIN:?isi STAGING_DOMAIN di .env.staging}
       API_DOCS_ENABLED: 'true'
       ALLOW_DEMO_SEED: 'true'
+      # Di belakang Caddy: header X-Forwarded-For ditimpa proxy → boleh dipercaya
+      TRUST_PROXY: 'true'
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
       MAIL_FROM: ${MAIL_FROM:-}

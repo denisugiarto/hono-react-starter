@@ -65,7 +65,20 @@ describe('auditFromContext', () => {
       return c.text('ok')
     })
     await app.fetch(new Request('http://x/x', { headers: { 'x-real-ip': '7.7.7.7', 'user-agent': 'bot/2' } }))
-    expect(captured[0]).toMatchObject({ actorId: 'u1', actorEmail: 'u1@test.local', requestId: 'rid-9', ip: '7.7.7.7', userAgent: 'bot/2' })
+    // Tanpa requestLog/TRUST_PROXY, header IP dari klien diabaikan → 'unknown' (tak ada koneksi di test)
+    expect(captured[0]).toMatchObject({ actorId: 'u1', actorEmail: 'u1@test.local', requestId: 'rid-9', ip: 'unknown', userAgent: 'bot/2' })
+  })
+
+  test('ip diambil dari c.get("clientIp") bila requestLog sudah menetapkannya', async () => {
+    const captured: NewAuditLog[] = []
+    const app = new Hono<AppEnv>()
+    app.get('/x', async (c) => {
+      c.set('clientIp', '7.7.7.7')
+      await auditFromContext(c, { action: 'note.updated' }, { write: async (r) => void captured.push(r) })
+      return c.text('ok')
+    })
+    await app.fetch(new Request('http://x/x', { headers: { 'x-real-ip': '1.1.1.1' } }))
+    expect(captured[0]!.ip).toBe('7.7.7.7')
   })
 })
 

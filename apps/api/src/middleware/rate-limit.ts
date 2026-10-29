@@ -3,6 +3,7 @@ import type { Context, MiddlewareHandler } from 'hono'
 import { getConnInfo } from 'hono/bun'
 import { rateLimiter } from 'hono-rate-limiter'
 import { db as defaultDb } from '../db/index.ts'
+import { readTrustProxy } from '../env.ts'
 import { errorBody } from '../lib/response.ts'
 
 type HitInfo = { totalHits: number; resetTime?: Date }
@@ -87,18 +88,31 @@ export class DrizzleRateLimitStore {
 }
 
 /**
- * IP klien: header proxy (urutan sama dengan konfigurasi Better Auth) lalu
- * alamat koneksi Bun. Di belakang reverse proxy pastikan proxy MENIMPA header
- * ini (bukan meneruskan dari klien) agar tidak bisa dipalsukan.
+ * Header internal berisi IP klien yang SUDAH diverifikasi server ini. Dipasang
+ * oleh `withClientIp()` sebelum request diteruskan ke Better Auth (satu-satunya
+ * header IP yang dibaca Better Auth) dan selalu menimpa nilai dari klien.
  */
-export function clientIp(c: Context): string {
-  const headers = c.req.raw.headers
-  const direct = headers.get('cf-connecting-ip') ?? headers.get('x-real-ip')
-  if (direct) return direct.trim()
-  const forwarded = headers.get('x-forwarded-for')
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim()
-    if (first) return first
+export const CLIENT_IP_HEADER = 'x-client-ip'
+
+/** Header dari reverse proxy, urutan prioritas. Hanya dibaca bila TRUST_PROXY=true. */
+export const PROXY_IP_HEADERS = ['cf-connecting-ip', 'x-real-ip', 'x-forwarded-for'] as const
+
+/**
+ * IP klien. Header proxy HANYA dipercaya bila `trustProxy` (env TRUST_PROXY) —
+ * di belakang Caddy/Nginx/Cloudflare yang MENIMPA header itu. Selain itu dipakai
+ * alamat koneksi Bun, sehingga klien tidak bisa memalsukan IP untuk rate limit
+ * maupun audit log.
+ */
+export function clientIp(c: Context, trustProxy: boolean = readTrustProxy()): string {
+  if (trustProxy) {
+    const headers = c.req.raw.headers
+    const direct = headers.get('cf-connecting-ip') ?? headers.get('x-real-ip')
+    if (direct?.trim()) return direct.trim()
+    const forwarded = headers.get('x-forwarded-for')
+    if (forwarded) {
+      const first = forwarded.split(',')[0]?.trim()
+      if (first) return first
+    }
   }
   try {
     const addr = getConnInfo(c).remote.address
@@ -107,6 +121,13 @@ export function clientIp(c: Context): string {
     // app.fetch dipanggil tanpa server Bun (mis. test) → tidak ada info koneksi
   }
   return 'unknown'
+}
+
+/** Salinan request dengan header CLIENT_IP_HEADER = ip (nilai dari klien selalu ditimpa). */
+export function withClientIp(req: Request, ip: string): Request {
+  const headers = new Headers(req.headers)
+  headers.set(CLIENT_IP_HEADER, ip)
+  return new Request(req, { headers })
 }
 
 export type ApiRateLimitOptions = {
@@ -134,7 +155,7 @@ export function createApiRateLimiter(options: ApiRateLimitOptions): MiddlewareHa
     windowMs: options.windowSeconds * 1000,
     limit: options.max,
     standardHeaders: 'draft-6',
-    keyGenerator: clientIp,
+    keyGenerator: (c) => (c.get('clientIp') as string | undefined) ?? clientIp(c),
     store: options.store ?? new DrizzleRateLimitStore(),
     skip: options.skip ?? defaultRateLimitSkip,
     handler: (c) => c.json(errorBody('RATE_LIMITED', 'Terlalu banyak request, coba lagi nanti'), 429),

@@ -30,6 +30,10 @@ kill $PID
 
 Mode production lokal: `bun run build` lalu `NODE_ENV=production BETTER_AUTH_URL=https://x.example.com PORT=3199 bun run start` dari `apps/api` (`/`, deep route, `/assets/*` harus 200). Untuk klik-klik manual di browser lewat http: `SERVE_WEB_DIST=true PORT=3199 BETTER_AUTH_URL=http://localhost:3199 bun src/index.ts` (production mode menolak origin http). Server E2E yang dibiarkan hidup di 3199 akan dipakai ulang Playwright (`reuseExistingServer`) — matikan bila env-nya berubah.
 
+## Dependensi
+
+`bun scripts/audit.ts` = gerbang CI (gagal bila advisory ≥ high mengenai versi terpasang). Menaikkan paket: ubah rentang di `package.json` proyek (apps/*, packages/*) lalu `bun install` — JANGAN `bun update <pkg>` dari root, itu menambahkan paket ke `dependencies` root. Paket transitif: `overrides` di root `package.json`. Setelah naik versi Better Auth: `bunx @better-auth/cli generate --config src/auth.ts --output <tmp>` dari `apps/api`, diff dengan `src/db/auth-schema.ts`, tambahkan kolom baru + migrasi (skill `db-migrations`).
+
 ## Commit & CI
 
 Pesan commit conventional (`feat(scope): …`, bahasa Indonesia seperti riwayat). Setelah push: `gh run list --branch main --limit 1`, `gh run watch <id> --exit-status` (TLS timeout `gh` kadang transient → ulangi). Perbarui `DEVELOPMENT_PROGRESS.md` (iterasi) dan README bila perilaku/endpoint berubah.

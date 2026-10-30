@@ -799,12 +799,20 @@ lebih sederhana, letakkan keduanya di balik satu reverse proxy (same-origin).
 `@hono/cloudflare-workers` di `apps/api`, build client dengan `bun run build`, dan sesuaikan
 entry server sesuai platform.
 
-## Skill untuk agen AI (Claude Code)
+## Skill untuk agen AI (Claude Code, Codex, Antigravity)
 
-Folder `.claude/skills/` berisi panduan singkat per alur kerja yang otomatis tersedia untuk Claude Code
-(dan runtime lain yang membaca format [Agent Skills](https://agentskills.io)) saat bekerja di repo ini.
-Isinya adalah aturan yang **tidak terlihat dari kode** — urutan langkah, perangkap, dan konvensi test —
-sehingga agen tidak perlu menemukannya lewat trial-and-error.
+Repo ini siap dipakai tiga agen sekaligus dengan satu sumber kebenaran:
+
+| File / folder | Dibaca oleh | Isi |
+| --- | --- | --- |
+| `AGENTS.md` | Codex, Antigravity, dan agen lain yang mengikuti konvensi AGENTS.md | Ringkasan stack, perintah, aturan keras, pola |
+| `CLAUDE.md` | Claude Code | Hanya `@AGENTS.md` (impor), jadi tidak ada dua versi aturan |
+| `.claude/skills/<nama>/SKILL.md` | Claude Code | Skill per alur kerja (format [Agent Skills](https://agentskills.io)) |
+| `.agents/skills` → symlink ke `.claude/skills` | Codex CLI/IDE, Antigravity (default `.agents/skills`) | Skill yang sama tanpa duplikasi |
+
+Skill berisi aturan yang **tidak terlihat dari kode** — urutan langkah, perangkap, dan konvensi test —
+sehingga agen tidak perlu menemukannya lewat trial-and-error. Codex: `/skills` atau `$nama`; Antigravity
+memilih skill dari deskripsinya; Claude Code: `/nama` atau otomatis.
 
 | Skill | Dipakai saat |
 | --- | --- |
@@ -815,9 +823,10 @@ sehingga agen tidak perlu menemukannya lewat trial-and-error.
 | `adding-shadcn-component` | `bunx shadcn add` menulis ke folder salah / import `cn` rusak |
 | `verifying-changes` | Sebelum menyatakan selesai, commit, smoke test di port bebas, memantau CI |
 
-Pakai dengan `/adding-feature` dsb. di Claude Code, atau biarkan agen memilih sendiri berdasarkan
-deskripsinya. Menambah skill: buat `.claude/skills/<nama>/SKILL.md` dengan frontmatter `name` +
-`description` ("Use when …"), uji dengan subagent tanpa dan dengan skill, lalu commit.
+Menambah skill: buat `.claude/skills/<nama>/SKILL.md` dengan frontmatter `name` (sama dengan nama folder) +
+`description` ("Use when …"), uji dengan subagent tanpa dan dengan skill, lalu commit — otomatis ikut
+terlihat di `.agents/skills`. Di Windows, aktifkan symlink git (`git config core.symlinks true`) atau salin
+foldernya.
 
 ## Troubleshooting
 

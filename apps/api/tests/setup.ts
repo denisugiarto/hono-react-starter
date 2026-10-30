@@ -34,7 +34,10 @@ process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? deriveTestUrl(proces
 const sql = postgres(process.env.DATABASE_URL, { max: 1, onnotice: () => {} })
 try {
   await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS_DIR })
-  await sql`TRUNCATE TABLE "notes", "audit_log", "two_factor", "session", "account", "verification", "rate_limit", "api_rate_limit", "sign_in_lockout", "user" RESTART IDENTITY CASCADE`
+  // jwks ikut dikosongkan: kunci privat dienkripsi dengan BETTER_AUTH_SECRET, jadi baris
+  // dari proses lain (E2E/dev dengan secret berbeda) membuat semua request sesi gagal
+  // ("Failed to decrypt private key"). Kunci baru dibuat otomatis saat JWT pertama diminta.
+  await sql`TRUNCATE TABLE "notes", "audit_log", "two_factor", "session", "account", "verification", "rate_limit", "api_rate_limit", "sign_in_lockout", "jwks", "user" RESTART IDENTITY CASCADE`
 } catch (err) {
   console.error(
     `\n[test] Gagal menyiapkan database test ${process.env.DATABASE_URL}.\n` +

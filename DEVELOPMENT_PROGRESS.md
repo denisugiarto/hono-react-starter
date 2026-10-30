@@ -418,6 +418,19 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - **Belum diputuskan (kebijakan)**: wajib verifikasi email di production, nilai cache sesi, impersonasi admin,
   hapus endpoint demo `/api/hello` & `/api/echo`, retensi PII di log (`detail` Postgres).
 
+## Iterasi 15 — Merge Dependabot & skill lintas agen (2026-10-30)
+
+- Setelah merge 11 PR Dependabot (TypeScript 7, @types/node 26, React 19.3, Base UI 1.9, drizzle 0.45.4,
+  actions v7, `oven/bun:1.4-slim`): CI merah karena gerbang audit menemukan `systeminformation` (transitif
+  shadcn) → `overrides` `^5.33.16`. Lokal semua test sesi gagal "Failed to decrypt private key": baris `jwks`
+  di DB test dienkripsi dengan secret lain (dari proses sebelumnya) dan tidak pernah dikosongkan →
+  `tests/setup.ts` kini TRUNCATE `jwks` juga. Catatan: Dockerfile runtime kini `oven/bun:1.4-slim`
+  sementara stage build & CI memakai Bun 1.2 — berfungsi (CI hijau), tapi sebaiknya disamakan.
+- **Skill lintas agen**: `AGENTS.md` (ringkasan stack, perintah, aturan keras, pola) dibaca Codex &
+  Antigravity; `CLAUDE.md` = `@AGENTS.md`; `.agents/skills` symlink ke `.claude/skills` sehingga enam skill
+  yang sama tersedia di Claude Code, Codex (`/skills`, `$nama`), dan Antigravity (default `.agents/skills`).
+- Test: api 178, web 82, shared 15, e2e 22 — semua hijau dengan dependensi baru.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

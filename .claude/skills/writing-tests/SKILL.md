@@ -11,7 +11,7 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 
 - Panggil app langsung: `call(path, { method, body: json({...}), cookie })` dari `tests/helpers.ts`; `signUp()` membuat user unik dan mengembalikan `cookie` — panggil dua kali untuk test isolasi antar user; `readData(res)` membaca `data` envelope, `readJson(res)` body mentah. Jadikan admin: `db.update(user).set({ role: 'admin' })`.
 - Setiap cabang route harus dicapai: 401 tanpa cookie, 404 untuk id user lain dan id bukan UUID, 400 untuk body bukan JSON (`body: '{rusak'`) dan validasi gagal. Cabang yang tidak bisa dicapai → hapus dari kode, bukan dikecualikan.
-- DB test terpisah (`TEST_DATABASE_URL` / nama DB + `_test`), migrasi + TRUNCATE sekali di `tests/setup.ts` (preload). Tabel baru → tambah ke TRUNCATE.
+- DB test terpisah (`TEST_DATABASE_URL` / nama DB + `_test`), migrasi + TRUNCATE sekali di `tests/setup.ts` (preload). Tabel baru → tambah ke TRUNCATE. `jwks` ikut dikosongkan: bila SEMUA test sesi gagal dengan "Failed to decrypt private key", baris `jwks` dienkripsi secret lain — jangan ubah kode, kosongkan tabel.
 - Email ditangkap `MemoryMailer` (`mailer` dari `src/mailer.ts`; `MAIL_PROVIDER=memory` di setup). Tautan dari `mail.text`, panggil dengan `app.fetch(new Request(url, { redirect: 'manual' }))`.
 - Kode TOTP nyata: `createOTP(secret).totp()` dari `@better-auth/utils/otp`, secret = base32-decode dari `totpURI`.
 - Konfigurasi alternatif tanpa ubah env: `createApp({ isProd, serveWeb, docs, rateLimit, extend })`, `createApiRoutes({ ping })`, `createAuth({ requireEmailVerification, mailer, rateLimit })`.

@@ -40,10 +40,10 @@
     }
   },
   "dependencies": {
-    "@better-auth/utils": "^0.3.0",
+    "@better-auth/utils": "^0.5.1",
     "@hono-react-starter/shared": "workspace:*",
     "better-auth": "^1.7.14",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.13.14",
     "hono-rate-limiter": "^0.5.4",
     "postgres": "^3.4.9",
@@ -52,6 +52,6 @@
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@types/node": "^26.6.5",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.11"
   }
 }

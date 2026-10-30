@@ -3,7 +3,7 @@
 #   deps → build (apps/web → dist) → prod-deps → runtime (apps/api menyajikan apps/web/dist)
 # Jalankan: docker build -t hono-react-starter . && docker run -p 3000:3000 --env-file apps/api/.env hono-react-starter
 
-FROM oven/bun:1.2 AS base
+FROM oven/bun:1.4 AS base
 WORKDIR /app
 
 # --- deps: semua dependency (termasuk dev) untuk build --------------------
@@ -34,7 +34,7 @@ COPY packages/shared/package.json packages/shared/
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # --- runtime -----------------------------------------------------------------
-FROM oven/bun:1.2-slim AS runtime
+FROM oven/bun:1.4-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

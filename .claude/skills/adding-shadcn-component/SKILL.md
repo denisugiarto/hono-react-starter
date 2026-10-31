@@ -10,7 +10,7 @@ Style `base-nova` di atas **Base UI** (`@base-ui/react`), konfigurasi `apps/web/
 ## Langkah
 
 ```bash
-ls apps/web/src/components/ui          # 25 komponen sudah ada (sidebar, breadcrumb, pagination, …) — cek dulu
+ls apps/web/src/components/ui          # 27 komponen sudah ada (sidebar, breadcrumb, pagination, combobox, input-group, …) — cek dulu
 cd apps/web && bunx shadcn@latest add <komponen>
 ```
 
@@ -30,6 +30,7 @@ cd apps/web && bunx shadcn@latest add <komponen>
 | Select native | `<select>` biasa dipakai di tabel audit; komponen `Select` shadcn butuh item Base UI |
 | Sidebar | `SidebarMenuButton render={<span />}` di dalam `NavLink` (render-prop `isActive`) — jangan `render={<NavLink/>}` langsung karena NavLink children bisa fungsi; `collapsible="none"` untuk sidebar statis di dalam container (tidak `fixed`) |
 | Tombol | `Button` memakai `color` (primary/secondary/neutral/success/warning/danger/info) + `appearance` (fill/soft/outline/ghost/link) + `size` (xs–xl, icon-*). Tidak ada prop `variant`; komponen shadcn yang di-generate dengan `<Button variant="outline">` harus diubah ke `color="neutral" appearance="outline"` (ghost → neutral+ghost, destructive → danger+soft). Warna semantik baru: tambah token di `globals.css` (`:root` + `.dark` + `@theme inline`) lalu satu entri di `variants.color` |
+| Pencarian / pilihan | `SearchInput` (bukan `Input type=search` mentah), `SelectSearch` untuk dropdown pilihan dengan cari, `Dropdown` untuk menu aksi, `Chip` untuk tag/filter, `notify` dari `lib/toast` (bukan `toast` sonner langsung) |
 | Input password | Pakai `PasswordInput` dari `components/common` (bukan `Input type="password"`) agar ada toggle + `data-testid` `<id>-toggle` |
 
 `src/components/ui/**` dikecualikan dari coverage — jangan taruh logika aplikasi di sana.

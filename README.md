@@ -43,8 +43,8 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Siap untuk tester** — `bun run db:seed:demo` membuat akun demo (admin, user dengan catatan, akun 2FA dengan secret tetap, akun diblokir), dokumentasi **OpenAPI** dari schema Zod (`/api/openapi.json` + UI `/api/docs`), selector `data-testid` konsisten, panduan QA (`docs/QA.md`), dan stack **staging** HTTPS (`docker-compose.staging.yml`, Caddy).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
 - **Frontend terstruktur** — React Router + folder berbasis fitur (`app/`, `pages/`, `features/`, `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/`), header dengan navigasi (desktop + Sheet mobile), menu pengguna, tema gelap, toast (sonner).
-- **shadcn/ui lengkap** — 25 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, Sidebar, Breadcrumb, Pagination, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`.
-- **Blok dashboard siap pakai** — `DataTable` (TanStack Table: sorting, pencarian, paginasi, pilih kolom, state loading/error/kosong), `StatCard` (KPI dengan tren), `Navbar` (slot start · brand · nav · end), `AppSidebar` yang bisa **diciutkan** (ikon + tooltip, state persisten, ⌘/Ctrl+B) + `SidebarLayout`, `PasswordInput`, `PageHeader`, `EmptyState`.
+- **shadcn/ui lengkap** — 27 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, Sidebar, Breadcrumb, Pagination, Combobox, InputGroup, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`.
+- **Blok dashboard siap pakai** — `DataTable` (TanStack Table: sorting, pencarian, paginasi, pilih kolom, state loading/error/kosong), `StatCard` (KPI dengan tren), `Navbar` (slot start · brand · nav · end), `AppSidebar` yang bisa **diciutkan** (ikon + tooltip, state persisten, ⌘/Ctrl+B) + `SidebarLayout`, `SearchInput` (ikon, bersihkan, debounce, spinner), `SelectSearch` (dropdown dengan pencarian di atas Base UI Combobox), `Dropdown` (menu aksi berbasis data), `Chip` (tag berwarna semantik: statis, bisa dihapus, filter toggle), `notify` (toast seragam di atas Sonner), `PasswordInput`, `PageHeader`, `EmptyState`.
 - **Storybook** — `bun run storybook` (React + Vite, addon docs & a11y, toggle tema terang/gelap, provider router/query/tooltip); `build-storybook` ikut dicek di CI.
 
 ## Struktur
@@ -102,9 +102,9 @@ hono-react-starter/
 │       │   ├── app/        #   providers.tsx, routes.tsx, router.tsx
 │       │   ├── pages/      #   Satu komponen per route (tipis, menyusun fitur)
 │       │   ├── features/   #   auth (form, 2FA, reset, keamanan), notes, admin (users, audit-logs), system
-│       │   ├── components/ #   ui/ (shadcn + *.stories.tsx), layout/ (navbar, header, nav, shell, app-sidebar, sidebar-layout), common/ (data-table, stat-card, password-input, state kosong/error/loading)
+│       │   ├── components/ #   ui/ (shadcn + *.stories.tsx), layout/ (navbar, header, nav, shell, app-sidebar, sidebar-layout), common/ (data-table, stat-card, search-input, select-search, dropdown, chip, password-input, state kosong/error/loading)
 │       │   ├── hooks/      #   use-theme, use-document-title, use-visible-nav
-│       │   ├── lib/        #   api/request, auth-client, query-client, theme, utils
+│       │   ├── lib/        #   api/request, auth-client, query-client, theme, toast (notify), sidebar-state, utils
 │       │   ├── config/     #   site.ts, paths.ts, navigation.ts
 │       │   └── styles/     #   globals.css (Tailwind v4 + tema shadcn)
 │       └── tests/          #   Test komponen (happy-dom + Testing Library): app/, features/, components/, lib/, mocks/
@@ -599,6 +599,11 @@ appearance="outline"`, `ghost` → `neutral` + `ghost`, `destructive` → `dange
 | `Navbar` | `components/layout/navbar.tsx` | Slot `start` (menu/SidebarTrigger), `brand`, `children` (nav), `end` (tema, akun); `sticky`, `fluid`. `SiteHeader` adalah pemakaiannya |
 | `AppSidebar` | `components/layout/app-sidebar.tsx` | `groups: NavGroup[]`, `collapsible` → tombol ciutkan (`data-testid="sidebar-collapse"`), saat diciutkan label jadi tooltip; state dari `SidebarProvider` (cookie `sidebar_state`, pintasan ⌘/Ctrl+B) |
 | `SidebarLayout` | `components/layout/sidebar-layout.tsx` | Route induk area Pengaturan & Admin: `AppSidebar collapsible` (desktop) + deretan tautan (mobile); `defaultOpen` dari cookie (`lib/sidebar-state.ts`) |
+| `SearchInput` | `components/common/search-input.tsx` | Ikon cari, tombol bersihkan (`<testid>-clear`), `isLoading` spinner, `onChange` langsung + `onDebouncedChange` (default 300 ms); controlled/uncontrolled. Dipakai `DataTable` |
+| `SelectSearch` | `components/common/select-search.tsx` | Dropdown satu pilihan dengan kotak cari (Base UI `Combobox`): `options {value,label,description?,icon?,disabled?}`, `value: string \| null`, `onChange`, `renderValue`. Banyak pilihan → primitif `Combobox multiple` + `ComboboxChips` (`ui/combobox.tsx`) |
+| `Dropdown` | `components/common/dropdown.tsx` | Menu aksi berbasis data di atas `DropdownMenu`: `trigger`, `items` (`label/icon/shortcut/destructive/disabled/onSelect/render`, `{ type: 'separator' }`, `{ type: 'label' }`), `title`, `align` |
+| `Chip` | `components/common/chip.tsx` | Tag dengan `color` (7 warna semantik, token sama dengan Button) × `appearance` (fill/soft/outline) × `size`; `onRemove` (tombol ×), `selected` + `onSelectedChange` (chip filter dengan `aria-pressed`) |
+| `notify` | `lib/toast.ts` | `success/info/warning/error/message/loading/promise/dismiss` di atas Sonner dengan durasi seragam (error lebih lama + tombol tutup). `Toaster` ada di Providers; ikon mengikuti tema |
 
 Contoh `UsersTable` (`features/admin/components/users-table.tsx`) memakai `DataTable` dengan badge, pencarian, dan pilih kolom.
 
@@ -611,7 +616,8 @@ dari `vite.config.ts` ikut otomatis, proxy `/api` dimatikan) dengan addon **docs
 `ThemeProvider`), dan membungkus story dengan `MemoryRouter`, `QueryClientProvider`, `TooltipProvider`, `Toaster`.
 
 Story diletakkan di samping komponennya (`*.stories.tsx`, CSF3): `ui/button`, `ui/input`, `ui/card`, `ui/breadcrumb`,
-`ui/pagination`, `common/password-input`, `common/data-table`, `common/stat-card`, `layout/navbar`, `layout/app-sidebar`. Komponen baru yang punya state/variant sebaiknya diberi story.
+`ui/pagination`, `common/password-input`, `common/data-table`, `common/stat-card`, `common/search-input`,
+`common/select-search`, `common/dropdown`, `common/chip`, `lib/toast`, `layout/navbar`, `layout/app-sidebar`. Komponen baru yang punya state/variant sebaiknya diberi story.
 `build-storybook` berjalan di CI (target Nx, cache) agar story yang rusak terdeteksi; output
 `storybook-static/` di-ignore git. Komponen yang membaca sesi (`useAuth`) dibuat **presentasional**
 (`AppSidebar` menerima `groups`) supaya bisa ditampilkan tanpa backend.

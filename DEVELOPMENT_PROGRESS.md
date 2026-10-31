@@ -480,6 +480,19 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   AppSidebar Collapsible, Breadcrumb, Pagination — total 33; diverifikasi headless termasuk interaksi ciutkan & cari.
 - Test web 105 (+10).
 
+## Iterasi 19 — Toast, Chip, Dropdown, SelectSearch, SearchInput (2026-11-01)
+
+- `lib/toast.ts` `notify` (success/info/warning/error/message/loading/promise/dismiss) di atas Sonner dengan durasi seragam;
+  Toaster sudah ada di Providers & decorator Storybook.
+- `common/chip.tsx`: CSS variable `--chip*` dengan token semantik yang sama dengan Button; mode statis, `onRemove`,
+  filter toggle (`aria-pressed`); compound untuk neutral.
+- `common/search-input.tsx`: ikon, bersihkan + fokus kembali, spinner, `onDebouncedChange` (ref callback, tanpa
+  memicu pada mount); kini dipakai `DataTable`.
+- `common/dropdown.tsx`: menu aksi berbasis data (`items` dengan separator/label/destructive/shortcut/render).
+- shadcn `combobox` + `input-group` (dimigrasi ke `color`/`appearance`); `common/select-search.tsx` pembungkus
+  satu pilihan dengan pencarian (`items`, `itemToStringLabel`, `isItemEqualToValue`, `ComboboxValue` render-prop).
+- Story: Toast, Chip (Matrix/Removable/Filter), SearchInput, Dropdown, SelectSearch — total 47. Test web 117 (+12).
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

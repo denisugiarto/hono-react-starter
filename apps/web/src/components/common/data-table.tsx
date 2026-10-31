@@ -11,10 +11,11 @@ import {
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon, SearchIcon } from 'lucide-react'
+import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, Columns3Icon } from 'lucide-react'
 import { EmptyState } from '@/components/common/empty-state'
 import { ErrorMessage } from '@/components/common/error-message'
 import { LoadingState } from '@/components/common/loading-state'
+import { SearchInput } from '@/components/common/search-input'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -24,7 +25,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
@@ -143,17 +143,13 @@ export function DataTable<TData>({
       {(searchable || columnToggle || toolbar) && (
         <div className="flex flex-wrap items-center gap-2">
           {searchable && (
-            <div className="relative min-w-48 flex-1 sm:max-w-xs">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                className="pl-8"
-                data-testid={`${testId}-search`}
-              />
-            </div>
+            <SearchInput
+              value={globalFilter}
+              onChange={setGlobalFilter}
+              placeholder={searchPlaceholder}
+              className="min-w-48 flex-1 sm:max-w-xs"
+              data-testid={`${testId}-search`}
+            />
           )}
           <div className="ml-auto flex items-center gap-2">
             {toolbar}

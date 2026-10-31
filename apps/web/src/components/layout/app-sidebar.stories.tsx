@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { MemoryRouter } from 'react-router'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { sidebarNav } from '@/config/navigation'
 import { AppSidebar } from './app-sidebar'
@@ -7,15 +6,14 @@ import { AppSidebar } from './app-sidebar'
 const meta = {
   title: 'Layout/AppSidebar',
   component: AppSidebar,
-  parameters: { layout: 'padded' },
+  // Router disediakan .storybook/preview.tsx; path awal via parameters.initialPath
+  parameters: { layout: 'padded', initialPath: '/settings/security' },
   args: { groups: sidebarNav },
   decorators: [
-    (Story, ctx) => (
-      <MemoryRouter initialEntries={[(ctx.parameters.initialPath as string | undefined) ?? '/settings/security']}>
-        <SidebarProvider className="min-h-0">
-          <Story />
-        </SidebarProvider>
-      </MemoryRouter>
+    (Story) => (
+      <SidebarProvider className="min-h-0">
+        <Story />
+      </SidebarProvider>
     ),
   ],
 } satisfies Meta<typeof AppSidebar>

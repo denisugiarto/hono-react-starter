@@ -445,6 +445,10 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   `storybook` / `build-storybook`, target Nx (`build-storybook` cache, ikut CI), oxlint override untuk `*.stories.tsx`,
   `production` input Nx mengabaikan story.
 - Test: web 89 (+7: password-input, sidebar layout, use-mobile dengan matchMedia palsu). Coverage per file tetap ≥ 90 %.
+- Perbaikan setelah dicoba di browser: `preview.tsx` membungkus story dengan `ThemeProvider` aplikasi (Toaster memanggil
+  `useTheme()` → error "useTheme harus dipakai di dalam <ThemeProvider>") dan toolbar tema men-set provider itu;
+  `MemoryRouter` hanya di decorator global dengan `parameters.initialPath` (router bersarang ditolak React Router).
+  Diverifikasi headless: semua story tampil di tema terang & gelap tanpa error.
 
 ## Next Steps
 

@@ -2,37 +2,44 @@ import { useEffect } from 'react'
 import type { Decorator, Preview } from '@storybook/react-vite'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router'
+import { ThemeProvider } from '@/components/theme-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { useTheme } from '@/hooks/use-theme'
+import type { Theme } from '@/lib/theme'
 import '../src/styles/globals.css'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-/** Tema dari toolbar → class `dark` di <html> (sama dengan ThemeProvider aplikasi). */
-function ThemeSync({ theme }: { theme: string }) {
+/**
+ * Tema dari toolbar → ThemeProvider aplikasi (bukan toggle class manual), sehingga
+ * komponen yang memanggil `useTheme()` (Toaster/sonner, ThemeToggle) ikut bekerja.
+ */
+function ThemeSync({ theme }: { theme: Theme }) {
+  const { setTheme } = useTheme()
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-  }, [theme])
+    setTheme(theme)
+  }, [theme, setTheme])
   return null
 }
 
-const withTheme: Decorator = (Story, context) => (
-  <>
-    <ThemeSync theme={context.globals.theme as string} />
-    <Story />
-  </>
-)
-
-/** Provider yang dibutuhkan komponen aplikasi: router (Link/NavLink), Query, Tooltip, toast. */
-const withProviders: Decorator = (Story) => (
-  <MemoryRouter>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Story />
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
-  </MemoryRouter>
+/**
+ * Provider yang dibutuhkan komponen aplikasi: tema, router (Link/NavLink), Query, Tooltip, toast.
+ * Path awal router diatur per story lewat `parameters.initialPath` (default `/`) — jangan
+ * membuat MemoryRouter lagi di story (React Router menolak router bersarang).
+ */
+const withProviders: Decorator = (Story, context) => (
+  <ThemeProvider defaultTheme="light">
+    <ThemeSync theme={context.globals.theme as Theme} />
+    <MemoryRouter initialEntries={[(context.parameters.initialPath as string | undefined) ?? '/']}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Story />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </MemoryRouter>
+  </ThemeProvider>
 )
 
 const preview: Preview = {
@@ -50,13 +57,14 @@ const preview: Preview = {
         items: [
           { value: 'light', title: 'Terang' },
           { value: 'dark', title: 'Gelap' },
+          { value: 'system', title: 'Ikut sistem' },
         ],
         dynamicTitle: true,
       },
     },
   },
   initialGlobals: { theme: 'light' },
-  decorators: [withProviders, withTheme],
+  decorators: [withProviders],
 }
 
 export default preview

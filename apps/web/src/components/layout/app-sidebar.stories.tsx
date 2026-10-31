@@ -8,7 +8,7 @@ const meta = {
   component: AppSidebar,
   // Router disediakan .storybook/preview.tsx; path awal via parameters.initialPath
   parameters: { layout: 'padded', initialPath: '/settings/security' },
-  args: { groups: sidebarNav },
+  args: { groups: sidebarNav, collapsible: false },
   decorators: [
     (Story) => (
       <SidebarProvider className="min-h-0">
@@ -30,3 +30,6 @@ export const RegularUser: Story = {
 }
 
 export const ActiveNotes: Story = { parameters: { initialPath: '/notes' } }
+
+/** Dengan tombol ciutkan (state di SidebarProvider; ⌘/Ctrl+B juga berfungsi). */
+export const Collapsible: Story = { args: { collapsible: true } }

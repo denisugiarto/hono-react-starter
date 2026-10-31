@@ -10,7 +10,7 @@ Style `base-nova` di atas **Base UI** (`@base-ui/react`), konfigurasi `apps/web/
 ## Langkah
 
 ```bash
-ls apps/web/src/components/ui          # 23 komponen sudah ada (termasuk sidebar) — cek dulu
+ls apps/web/src/components/ui          # 25 komponen sudah ada (sidebar, breadcrumb, pagination, …) — cek dulu
 cd apps/web && bunx shadcn@latest add <komponen>
 ```
 

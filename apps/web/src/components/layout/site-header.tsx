@@ -7,19 +7,17 @@ import { siteConfig } from '@/config/site'
 import { useAuth, UserMenu } from '@/features/auth'
 import { MainNav } from './main-nav.tsx'
 import { MobileNav } from './mobile-nav.tsx'
+import { Navbar } from './navbar.tsx'
 
-/** Header sticky: brand, navigasi, tema, dan area akun (login / menu pengguna). */
+/** Header aplikasi: Navbar dengan brand, navigasi, tema, dan area akun (login / menu pengguna). */
 export function SiteHeader() {
   const { isAuthenticated, isPending } = useAuth()
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-14 items-center gap-3 px-4">
-        <MobileNav />
-        <Link to={paths.home} className="font-semibold tracking-tight">
-          {siteConfig.name}
-        </Link>
-        <MainNav className="ml-4 hidden md:flex" />
-        <div className="ml-auto flex items-center gap-1">
+    <Navbar
+      start={<MobileNav />}
+      brand={<Link to={paths.home}>{siteConfig.name}</Link>}
+      end={
+        <>
           <ThemeToggle />
           {isPending ? (
             <Skeleton className="h-8 w-20" />
@@ -30,8 +28,10 @@ export function SiteHeader() {
               Masuk
             </Button>
           )}
-        </div>
-      </div>
-    </header>
+        </>
+      }
+    >
+      <MainNav className="ml-4 hidden md:flex" />
+    </Navbar>
   )
 }

@@ -1,50 +1,61 @@
-import { EmptyState } from '@/components/common/empty-state'
-import { ErrorMessage } from '@/components/common/error-message'
-import { LoadingState } from '@/components/common/loading-state'
+import type { ColumnDef } from '@tanstack/react-table'
+import type { AdminUser } from '@hono-react-starter/shared'
+import { DataTable } from '@/components/common/data-table'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAdminUsers } from '../api/users.ts'
 
-/** Tabel semua pengguna (admin): nama, email, role, status. */
+const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' })
+const formatDate = (iso: string) => {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '—' : dateFormat.format(d)
+}
+
+export const userColumns: ColumnDef<AdminUser, unknown>[] = [
+  { accessorKey: 'name', header: 'Nama', enableHiding: false, meta: { label: 'Nama', className: 'font-medium' } },
+  { accessorKey: 'email', header: 'Email', meta: { label: 'Email', className: 'text-muted-foreground' } },
+  {
+    accessorKey: 'role',
+    header: 'Role',
+    meta: { label: 'Role' },
+    cell: ({ row }) => <Badge variant={row.original.role === 'admin' ? 'destructive' : 'secondary'}>{row.original.role ?? 'user'}</Badge>,
+  },
+  {
+    accessorKey: 'banned',
+    header: 'Status',
+    meta: { label: 'Status' },
+    cell: ({ row }) =>
+      row.original.banned ? (
+        <Badge variant="outline" className="text-destructive">
+          banned
+        </Badge>
+      ) : (
+        <Badge variant="outline">aktif</Badge>
+      ),
+  },
+  {
+    accessorKey: 'createdAt',
+    header: 'Terdaftar',
+    meta: { label: 'Terdaftar', className: 'text-muted-foreground whitespace-nowrap' },
+    cell: ({ row }) => formatDate(row.original.createdAt),
+  },
+]
+
+/** Tabel semua pengguna (admin): pencarian, sorting, paginasi, pilih kolom (DataTable). */
 export function UsersTable() {
   const users = useAdminUsers(true)
-
-  if (users.isPending) return <LoadingState rows={3} label="Memuat pengguna…" />
-  if (users.isError) return <ErrorMessage error={users.error} />
-  if (users.data.length === 0) return <EmptyState title="Belum ada pengguna" />
-
   return (
-    <div className="rounded-md border" data-testid="users-table">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nama</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {users.data.map((u) => (
-            <TableRow key={u.id} data-testid="user-row" data-email={u.email}>
-              <TableCell className="font-medium">{u.name}</TableCell>
-              <TableCell className="text-muted-foreground">{u.email}</TableCell>
-              <TableCell>
-                <Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role ?? 'user'}</Badge>
-              </TableCell>
-              <TableCell>
-                {u.banned ? (
-                  <Badge variant="outline" className="text-destructive">
-                    banned
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">aktif</Badge>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      data-testid="users-table"
+      columns={userColumns}
+      data={users.data ?? []}
+      isLoading={users.isPending}
+      loadingLabel="Memuat pengguna…"
+      error={users.isError ? users.error : undefined}
+      emptyTitle="Belum ada pengguna"
+      searchable
+      searchPlaceholder="Cari nama atau email…"
+      columnToggle
+      rowProps={(u) => ({ 'data-testid': 'user-row', 'data-email': u.email })}
+    />
   )
 }

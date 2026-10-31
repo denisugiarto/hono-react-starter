@@ -37,7 +37,7 @@ export function ResetPasswordForm({ token, errorCode, onSuccess }: Props) {
             ? 'Tautan reset password tidak valid atau sudah kedaluwarsa (berlaku 1 jam).'
             : `Terjadi kesalahan (${errorCode}).`}
         </AlertDescription>
-        <Button variant="outline" size="sm" className="mt-2" render={<Link to={paths.forgotPassword} />}>
+        <Button color="neutral" appearance="outline" size="sm" className="mt-2" render={<Link to={paths.forgotPassword} />}>
           Minta tautan baru
         </Button>
       </Alert>

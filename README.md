@@ -585,9 +585,9 @@ dan item nav di `config/navigation.ts`.
 Warna hanya mengisi CSS variable (`--btn-color`, `--btn-contrast`, `--btn-text`) dan tampilan yang memakainya,
 jadi 7 × 5 kombinasi valid tanpa daftar class per pasangan. Token `--success`, `--warning`, `--info`
 (+ `-foreground`) ada di `globals.css` untuk tema terang & gelap dan juga tersedia sebagai utilitas Tailwind
-(`bg-success`, `text-warning`, …). Prop lama `variant` (`default` `secondary` `outline` `ghost` `destructive`
-`link`) tetap berfungsi sebagai alias (`destructive` → `danger` + `soft`, sesuai tampilan sebelumnya).
-Matriks lengkap ada di Storybook (`UI/Button`).
+(`bg-success`, `text-warning`, …). Prop `variant` shadcn **tidak ada**; padanannya: `outline` → `color="neutral"
+appearance="outline"`, `ghost` → `neutral` + `ghost`, `destructive` → `danger` + `soft`, `secondary` →
+`color="secondary"`, `link` → `appearance="link"`. Matriks lengkap ada di Storybook (`UI/Button`).
 
 ## Storybook
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { cleanup, render, screen } from '@testing-library/react'
-import { Button, LEGACY_VARIANTS, buttonVariants } from '../../src/components/ui/button.tsx'
+import { Button, buttonVariants } from '../../src/components/ui/button.tsx'
 
 afterEach(cleanup)
 
@@ -39,28 +39,26 @@ describe('Button — color × appearance × size', () => {
     expect(el.className).toContain('[--btn-color:var(--destructive)]')
   })
 
-  test('variant lama dipetakan; color/appearance eksplisit menang atas variant', () => {
-    for (const [variant, expected] of Object.entries(LEGACY_VARIANTS)) {
-      const { unmount } = render(<Button variant={variant as keyof typeof LEGACY_VARIANTS}>{variant}</Button>)
-      const cls = classesOf(variant)
-      expect(cls).toContain(`[--btn-color:var(--${expected.color === 'danger' ? 'destructive' : expected.color === 'neutral' ? 'foreground' : expected.color})]`)
-      unmount()
-    }
+  test('neutral outline/ghost memakai tampilan shadcn asli; soft danger = padanan destructive lama', () => {
     render(
-      <Button variant="destructive" appearance="fill">
-        Isi
+      <Button color="neutral" appearance="outline">
+        Batal
       </Button>,
     )
-    expect(classesOf('Isi')).toContain('text-(--btn-contrast)')
-    expect(classesOf('Isi')).not.toContain('bg-(--btn-color)/10')
-  })
-
-  test('neutral outline/ghost memakai tampilan shadcn asli; size "default" = md', () => {
-    render(<Button variant="outline">Batal</Button>)
     expect(classesOf('Batal')).toContain('border-border')
-    render(<Button variant="ghost">Tutup</Button>)
+    render(
+      <Button color="neutral" appearance="ghost">
+        Tutup
+      </Button>,
+    )
     expect(classesOf('Tutup')).toContain('hover:bg-muted')
-    expect(buttonVariants({ size: 'default' })).toBe(buttonVariants({ size: 'md' }))
+    render(
+      <Button color="danger" appearance="soft">
+        Hapus akun
+      </Button>,
+    )
+    expect(classesOf('Hapus akun')).toContain('bg-(--btn-color)/10')
+    expect(buttonVariants({})).toBe(buttonVariants({ color: 'primary', appearance: 'fill', size: 'md' }))
   })
 
   test('ukuran ikon', () => {

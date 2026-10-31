@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils"
  *
  * Warna hanya mengisi CSS variable (--btn-color / --btn-contrast / --btn-text); tampilan
  * yang memakainya, sehingga setiap kombinasi valid tanpa daftar compound per pasangan.
- * Prop lama `variant` (default | secondary | outline | ghost | destructive | link) tetap
- * didukung sebagai alias ke pasangan color+appearance (lihat LEGACY_VARIANTS).
+ * Tidak ada prop `variant` — padanan shadcn lama: outline → neutral+outline, ghost →
+ * neutral+ghost, destructive → danger+soft, secondary → secondary+fill, link → appearance link.
  */
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -42,8 +42,6 @@ const buttonVariants = cva(
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         md: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        /** @deprecated alias `md` */
-        default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         lg: "h-9 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
         xl: "h-10 gap-2 rounded-xl px-4 text-base has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3 [&_svg:not([class*='size-'])]:size-5",
         "icon-xs":
@@ -91,18 +89,6 @@ type ButtonColor = NonNullable<VariantProps<typeof buttonVariants>["color"]>
 type ButtonAppearance = NonNullable<VariantProps<typeof buttonVariants>["appearance"]>
 type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
 
-/** Prop lama → pasangan color + appearance. */
-const LEGACY_VARIANTS = {
-  default: { color: "primary", appearance: "fill" },
-  secondary: { color: "secondary", appearance: "fill" },
-  outline: { color: "neutral", appearance: "outline" },
-  ghost: { color: "neutral", appearance: "ghost" },
-  destructive: { color: "danger", appearance: "soft" },
-  link: { color: "primary", appearance: "link" },
-} as const satisfies Record<string, { color: ButtonColor; appearance: ButtonAppearance }>
-
-type LegacyVariant = keyof typeof LEGACY_VARIANTS
-
 type ButtonProps = Omit<ButtonPrimitive.Props, "color"> & {
   /** Warna semantik. Default `primary`. */
   color?: ButtonColor
@@ -110,27 +96,17 @@ type ButtonProps = Omit<ButtonPrimitive.Props, "color"> & {
   appearance?: ButtonAppearance
   /** Ukuran teks (xs–xl) atau ikon persegi (icon-xs–icon-xl). Default `md`. */
   size?: ButtonSize
-  /** @deprecated pakai `color` + `appearance`; masih didukung sebagai alias. */
-  variant?: LegacyVariant
 }
 
-function Button({ className, variant, color, appearance, size = "md", ...props }: ButtonProps) {
-  const legacy = variant ? LEGACY_VARIANTS[variant] : undefined
+function Button({ className, color = "primary", appearance = "fill", size = "md", ...props }: ButtonProps) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(
-        buttonVariants({
-          color: color ?? legacy?.color ?? "primary",
-          appearance: appearance ?? legacy?.appearance ?? "fill",
-          size,
-          className,
-        })
-      )}
+      className={cn(buttonVariants({ color, appearance, size, className }))}
       {...props}
     />
   )
 }
 
-export { Button, buttonVariants, LEGACY_VARIANTS }
-export type { ButtonAppearance, ButtonColor, ButtonProps, ButtonSize, LegacyVariant }
+export { Button, buttonVariants }
+export type { ButtonAppearance, ButtonColor, ButtonProps, ButtonSize }

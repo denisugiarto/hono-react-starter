@@ -104,7 +104,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
           Kami mengirim tautan verifikasi ke <strong>{checkInbox}</strong>. Buka tautan itu untuk mengaktifkan akun, lalu
           masuk.
         </AlertDescription>
-        <Button type="button" variant="outline" size="sm" className="mt-2" onClick={switchMode}>
+        <Button type="button" color="neutral" appearance="outline" size="sm" className="mt-2" onClick={switchMode}>
           Ke halaman masuk
         </Button>
       </Alert>
@@ -157,7 +157,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
           <div role="alert" data-testid="auth-error" className="space-y-2 text-sm text-destructive">
             <p>{error}</p>
             {unverifiedEmail && (
-              <Button type="button" variant="outline" size="sm" data-testid="auth-resend-verification" onClick={resend}>
+              <Button type="button" color="neutral" appearance="outline" size="sm" data-testid="auth-resend-verification" onClick={resend}>
                 Kirim ulang email verifikasi
               </Button>
             )}
@@ -168,7 +168,7 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
           <Button type="submit" className="flex-1" data-testid="auth-submit" disabled={isSubmitting}>
             {mode === 'signin' ? 'Masuk' : 'Daftar'}
           </Button>
-          <Button type="button" variant="outline" className="flex-1" data-testid="auth-switch-mode" onClick={switchMode}>
+          <Button type="button" color="neutral" appearance="outline" className="flex-1" data-testid="auth-switch-mode" onClick={switchMode}>
             {mode === 'signin' ? 'Daftar akun baru' : 'Sudah punya akun'}
           </Button>
         </div>

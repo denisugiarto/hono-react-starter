@@ -29,7 +29,7 @@ cd apps/web && bunx shadcn@latest add <komponen>
 | Form | `Field` + `FieldLabel htmlFor` + `Input aria-invalid` + `FieldError errors={[errors.x]}`; horizontal: `<Field orientation="horizontal">` untuk `Switch` |
 | Select native | `<select>` biasa dipakai di tabel audit; komponen `Select` shadcn butuh item Base UI |
 | Sidebar | `SidebarMenuButton render={<span />}` di dalam `NavLink` (render-prop `isActive`) — jangan `render={<NavLink/>}` langsung karena NavLink children bisa fungsi; `collapsible="none"` untuk sidebar statis di dalam container (tidak `fixed`) |
-| Tombol | `Button` memakai `color` (primary/secondary/neutral/success/warning/danger/info) + `appearance` (fill/soft/outline/ghost/link) + `size` (xs–xl, icon-*). `variant` lama hanya alias — kode baru jangan memakainya. Warna semantik baru: tambah token di `globals.css` (`:root` + `.dark` + `@theme inline`) lalu satu entri di `variants.color` |
+| Tombol | `Button` memakai `color` (primary/secondary/neutral/success/warning/danger/info) + `appearance` (fill/soft/outline/ghost/link) + `size` (xs–xl, icon-*). Tidak ada prop `variant`; komponen shadcn yang di-generate dengan `<Button variant="outline">` harus diubah ke `color="neutral" appearance="outline"` (ghost → neutral+ghost, destructive → danger+soft). Warna semantik baru: tambah token di `globals.css` (`:root` + `.dark` + `@theme inline`) lalu satu entri di `variants.color` |
 | Input password | Pakai `PasswordInput` dari `components/common` (bukan `Input type="password"`) agar ada toggle + `data-testid` `<id>-toggle` |
 
 `src/components/ui/**` dikecualikan dari coverage — jangan taruh logika aplikasi di sana.

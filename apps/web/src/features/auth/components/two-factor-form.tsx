@@ -80,7 +80,7 @@ export function TwoFactorForm({ onSuccess }: Props) {
           <Button type="submit" className="flex-1" data-testid="totp-submit" disabled={isSubmitting}>
             Verifikasi
           </Button>
-          <Button type="button" variant="outline" className="flex-1" data-testid="totp-toggle-backup" onClick={toggleBackup}>
+          <Button type="button" color="neutral" appearance="outline" className="flex-1" data-testid="totp-toggle-backup" onClick={toggleBackup}>
             {useBackup ? 'Pakai kode authenticator' : 'Pakai kode cadangan'}
           </Button>
         </div>

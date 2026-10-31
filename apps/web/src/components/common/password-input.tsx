@@ -23,7 +23,7 @@ export function PasswordInput({ className, defaultVisible = false, disabled, ...
       <Input {...props} type={visible ? 'text' : 'password'} disabled={disabled} className={cn('pr-9', className)} />
       <Button
         type="button"
-        variant="ghost"
+        color="neutral" appearance="ghost"
         size="icon-sm"
         className="absolute top-1/2 right-0.5 size-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}

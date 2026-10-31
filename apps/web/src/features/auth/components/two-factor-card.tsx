@@ -118,7 +118,7 @@ export function TwoFactorCard() {
                 <Button type="submit" data-testid="tf-confirm" disabled={codeForm.formState.isSubmitting}>
                   Aktifkan 2FA
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setSetup(null)}>
+                <Button type="button" color="neutral" appearance="outline" onClick={() => setSetup(null)}>
                   Batal
                 </Button>
               </div>
@@ -133,7 +133,7 @@ export function TwoFactorCard() {
                 <FieldError errors={[passwordForm.formState.errors.password]} />
               </Field>
               {errorBlock}
-              <Button type="submit" data-testid="tf-submit" variant={enabled ? 'destructive' : 'default'} disabled={passwordForm.formState.isSubmitting}>
+              <Button type="submit" data-testid="tf-submit" color={enabled ? 'danger' : 'primary'} appearance={enabled ? 'soft' : 'fill'} disabled={passwordForm.formState.isSubmitting}>
                 {enabled ? 'Nonaktifkan 2FA' : 'Mulai aktivasi 2FA'}
               </Button>
             </FieldGroup>

@@ -25,7 +25,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="sm" className="gap-2 px-2" aria-label="Menu pengguna" data-testid="user-menu-trigger" />}
+        render={<Button color="neutral" appearance="ghost" size="sm" className="gap-2 px-2" aria-label="Menu pengguna" data-testid="user-menu-trigger" />}
       >
         <Avatar className="size-6">
           <AvatarFallback className="text-xs">{initialsOf(user.name)}</AvatarFallback>

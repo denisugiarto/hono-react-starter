@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
           Jika <strong>{sentTo}</strong> terdaftar, kami mengirim tautan untuk mengatur ulang password. Tautan berlaku 1
           jam.
         </AlertDescription>
-        <Button variant="outline" size="sm" className="mt-2" render={<Link to={paths.login} />}>
+        <Button color="neutral" appearance="outline" size="sm" className="mt-2" render={<Link to={paths.login} />}>
           Kembali ke masuk
         </Button>
       </Alert>
@@ -63,7 +63,7 @@ export function ForgotPasswordForm() {
           <Button type="submit" className="flex-1" data-testid="forgot-submit" disabled={isSubmitting}>
             Kirim tautan
           </Button>
-          <Button type="button" variant="outline" className="flex-1" render={<Link to={paths.login} />}>
+          <Button type="button" color="neutral" appearance="outline" className="flex-1" render={<Link to={paths.login} />}>
             Batal
           </Button>
         </div>

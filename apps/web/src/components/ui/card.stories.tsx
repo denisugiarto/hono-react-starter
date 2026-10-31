@@ -25,8 +25,8 @@ export const Default: Story = {
         Simpan kode cadangan di tempat aman. Setiap kode hanya bisa dipakai sekali.
       </CardContent>
       <CardFooter className="gap-2">
-        <Button variant="destructive">Nonaktifkan</Button>
-        <Button variant="outline">Kode cadangan baru</Button>
+        <Button color="danger" appearance="soft">Nonaktifkan</Button>
+        <Button color="neutral" appearance="outline">Kode cadangan baru</Button>
       </CardFooter>
     </Card>
   ),

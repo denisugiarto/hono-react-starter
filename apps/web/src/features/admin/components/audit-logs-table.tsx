@@ -58,7 +58,7 @@ export function AuditLogsTable() {
             <option value="false">Gagal</option>
           </select>
         </div>
-        <Button variant="outline" size="sm" onClick={() => logs.refetch()} disabled={logs.isFetching}>
+        <Button color="neutral" appearance="outline" size="sm" onClick={() => logs.refetch()} disabled={logs.isFetching}>
           Muat ulang
         </Button>
       </div>
@@ -105,7 +105,7 @@ export function AuditLogsTable() {
       )}
 
       {logs.hasNextPage && (
-        <Button variant="outline" data-testid="audit-load-more" onClick={() => logs.fetchNextPage()} disabled={logs.isFetchingNextPage}>
+        <Button color="neutral" appearance="outline" data-testid="audit-load-more" onClick={() => logs.fetchNextPage()} disabled={logs.isFetchingNextPage}>
           {logs.isFetchingNextPage ? 'Memuat…' : 'Muat lebih banyak'}
         </Button>
       )}

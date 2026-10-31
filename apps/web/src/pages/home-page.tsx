@@ -28,7 +28,7 @@ export function HomePage() {
           ) : (
             <Button render={<Link to={paths.login} />}>Masuk untuk mulai</Button>
           )}
-          <Button variant="outline" render={<a href={siteConfig.repo} target="_blank" rel="noreferrer" />}>
+          <Button color="neutral" appearance="outline" render={<a href={siteConfig.repo} target="_blank" rel="noreferrer" />}>
             Kode sumber
           </Button>
         </div>

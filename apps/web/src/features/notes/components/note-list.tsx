@@ -26,7 +26,7 @@ export function NoteItem({ note, onToggle, onDelete, busy }: ItemProps) {
       </div>
       <Button
         data-testid="note-delete"
-        variant="ghost"
+        color="neutral" appearance="ghost"
         size="icon-sm"
         disabled={busy}
         onClick={() => onDelete(note)}

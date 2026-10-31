@@ -456,9 +456,10 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   terang & gelap) dan pemetaan `@theme inline` → utilitas `bg-success`, `text-warning`, dst.
 - `Button` dirombak: `color` (7) × `appearance` (fill/soft/outline/ghost/link) × `size` (xs–xl, icon-xs–icon-xl).
   Warna mengisi `--btn-color/--btn-contrast/--btn-text`, tampilan memakainya; compound hanya untuk pengecualian
-  (neutral outline/ghost = tampilan shadcn asli, secondary fill, ring fokus mengikuti warna). `variant` lama tetap
-  jadi alias (`LEGACY_VARIANTS`); `size="default"` = `md`. Prop `color` tidak diteruskan ke DOM.
-- Story `UI/Button`: Playground, Matrix (7×5), Sizes, Disabled, LegacyVariants. Test `tests/components/button.test.tsx`
+  (neutral outline/ghost = tampilan shadcn asli, secondary fill, ring fokus mengikuti warna). Prop `variant` dan
+  `size="default"` **dihapus** (bukan alias): 18 file pemakai dimigrasi ke `color` + `appearance`, termasuk
+  `AlertDialogCancel` dan tombol 2FA yang dinamis. Prop `color` tidak diteruskan ke DOM.
+- Story `UI/Button`: Playground, Matrix (7×5), Sizes, Disabled. Test `tests/components/button.test.tsx`
   (pemetaan alias, kombinasi, atribut DOM, ukuran). Diverifikasi headless di Storybook: matriks tampil di dua tema
   dengan warna terkomputasi benar.
 - Test web 95 (+6).

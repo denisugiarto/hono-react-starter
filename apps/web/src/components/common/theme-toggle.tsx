@@ -8,7 +8,7 @@ export function ThemeToggle() {
   const next = resolvedTheme === 'dark' ? 'light' : 'dark'
   return (
     <Button
-      variant="ghost"
+      color="neutral" appearance="ghost"
       size="icon-sm"
       aria-label={`Ganti ke tema ${next === 'dark' ? 'gelap' : 'terang'}`}
       onClick={() => setTheme(next)}

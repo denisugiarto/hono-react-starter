@@ -19,7 +19,7 @@ export function MobileNav() {
   const items = useVisibleNav()
   return (
     <Sheet>
-      <SheetTrigger render={<Button variant="ghost" size="icon-sm" className="md:hidden" aria-label="Buka menu" />}>
+      <SheetTrigger render={<Button color="neutral" appearance="ghost" size="icon-sm" className="md:hidden" aria-label="Buka menu" />}>
         <MenuIcon />
       </SheetTrigger>
       <SheetContent side="left" className="w-72">

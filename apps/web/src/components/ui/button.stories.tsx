@@ -15,7 +15,6 @@ const meta = {
     color: { control: 'select', options: COLORS },
     appearance: { control: 'select', options: APPEARANCES },
     size: { control: 'select', options: [...SIZES, ...ICON_SIZES] },
-    variant: { control: 'select', options: ['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'] },
   },
 } satisfies Meta<typeof Button>
 
@@ -85,21 +84,6 @@ export const Disabled: Story = {
           {a}
         </Button>
       ))}
-    </div>
-  ),
-}
-
-/** Prop lama `variant` masih berfungsi (alias ke color + appearance). */
-export const LegacyVariants: Story = {
-  parameters: { controls: { disable: true } },
-  render: () => (
-    <div className="flex flex-wrap gap-2">
-      <Button variant="default">default</Button>
-      <Button variant="secondary">secondary</Button>
-      <Button variant="outline">outline</Button>
-      <Button variant="ghost">ghost</Button>
-      <Button variant="destructive">destructive</Button>
-      <Button variant="link">link</Button>
     </div>
   ),
 }

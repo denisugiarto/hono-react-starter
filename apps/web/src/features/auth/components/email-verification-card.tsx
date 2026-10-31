@@ -36,7 +36,7 @@ export function EmailVerificationCard() {
       </CardHeader>
       {!verified && (
         <CardContent>
-          <Button variant="outline" onClick={resend} disabled={pending}>
+          <Button color="neutral" appearance="outline" onClick={resend} disabled={pending}>
             Kirim ulang email verifikasi
           </Button>
         </CardContent>

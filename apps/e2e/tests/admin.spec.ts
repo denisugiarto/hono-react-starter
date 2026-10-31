@@ -6,8 +6,20 @@ test.describe('admin & RBAC', () => {
     await login(page, 'admin')
     await page.goto('/admin/users')
     await expect(page.getByTestId('users-table')).toBeVisible()
+    // Tabel berpaginasi (10/halaman) dan DB test bisa berisi banyak user dari run lain → cari dulu
+    const search = page.getByTestId('users-table-search')
+    await search.fill(demoAccount('user').email)
     await expect(page.getByTestId('user-row').filter({ hasText: demoAccount('user').email })).toBeVisible()
+    await search.fill(demoAccount('banned').email)
     await expect(page.getByTestId('user-row').filter({ hasText: demoAccount('banned').email })).toContainText('banned')
+    await search.fill('')
+    // Sorting & pilih kolom tersedia
+    await page.getByTestId('users-table-sort-name').click()
+    await expect(page.getByRole('columnheader', { name: /Nama/ })).toHaveAttribute('aria-sort', 'ascending')
+    await page.getByTestId('users-table-columns').click()
+    await page.getByRole('menuitemcheckbox', { name: 'Terdaftar' }).click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('columnheader', { name: 'Terdaftar' })).toHaveCount(0)
 
     await page.goto('/admin/audit-logs')
     await expect(page.getByTestId('audit-table')).toBeVisible()

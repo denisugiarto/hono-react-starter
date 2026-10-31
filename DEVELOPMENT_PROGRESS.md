@@ -477,7 +477,7 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   `data-state`; `SidebarLayout` membaca cookie lewat `lib/sidebar-state.ts` (modul murni agar test bisa impor tanpa
   menarik auth-client — impor statis `sidebar-layout.tsx` dari file test memuat auth-client asli dan menjatuhkan 49 test).
 - shadcn `breadcrumb` + `pagination` (dimigrasi ke `color`/`appearance`). Story: DataTable (6), StatCard (4), Navbar (3),
-  AppSidebar Collapsible, Breadcrumb, Pagination — total 37; diverifikasi headless termasuk interaksi ciutkan & cari.
+  AppSidebar Collapsible, Breadcrumb, Pagination — total 33; diverifikasi headless termasuk interaksi ciutkan & cari.
 - Test web 105 (+10).
 
 ## Next Steps

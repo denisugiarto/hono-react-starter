@@ -50,7 +50,7 @@ Test API butuh PostgreSQL lokal dan DB test (`bun run db:test:create` sekali). E
   `packages/shared/src/permissions.ts`.
 - **UI**: elemen interaktif baru diberi `data-testid` berprefix fitur (daftar di `docs/QA.md`);
   `Button render={<Link/>}` adalah pola yang benar (abaikan peringatan `nativeButton`). Input password →
-  `PasswordInput` (`components/common`). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` +
+  `PasswordInput` (`components/common`). Tombol: `color` + `appearance` + `size` (bukan `variant` lama). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` +
   entri `sidebarNav`. Komponen dengan state/variant → tambahkan `*.stories.tsx` (Storybook dicek CI).
 - **Dependensi**: ubah rentang di `package.json` proyek lalu `bun install`; JANGAN `bun update <pkg>`
   dari root (menambah dependensi ke root). Paket transitif → `overrides` di root. Setelah naik versi

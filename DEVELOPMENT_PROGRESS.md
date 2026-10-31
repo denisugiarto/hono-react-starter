@@ -450,6 +450,19 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   `MemoryRouter` hanya di decorator global dengan `parameters.initialPath` (router bersarang ditolak React Router).
   Diverifikasi headless: semua story tampil di tema terang & gelap tanpa error.
 
+## Iterasi 17 — Button: warna semantik × tampilan × ukuran (2026-11-01)
+
+- Token semantik baru di `globals.css`: `--success`, `--warning`, `--info`, `--destructive-foreground` (+ `-foreground`,
+  terang & gelap) dan pemetaan `@theme inline` → utilitas `bg-success`, `text-warning`, dst.
+- `Button` dirombak: `color` (7) × `appearance` (fill/soft/outline/ghost/link) × `size` (xs–xl, icon-xs–icon-xl).
+  Warna mengisi `--btn-color/--btn-contrast/--btn-text`, tampilan memakainya; compound hanya untuk pengecualian
+  (neutral outline/ghost = tampilan shadcn asli, secondary fill, ring fokus mengikuti warna). `variant` lama tetap
+  jadi alias (`LEGACY_VARIANTS`); `size="default"` = `md`. Prop `color` tidak diteruskan ke DOM.
+- Story `UI/Button`: Playground, Matrix (7×5), Sizes, Disabled, LegacyVariants. Test `tests/components/button.test.tsx`
+  (pemetaan alias, kombinasi, atribut DOM, ukuran). Diverifikasi headless di Storybook: matriks tampil di dua tema
+  dengan warna terkomputasi benar.
+- Test web 95 (+6).
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

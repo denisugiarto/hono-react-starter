@@ -566,6 +566,29 @@ pages/projects-page.tsx      # <PageHeader> + <ProjectList>
 lalu daftarkan path di `config/paths.ts`, route di `app/routes.tsx` (di bawah guard yang sesuai),
 dan item nav di `config/navigation.ts`.
 
+### Button: warna semantik × tampilan × ukuran
+
+`Button` (`apps/web/src/components/ui/button.tsx`) memisahkan tiga sumbu yang bisa dikombinasikan bebas:
+
+| Prop | Nilai | Default |
+| --- | --- | --- |
+| `color` | `primary` `secondary` `neutral` `success` `warning` `danger` `info` | `primary` |
+| `appearance` | `fill` `soft` `outline` `ghost` `link` | `fill` |
+| `size` | `xs` `sm` `md` `lg` `xl` · ikon: `icon-xs` `icon-sm` `icon` `icon-lg` `icon-xl` | `md` |
+
+```tsx
+<Button color="danger" appearance="outline" size="sm">Hapus</Button>
+<Button color="success" appearance="soft"><CheckIcon /> Selesai</Button>
+<Button color="neutral" appearance="ghost" size="icon-sm" aria-label="Tutup"><XIcon /></Button>
+```
+
+Warna hanya mengisi CSS variable (`--btn-color`, `--btn-contrast`, `--btn-text`) dan tampilan yang memakainya,
+jadi 7 × 5 kombinasi valid tanpa daftar class per pasangan. Token `--success`, `--warning`, `--info`
+(+ `-foreground`) ada di `globals.css` untuk tema terang & gelap dan juga tersedia sebagai utilitas Tailwind
+(`bg-success`, `text-warning`, …). Prop lama `variant` (`default` `secondary` `outline` `ghost` `destructive`
+`link`) tetap berfungsi sebagai alias (`destructive` → `danger` + `soft`, sesuai tampilan sebelumnya).
+Matriks lengkap ada di Storybook (`UI/Button`).
+
 ## Storybook
 
 Katalog komponen di `apps/web`: `bun run --cwd apps/web storybook` (port 6006) atau `bunx nx storybook web`.

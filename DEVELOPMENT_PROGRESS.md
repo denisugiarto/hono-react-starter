@@ -431,6 +431,21 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   yang sama tersedia di Claude Code, Codex (`/skills`, `$nama`), dan Antigravity (default `.agents/skills`).
 - Test: api 178, web 82, shared 15, e2e 22 — semua hijau dengan dependensi baru.
 
+## Iterasi 16 — Sidebar, PasswordInput, Storybook (2026-11-01)
+
+- **Sidebar**: primitif shadcn `sidebar` (+ `hooks/use-mobile.ts`; CLI menulis ke `apps/web/apps/web` → dipindahkan,
+  `cn` diperbaiki). `config/navigation.ts` menambah `sidebarNav` (grup Umum/Akun/Admin dengan ikon),
+  `hooks/use-visible-nav.ts` menambah `filterNavItems` + `useVisibleNavGroups`. `layout/app-sidebar.tsx`
+  presentasional (props `groups`), `layout/sidebar-layout.tsx` (desktop sidebar `collapsible="none"`, mobile deretan
+  tautan) dipasang sebagai route induk `/settings/*` dan `/admin/*` di bawah AppShell + RequireAuth.
+- **PasswordInput** (`components/common/password-input.tsx`): tombol mata, `aria-pressed`, label berubah, `tabIndex=-1`,
+  `data-testid` tombol = `<input>-toggle`; dipakai di form masuk/daftar, 2FA, ganti password, reset password.
+- **Storybook 10.6** (`@storybook/react-vite`, addon docs + a11y): `.storybook/main.ts` & `preview.tsx` (tema toolbar,
+  MemoryRouter/Query/Tooltip/Toaster), 19 story (Button, Input, Card, PasswordInput, AppSidebar). Script
+  `storybook` / `build-storybook`, target Nx (`build-storybook` cache, ikut CI), oxlint override untuk `*.stories.tsx`,
+  `production` input Nx mengabaikan story.
+- Test: web 89 (+7: password-input, sidebar layout, use-mobile dengan matchMedia palsu). Coverage per file tetap ≥ 90 %.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

@@ -11,7 +11,9 @@
       "!{projectRoot}/tests/**/*",
       "!{projectRoot}/bunfig.toml",
       "!{projectRoot}/**/*.test.ts",
-      "!{projectRoot}/**/*.test.tsx"
+      "!{projectRoot}/**/*.test.tsx",
+      "!{projectRoot}/**/*.stories.tsx",
+      "!{projectRoot}/.storybook/**"
     ],
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.base.json",

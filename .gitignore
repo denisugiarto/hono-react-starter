@@ -40,3 +40,7 @@ blob-report
 
 # Staging (docker-compose.staging.yml)
 .env.staging
+
+# Storybook (apps/web)
+storybook-static
+*storybook.log

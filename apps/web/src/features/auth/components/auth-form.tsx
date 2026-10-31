@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/common/password-input'
 import { paths } from '@/config/paths'
 import { absoluteUrl, sendVerificationEmail, signIn, signUp } from '@/lib/auth-client'
 
@@ -141,10 +142,10 @@ export function AuthForm({ defaultMode = 'signin', onSuccess, onTwoFactor }: Pro
               </Link>
             )}
           </div>
-          <Input
+          <PasswordInput
             id="auth-password"
             data-testid="auth-password"
-            type="password"
+            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
             placeholder="••••••••"
             aria-invalid={Boolean(errors.password)}
             {...form.register('password')}

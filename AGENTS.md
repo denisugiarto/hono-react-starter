@@ -26,6 +26,7 @@ bun install                      # setelah pull yang mengubah bun.lock
 bun run check                    # typecheck + lint + test (Nx, cache)
 bunx nx run-many -t typecheck lint test build --skip-nx-cache   # persis CI
 bun run e2e                      # Playwright (build web → server :3199 → browser)
+bun run --cwd apps/web storybook # Storybook :6006; build: bunx nx build-storybook web (ikut CI)
 bun scripts/audit.ts             # gerbang keamanan dependensi (sama dengan CI)
 bun run db:generate              # migrasi dari perubahan schema (lihat skill db-migrations)
 bun run db:seed:demo             # akun demo (docs/QA.md)
@@ -48,7 +49,9 @@ Test API butuh PostgreSQL lokal dan DB test (`bun run db:test:create` sekali). E
 - **Permission** Better Auth tidak punya wildcard — tulis aksi satu per satu di
   `packages/shared/src/permissions.ts`.
 - **UI**: elemen interaktif baru diberi `data-testid` berprefix fitur (daftar di `docs/QA.md`);
-  `Button render={<Link/>}` adalah pola yang benar (abaikan peringatan `nativeButton`).
+  `Button render={<Link/>}` adalah pola yang benar (abaikan peringatan `nativeButton`). Input password →
+  `PasswordInput` (`components/common`). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` +
+  entri `sidebarNav`. Komponen dengan state/variant → tambahkan `*.stories.tsx` (Storybook dicek CI).
 - **Dependensi**: ubah rentang di `package.json` proyek lalu `bun install`; JANGAN `bun update <pkg>`
   dari root (menambah dependensi ke root). Paket transitif → `overrides` di root. Setelah naik versi
   Better Auth: regenerate schema dan bandingkan (skill `verifying-changes`).

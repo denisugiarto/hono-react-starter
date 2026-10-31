@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router'
 import { AppShell } from '@/components/layout/app-shell'
+import { SidebarLayout } from '@/components/layout/sidebar-layout'
 import { paths } from '@/config/paths'
 import { RequireAuth, RequirePermission } from '@/features/auth'
 import { AuditLogsPage } from '@/pages/admin/audit-logs-page'
@@ -38,15 +39,21 @@ export const routes: RouteObject[] = [
         element: <RequireAuth />,
         children: [
           { path: paths.notes, element: <NotesPage /> },
-          { path: paths.apiToken, element: <ApiTokenPage /> },
-          { path: paths.security, element: <SecurityPage /> },
           {
-            element: <RequirePermission permission={{ user: ['list'] }} />,
-            children: [{ path: paths.adminUsers, element: <UsersPage /> }],
-          },
-          {
-            element: <RequirePermission permission={{ audit: ['list'] }} />,
-            children: [{ path: paths.adminAuditLogs, element: <AuditLogsPage /> }],
+            // Area Pengaturan & Admin memakai sidebar (lihat components/layout/sidebar-layout.tsx)
+            element: <SidebarLayout />,
+            children: [
+              { path: paths.apiToken, element: <ApiTokenPage /> },
+              { path: paths.security, element: <SecurityPage /> },
+              {
+                element: <RequirePermission permission={{ user: ['list'] }} />,
+                children: [{ path: paths.adminUsers, element: <UsersPage /> }],
+              },
+              {
+                element: <RequirePermission permission={{ audit: ['list'] }} />,
+                children: [{ path: paths.adminAuditLogs, element: <AuditLogsPage /> }],
+              },
+            ],
           },
         ],
       },

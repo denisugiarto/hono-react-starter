@@ -6,7 +6,7 @@ import { changePasswordSchema, type ChangePasswordInput } from '@hono-react-star
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/common/password-input'
 import { Switch } from '@/components/ui/switch'
 import { changePassword } from '@/lib/auth-client'
 
@@ -46,12 +46,12 @@ export function ChangePasswordCard() {
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="cp-current">Password saat ini</FieldLabel>
-              <Input id="cp-current" data-testid="cp-current" type="password" autoComplete="current-password" aria-invalid={Boolean(errors.currentPassword)} {...form.register('currentPassword')} />
+              <PasswordInput id="cp-current" data-testid="cp-current" autoComplete="current-password" aria-invalid={Boolean(errors.currentPassword)} {...form.register('currentPassword')} />
               <FieldError errors={[errors.currentPassword]} />
             </Field>
             <Field>
               <FieldLabel htmlFor="cp-new">Password baru</FieldLabel>
-              <Input id="cp-new" data-testid="cp-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
+              <PasswordInput id="cp-new" data-testid="cp-new" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
               <FieldError errors={[errors.newPassword]} />
             </Field>
             <Field orientation="horizontal">

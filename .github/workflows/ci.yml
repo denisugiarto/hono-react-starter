@@ -61,8 +61,8 @@ jobs:
       # Tentukan base/head untuk nx affected (PR: base branch; push: commit sebelumnya)
       - uses: nrwl/nx-set-shas@v5
 
-      - name: Typecheck · Lint · Test · Build (semua proyek)
-        run: bunx nx run-many -t typecheck lint test build --output-style=static
+      - name: Typecheck · Lint · Test · Build · Storybook (semua proyek)
+        run: bunx nx run-many -t typecheck lint test build build-storybook --output-style=static
 
       - name: Ringkasan proyek terdampak (informasi)
         run: bunx nx show projects --affected || true

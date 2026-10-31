@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/common/password-input'
 import { twoFactor } from '@/lib/auth-client'
 import { secretFromTotpUri } from '@/lib/format'
 import { useAuth } from '../hooks/use-auth.ts'
@@ -128,7 +129,7 @@ export function TwoFactorCard() {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="tf-password">Konfirmasi password</FieldLabel>
-                <Input id="tf-password" data-testid="tf-password" type="password" autoComplete="current-password" aria-invalid={Boolean(passwordForm.formState.errors.password)} {...passwordForm.register('password')} />
+                <PasswordInput id="tf-password" data-testid="tf-password" autoComplete="current-password" aria-invalid={Boolean(passwordForm.formState.errors.password)} {...passwordForm.register('password')} />
                 <FieldError errors={[passwordForm.formState.errors.password]} />
               </Field>
               {errorBlock}

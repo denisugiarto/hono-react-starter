@@ -43,7 +43,8 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Siap untuk tester** — `bun run db:seed:demo` membuat akun demo (admin, user dengan catatan, akun 2FA dengan secret tetap, akun diblokir), dokumentasi **OpenAPI** dari schema Zod (`/api/openapi.json` + UI `/api/docs`), selector `data-testid` konsisten, panduan QA (`docs/QA.md`), dan stack **staging** HTTPS (`docker-compose.staging.yml`, Caddy).
 - **Docker & CI** — `Dockerfile` multi-stage, `docker-compose.yml` (app + PostgreSQL), GitHub Actions (typecheck, lint, test, build, smoke test, docker build).
 - **Frontend terstruktur** — React Router + folder berbasis fitur (`app/`, `pages/`, `features/`, `components/{ui,layout,common}`, `hooks/`, `lib/`, `config/`), header dengan navigasi (desktop + Sheet mobile), menu pengguna, tema gelap, toast (sonner).
-- **shadcn/ui lengkap** — 22 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`.
+- **shadcn/ui lengkap** — 23 komponen (Button, Card, Field, Dialog, Sheet, DropdownMenu, Table, Tabs, Tooltip, Avatar, Alert, Select, Switch, Sonner, **Sidebar**, …) di atas Base UI; tambah lagi dengan `bunx shadcn add`. Komponen aplikasi: `PasswordInput` (tampil/sembunyikan), `AppSidebar` + `SidebarLayout` untuk area Pengaturan & Admin.
+- **Storybook** — `bun run storybook` (React + Vite, addon docs & a11y, toggle tema terang/gelap, provider router/query/tooltip); `build-storybook` ikut dicek di CI.
 
 ## Struktur
 
@@ -92,6 +93,7 @@ hono-react-starter/
 │       ├── index.html      #   Shell SPA
 │       ├── vite.config.ts  #   React + Tailwind + alias @ + proxy /api → apps/api
 │       ├── components.json #   Konfigurasi shadcn/ui (style base-nova, css src/styles/globals.css)
+│       ├── .storybook/     #   main.ts (react-vite, addon docs/a11y), preview.tsx (tema + provider)
 │       ├── bunfig.toml     #   Coverage ≥ 90 % per file
 │       ├── public/
 │       ├── src/            #   Struktur berbasis fitur — lihat "Struktur Frontend" di bawah
@@ -99,7 +101,7 @@ hono-react-starter/
 │       │   ├── app/        #   providers.tsx, routes.tsx, router.tsx
 │       │   ├── pages/      #   Satu komponen per route (tipis, menyusun fitur)
 │       │   ├── features/   #   auth (form, 2FA, reset, keamanan), notes, admin (users, audit-logs), system
-│       │   ├── components/ #   ui/ (shadcn), layout/ (header, nav, shell), common/ (state kosong/error/loading)
+│       │   ├── components/ #   ui/ (shadcn + *.stories.tsx), layout/ (header, nav, shell, app-sidebar, sidebar-layout), common/ (password-input, state kosong/error/loading)
 │       │   ├── hooks/      #   use-theme, use-document-title, use-visible-nav
 │       │   ├── lib/        #   api/request, auth-client, query-client, theme, utils
 │       │   ├── config/     #   site.ts, paths.ts, navigation.ts
@@ -199,6 +201,7 @@ task yang input-nya tidak berubah tidak dijalankan ulang.
 | `bun run typecheck` | `tsc` untuk shared, api, web |
 | `bun run lint` | Oxlint untuk semua proyek |
 | `bun run test` | Semua test (shared + api + web) + coverage, gagal bila < 90 % per file |
+| `bun run --cwd apps/web storybook` / `bunx nx build-storybook web` | Storybook dev (http://localhost:6006) / build statis ke `apps/web/storybook-static` |
 | `bun run e2e` / `e2e:ui` | Playwright E2E (`apps/e2e`): build web → server api + seed demo → browser (lihat `docs/QA.md`) |
 | `bun run check` | typecheck + lint + test (sama seperti CI) |
 | `bun run affected` | Hanya proyek yang terdampak perubahan sejak `main` (`nx affected`) |
@@ -562,6 +565,20 @@ pages/projects-page.tsx      # <PageHeader> + <ProjectList>
 
 lalu daftarkan path di `config/paths.ts`, route di `app/routes.tsx` (di bawah guard yang sesuai),
 dan item nav di `config/navigation.ts`.
+
+## Storybook
+
+Katalog komponen di `apps/web`: `bun run --cwd apps/web storybook` (port 6006) atau `bunx nx storybook web`.
+Konfigurasi di `apps/web/.storybook/`: `main.ts` memakai `@storybook/react-vite` (alias `@/` dan Tailwind
+dari `vite.config.ts` ikut otomatis, proxy `/api` dimatikan) dengan addon **docs** dan **a11y**;
+`preview.tsx` memuat `globals.css`, menyediakan toolbar tema (menambah class `dark`, sama dengan
+`ThemeProvider`), dan membungkus story dengan `MemoryRouter`, `QueryClientProvider`, `TooltipProvider`, `Toaster`.
+
+Story diletakkan di samping komponennya (`*.stories.tsx`, CSF3): `ui/button`, `ui/input`, `ui/card`,
+`common/password-input`, `layout/app-sidebar`. Komponen baru yang punya state/variant sebaiknya diberi story.
+`build-storybook` berjalan di CI (target Nx, cache) agar story yang rusak terdeteksi; output
+`storybook-static/` di-ignore git. Komponen yang membaca sesi (`useAuth`) dibuat **presentasional**
+(`AppSidebar` menerima `groups`) supaya bisa ditampilkan tanpa backend.
 
 ## shadcn/ui
 

@@ -7,7 +7,7 @@ import { resetPasswordSchema, type ResetPasswordInput } from '@hono-react-starte
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/common/password-input'
 import { paths } from '@/config/paths'
 import { resetPassword } from '@/lib/auth-client'
 
@@ -60,12 +60,12 @@ export function ResetPasswordForm({ token, errorCode, onSuccess }: Props) {
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="reset-new">Password baru</FieldLabel>
-          <Input id="reset-new" data-testid="reset-new" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
+          <PasswordInput id="reset-new" data-testid="reset-new" autoComplete="new-password" aria-invalid={Boolean(errors.newPassword)} {...form.register('newPassword')} />
           <FieldError errors={[errors.newPassword]} />
         </Field>
         <Field>
           <FieldLabel htmlFor="reset-confirm">Ulangi password baru</FieldLabel>
-          <Input id="reset-confirm" data-testid="reset-confirm" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...form.register('confirmPassword')} />
+          <PasswordInput id="reset-confirm" data-testid="reset-confirm" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...form.register('confirmPassword')} />
           <FieldError errors={[errors.confirmPassword]} />
         </Field>
         {error && (

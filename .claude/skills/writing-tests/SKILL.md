@@ -31,6 +31,7 @@ Bun menerapkan `coverageThreshold` di `bunfig.toml` **per file yang dimuat**: se
 - Impor mock **sebelum** modul app — `tests/utils.tsx` sudah mengatur; jangan impor `src/**` yang menyentuh `auth-client` dari file test lain secara langsung (urutan file di CI/Linux berbeda → "Invalid base URL: null").
 - Selector: `CardTitle` bukan heading → `getByText`; teks toast muncul ganda (live region) → `findAllByText`; header punya link "Masuk" juga → `within(container)`.
 - Navigasi setelah aksi sukses ke route ber-`RequireAuth` butuh `asUser()` dulu, kalau tidak dipantulkan ke `/login`.
+- Hook dari shadcn yang mendarat di `src/hooks/` (mis. `use-mobile.ts`) TIDAK dikecualikan — uji dengan `window.matchMedia` palsu yang menangkap listener (lihat `tests/hooks/use-mobile.test.tsx`).
 - `src/components/ui/**`, `main.tsx`, `app/router.tsx` dikecualikan dari coverage; helper murni taruh di `src/lib/format.ts` agar bisa diuji tanpa React (dan tidak memicu peringatan `only-export-components`).
 
 ## E2E (`apps/e2e/tests/*.spec.ts`, Playwright)

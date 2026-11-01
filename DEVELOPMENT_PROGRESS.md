@@ -496,6 +496,23 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   popup mode chip dibuka lewat fokus + ArrowDown pada input (klik tidak cukup di happy-dom).
 - Story: Toast, Chip (Matrix/Removable/Filter), SearchInput, Dropdown, SelectSearch (6 mode) — total 50. Test web 121 (+16).
 
+## Iterasi 20 — Form & overlay: date/time picker, slider, stepper, drawer, dll. (2026-11-01)
+
+- shadcn: `radio-group`, `slider`, `calendar` (react-day-picker 10 + date-fns 4), `popover`, `accordion`, `collapsible`,
+  `drawer` (Base UI Drawer), `progress`, `spinner` — dimigrasi ke `color`/`appearance` (Calendar: prop `buttonAppearance`,
+  atribut HTML `color` dibuang di `CalendarDayButton`).
+- `lib/datetime.ts`: `formatDate`, `formatDateRange`, `parseDate`, `parseTime`, `toTimeString`, `combineDateTime`, locale id.
+- `common/date-picker.tsx`: `DatePicker` (single, `withTime` → date-time, `minDate`/`maxDate`, clearable) dan
+  `DateRangePicker` (dua bulan + preset) di atas Popover + Calendar; `common/time-picker.tsx` (`input type=time` + InputGroup);
+  `common/stepper.tsx` (horizontal/vertikal, klik langkah selesai).
+- Story untuk semua yang diminta: Dialog, Checkbox, RadioGroup, Switch, Slider (single/range), DatePicker (single/with time/
+  range/preset), TimePicker, Accordion, Collapsible, Drawer, Popover, Progress (incl. indeterminate), Spinner (+ skeleton),
+  Tabs, Tooltip, Stepper (wizard), Placeholder (EmptyState/Skeleton). Diverifikasi headless termasuk pilih tanggal, preset
+  rentang, jam, drawer, dialog. Total story 92; test web 178.
+- Test: `lib/datetime`, TimePicker, DatePicker/DateRangePicker (harness controlled untuk klik kedua), Stepper.
+  Catatan happy-dom: `input type=time` bukan role textbox (pakai label/testid); react-day-picker range mode memberi
+  `to = from` saat satu hari dipilih.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

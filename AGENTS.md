@@ -51,7 +51,7 @@ Test API butuh PostgreSQL lokal dan DB test (`bun run db:test:create` sekali). E
 - **UI**: elemen interaktif baru diberi `data-testid` berprefix fitur (daftar di `docs/QA.md`);
   `Button render={<Link/>}` adalah pola yang benar (abaikan peringatan `nativeButton`). Input password →
   `PasswordInput` (`components/common`). Tombol: `color` + `appearance` + `size`; prop `variant` tidak ada (komponen shadcn baru yang memakainya harus dimigrasi). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` +
-  entri `sidebarNav`. Komponen dengan state/variant → tambahkan `*.stories.tsx` (Storybook dicek CI). Tabel data → `DataTable`; KPI → `StatCard`; bilah atas → `Navbar`; pencarian → `SearchInput`; pilihan dengan cari → `SelectSearch`; menu aksi → `Dropdown`; tag → `Chip`; toast → `notify` (`lib/toast`).
+  entri `sidebarNav`. Komponen dengan state/variant → tambahkan `*.stories.tsx` (Storybook dicek CI). Tabel data → `DataTable`; KPI → `StatCard`; bilah atas → `Navbar`; pencarian → `SearchInput`; pilihan dengan cari → `SelectSearch`; menu aksi → `Dropdown`; tag → `Chip`; tanggal/jam → `DatePicker`/`DateRangePicker`/`TimePicker` + `lib/datetime`; wizard → `Stepper`; toast → `notify` (`lib/toast`).
 - **Test web**: jangan impor modul `src/components/layout/*` atau `features/*` secara statis dari file test sebelum `tests/utils.tsx` — tarik helper murni ke `src/lib/*` (contoh `lib/sidebar-state.ts`).
 - **Dependensi**: ubah rentang di `package.json` proyek lalu `bun install`; JANGAN `bun update <pkg>`
   dari root (menambah dependensi ke root). Paket transitif → `overrides` di root. Setelah naik versi

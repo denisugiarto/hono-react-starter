@@ -149,4 +149,16 @@
   html {
     @apply font-sans;
     }
+  /* Preflight Tailwind v4 menjadikan tombol `cursor: default`; kembalikan pointer untuk
+     semua elemen yang bisa diklik (Button, AccordionTrigger, TabsTrigger, DropdownMenuTrigger, …).
+     Elemen nonaktif tetap `default`. */
+  button:not(:disabled, [aria-disabled='true']),
+  [role='button']:not(:disabled, [aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
 }

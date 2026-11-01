@@ -510,6 +510,9 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   Tabs, Tooltip, Stepper (wizard), Placeholder (EmptyState/Skeleton). Diverifikasi headless termasuk pilih tanggal, preset
   rentang, jam, drawer, dialog. Total story 92; test web 178.
 - Test: `lib/datetime`, TimePicker, DatePicker/DateRangePicker (harness controlled untuk klik kedua), Stepper.
+- Kursor: preflight Tailwind v4 membuat `button { cursor: default }` sehingga AccordionTrigger/TabsTrigger/dll. tidak
+  menampilkan pointer → aturan `@layer base` di `globals.css` mengembalikan `cursor: pointer` untuk button, `[role=button|tab|
+  menuitem|option]`, `summary`, dan `label[for]` (elemen nonaktif tetap default). Diverifikasi lewat computed style.
   Catatan happy-dom: `input type=time` bukan role textbox (pakai label/testid); react-day-picker range mode memberi
   `to = from` saat satu hari dipilih.
 

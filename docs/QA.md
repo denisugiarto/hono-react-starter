@@ -114,7 +114,7 @@ Komponen memakai `data-testid` (bukan teks, yang bisa berubah/diterjemahkan). Di
 | Keamanan | `tf-status`, `tf-password`, `tf-submit`, `tf-secret`, `tf-backup-codes`, `tf-code`, `tf-confirm`, `cp-current`, `cp-new`, `cp-submit` |
 | Input password | Setiap input password punya tombol `<testid input>-toggle` (mis. `auth-password-toggle`, `cp-new-toggle`) dengan `aria-pressed` |
 | Sidebar (Pengaturan & Admin) | `app-sidebar` (+ `data-state` expanded/collapsed), `sidebar-collapse`, `sidebar-link` (+ `data-to`), `section-nav` (mobile) |
-| Komponen umum | `search-input` (+ `-clear`), `select-search` (+ `-search`, `-option`, `-content`), `dropdown-item`, `chip-remove` |
+| Komponen umum | `search-input` (+ `-clear`), `select-search` (+ `-search`, `-option`, `-content`; multiple: `-chip`, `-summary`), `dropdown-item`, `chip-remove` |
 | DataTable (mis. `users-table`) | `<id>-search`, `<id>-columns`, `<id>-sort-<kolom>`, `<id>-prev`, `<id>-next`, `<id>-page`, `<id>-page-size`, `<id>-count`, `<id>-empty`; baris lewat `rowProps` (mis. `user-row` + `data-email`) |
 | Header / menu | `login-link`, `main-nav`, `user-menu-trigger`, `user-menu-notes`, `user-menu-security`, `user-menu-api-token`, `user-menu-users`, `user-menu-audit`, `user-menu-sign-out` |
 | Catatan | `note-title`, `note-content`, `note-submit`, `note-list`, `note-item` (+ `data-note-id`), `note-toggle`, `note-delete`, `notes-empty` |

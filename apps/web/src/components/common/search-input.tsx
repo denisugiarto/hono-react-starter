@@ -40,7 +40,9 @@ export function SearchInput({
   const testId = (props as { 'data-testid'?: string })['data-testid'] ?? 'search-input'
   const inputRef = useRef<HTMLInputElement>(null)
   const debounced = useRef(onDebouncedChange)
-  debounced.current = onDebouncedChange
+  useEffect(() => {
+    debounced.current = onDebouncedChange
+  }, [onDebouncedChange])
   const first = useRef(true)
 
   useEffect(() => {

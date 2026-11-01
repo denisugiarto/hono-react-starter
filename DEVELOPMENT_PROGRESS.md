@@ -491,7 +491,10 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - `common/dropdown.tsx`: menu aksi berbasis data (`items` dengan separator/label/destructive/shortcut/render).
 - shadcn `combobox` + `input-group` (dimigrasi ke `color`/`appearance`); `common/select-search.tsx` pembungkus
   satu pilihan dengan pencarian (`items`, `itemToStringLabel`, `isItemEqualToValue`, `ComboboxValue` render-prop).
-- Story: Toast, Chip (Matrix/Removable/Filter), SearchInput, Dropdown, SelectSearch — total 47. Test web 117 (+12).
+- `SelectSearch` opsi `searchable={false}` (popup daftar saja) dan `multiple` (`value: string[]`; dengan cari →
+  `ComboboxChips` + `ComboboxChipsInput`, tanpa cari → pemicu berisi `Chip` ringkas `+n`, `maxVisibleChips`). Di test,
+  popup mode chip dibuka lewat fokus + ArrowDown pada input (klik tidak cukup di happy-dom).
+- Story: Toast, Chip (Matrix/Removable/Filter), SearchInput, Dropdown, SelectSearch (6 mode) — total 50. Test web 121 (+16).
 
 ## Next Steps
 

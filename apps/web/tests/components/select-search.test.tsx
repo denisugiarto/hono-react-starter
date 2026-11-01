@@ -45,3 +45,65 @@ describe('SelectSearch (dropdown dengan pencarian)', () => {
     expect(trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true' || trigger.getAttribute('data-disabled') !== null).toBe(true)
   })
 })
+
+describe('SelectSearch — searchable=false & multiple', () => {
+  test('satu pilihan tanpa pencarian: popup hanya daftar, pilih mengubah nilai', async () => {
+    const changes: (string | null)[] = []
+    render(<SelectSearch options={options} value={null} onChange={(v) => changes.push(v)} searchable={false} data-testid="s" />)
+    fireEvent.click(screen.getByTestId('s'))
+    await waitFor(() => expect(screen.getAllByTestId('s-option').length).toBe(3))
+    expect(screen.queryByTestId('s-search')).toBeNull()
+    fireEvent.click(screen.getByText('Jakarta'))
+    await waitFor(() => expect(changes).toEqual(['jkt']))
+  })
+
+  test('banyak pilihan dengan pencarian: chip per nilai, input cari di dalam kotak, pilih menambah, hapus chip mengurangi', async () => {
+    const changes: string[][] = []
+    const { rerender } = render(
+      <SelectSearch multiple options={options} value={['jkt']} onChange={(v) => changes.push(v)} placeholder="Pilih kota" data-testid="m" />,
+    )
+    expect(screen.getAllByTestId('m-chip').length).toBe(1)
+    expect(screen.getByTestId('m-chip').textContent).toContain('Jakarta')
+    const search = screen.getByTestId('m-search') as HTMLInputElement
+    expect(search.placeholder).toBe('Cari…')
+
+    // Buka popup dari input (Base UI: fokus + panah bawah), lalu ketik untuk menyaring
+    fireEvent.focus(search)
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    await waitFor(() => expect(screen.getAllByTestId('m-option').length).toBe(3))
+    fireEvent.change(search, { target: { value: 'ban' } })
+    await waitFor(() => expect(screen.getAllByTestId('m-option').length).toBe(1))
+    fireEvent.click(screen.getByText('Bandung'))
+    await waitFor(() => expect(changes.at(-1)).toEqual(['jkt', 'bdg']))
+
+    rerender(<SelectSearch multiple options={options} value={['jkt', 'bdg']} onChange={(v) => changes.push(v)} placeholder="Pilih kota" data-testid="m" />)
+    expect(screen.getAllByTestId('m-chip').length).toBe(2)
+    const remove = screen.getAllByTestId('m-chip')[0]!.querySelector('[data-slot=combobox-chip-remove]') as HTMLElement
+    fireEvent.click(remove)
+    await waitFor(() => expect(changes.at(-1)).toEqual(['bdg']))
+
+    rerender(<SelectSearch multiple options={options} value={[]} onChange={(v) => changes.push(v)} placeholder="Pilih kota" data-testid="m" />)
+    expect((screen.getByTestId('m-search') as HTMLInputElement).placeholder).toBe('Pilih kota')
+  })
+
+  test('banyak pilihan tanpa pencarian: pemicu meringkas chip (+n), popup daftar tanpa input', async () => {
+    const changes: string[][] = []
+    render(
+      <SelectSearch multiple searchable={false} maxVisibleChips={1} options={options} value={['jkt', 'bdg']} onChange={(v) => changes.push(v)} data-testid="n" />,
+    )
+    const summary = screen.getByTestId('n-summary')
+    expect(summary.textContent).toContain('Jakarta')
+    expect(summary.textContent).toContain('+1')
+    expect(summary.textContent).not.toContain('Bandung')
+    fireEvent.click(screen.getByTestId('n'))
+    await waitFor(() => expect(screen.getAllByTestId('n-option').length).toBe(3))
+    expect(screen.queryByTestId('n-search')).toBeNull()
+    fireEvent.click(screen.getAllByText('Bandung').at(-1)!)
+    await waitFor(() => expect(changes.at(-1)).toEqual(['jkt']))
+  })
+
+  test('banyak pilihan kosong tanpa pencarian → placeholder', () => {
+    render(<SelectSearch multiple searchable={false} options={options} value={[]} onChange={() => {}} placeholder="Pilih beberapa" data-testid="e" />)
+    expect(screen.getByTestId('e').textContent).toContain('Pilih beberapa')
+  })
+})

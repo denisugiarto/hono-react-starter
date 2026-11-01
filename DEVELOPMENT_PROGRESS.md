@@ -516,6 +516,16 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   Catatan happy-dom: `input type=time` bukan role textbox (pakai label/testid); react-day-picker range mode memberi
   `to = from` saat satu hari dipilih.
 
+## Iterasi 21 — Drawer: opsi arah geser (2026-11-01)
+
+- `ui/drawer.tsx`: `swipeDirection` jadi prop terdokumentasi (`DrawerProps`, tipe `DrawerSwipeDirection`, konstanta
+  `DRAWER_SWIPE_DIRECTIONS` = down/up/left/right); `down` = bottom sheet, `left`/`right` = panel samping (lebar 24rem di
+  ≥sm), `up` = dari atas. Styling per arah sudah ada di komponen shadcn (data-swipe-direction/axis).
+- Story `UI/Drawer` → Bottom/Top/Left/Right/WithSwipeHandle dengan kontrol `swipeDirection` (inline-radio),
+  `showSwipeHandle`, `modal`. Diverifikasi headless: popup menempel di sisi yang benar untuk keempat arah dan Esc menutup.
+- Catatan: regenerasi lewat `pnpm dlx shadcn@latest add drawer` menghasilkan komponen yang sama dengan `bunx` (style
+  `base-nova` → Base UI Drawer, bukan vaul); hanya header `"use client"` hilang dan import `cn` perlu dinormalkan.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

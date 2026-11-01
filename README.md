@@ -624,6 +624,10 @@ Story diletakkan di samping komponennya (`*.stories.tsx`, CSF3): `ui/button`, `u
 `common/select-search`, `common/dropdown`, `common/chip`, `common/date-picker`, `common/time-picker`, `common/stepper`,
 `common/empty-state` (placeholder), `lib/toast`, `layout/navbar`, `layout/app-sidebar`, serta primitif `ui/*` (dialog, checkbox,
 radio-group, switch, slider, accordion, collapsible, drawer, popover, progress, spinner, tabs, tooltip, breadcrumb, pagination). Komponen baru yang punya state/variant sebaiknya diberi story.
+
+`Drawer` (Base UI) menerima `swipeDirection` = sisi munculnya sekaligus arah geser untuk menutup: `down` (default,
+bottom sheet), `up`, `left`, `right`; opsi `showSwipeHandle` menampilkan pegangan geser. Story `UI/Drawer` punya
+kontrol untuk mencoba semuanya (`DRAWER_SWIPE_DIRECTIONS` diekspor untuk daftar nilai).
 `build-storybook` berjalan di CI (target Nx, cache) agar story yang rusak terdeteksi; output
 `storybook-static/` di-ignore git. Komponen yang membaca sesi (`useAuth`) dibuat **presentasional**
 (`AppSidebar` menerima `groups`) supaya bisa ditampilkan tanpa backend.

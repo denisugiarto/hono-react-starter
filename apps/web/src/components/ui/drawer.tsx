@@ -2,11 +2,29 @@ import * as React from "react"
 import { Drawer as DrawerPrimitive } from "@base-ui/react/drawer"
 import { cn } from "@/lib/utils"
 
+/**
+ * Arah geser sekaligus sisi munculnya drawer:
+ * - `down`  → dari bawah (default, pola bottom sheet mobile)
+ * - `up`    → dari atas
+ * - `left`  → dari kiri (panel samping, mis. navigasi)
+ * - `right` → dari kanan (panel detail/filter)
+ */
+type DrawerSwipeDirection = NonNullable<
+  DrawerPrimitive.Root.Props["swipeDirection"]
+>
+
+const DRAWER_SWIPE_DIRECTIONS = [
+  "down",
+  "up",
+  "left",
+  "right",
+] as const satisfies readonly DrawerSwipeDirection[]
+
 type DrawerContextProps = {
   hasSnapPoints: boolean
   modal: DrawerPrimitive.Root.Props["modal"]
   showSwipeHandle: boolean
-  swipeDirection: NonNullable<DrawerPrimitive.Root.Props["swipeDirection"]>
+  swipeDirection: DrawerSwipeDirection
 }
 
 const DrawerContext = React.createContext<DrawerContextProps | null>(null)
@@ -21,15 +39,20 @@ function useDrawer() {
   return context
 }
 
+type DrawerProps = Omit<DrawerPrimitive.Root.Props, "swipeDirection"> & {
+  /** Tampilkan pegangan geser (handle) di tepi drawer. */
+  showSwipeHandle?: boolean
+  /** Arah geser untuk menutup = sisi tempat drawer muncul. Default `down`. */
+  swipeDirection?: DrawerSwipeDirection
+}
+
 function Drawer({
   modal = true,
   showSwipeHandle = false,
   snapPoints,
   swipeDirection = "down",
   ...props
-}: DrawerPrimitive.Root.Props & {
-  showSwipeHandle?: boolean
-}) {
+}: DrawerProps) {
   const hasSnapPoints = snapPoints != null && snapPoints.length > 0
   const contextValue = React.useMemo(
     () => ({ hasSnapPoints, modal, showSwipeHandle, swipeDirection }),
@@ -211,6 +234,7 @@ function DrawerDescription({
 }
 
 export {
+  DRAWER_SWIPE_DIRECTIONS,
   Drawer,
   DrawerPortal,
   DrawerOverlay,
@@ -223,3 +247,4 @@ export {
   DrawerTitle,
   DrawerDescription,
 }
+export type { DrawerProps, DrawerSwipeDirection }

@@ -2,12 +2,17 @@ import { Hono } from 'hono'
 import { and, desc, eq, like, lt, type SQL } from 'drizzle-orm'
 import type { AdminUser } from '@hono-react-starter/shared/auth'
 import { auditLogQuerySchema, type AuditLog, type AuditLogList } from '@hono-react-starter/shared/audit'
+import { appSettingsUpdateSchema, type AppSettingsView } from '@hono-react-starter/shared/settings'
 import { requireAuth, requirePermission } from '../middleware/auth.ts'
 import { revalidate } from '../middleware/cache-control.ts'
 import type { AppEnv } from '../types.ts'
 import { db } from '../db/index.ts'
 import { auditLog, user } from '../db/schema.ts'
+import { auditFromContext } from '../lib/audit.ts'
 import { fail, ok } from '../lib/response.ts'
+import { canRequireEmailVerification } from '../lib/settings.ts'
+import { envIsProd, readMailConfig } from '../env.ts'
+import { settings } from '../settings.ts'
 
 export const adminRoutes = new Hono<AppEnv>()
 
@@ -69,4 +74,41 @@ adminRoutes.get('/audit-logs', requirePermission({ audit: ['list'] }), revalidat
   const last = page[page.length - 1]
   const body: AuditLogList = { items, nextCursor: rows.length > q.limit && last ? last.at.toISOString() : null }
   return ok(c, body)
+})
+
+function settingsView(): AppSettingsView {
+  const mailProvider = readMailConfig().provider
+  return {
+    ...settings.current(),
+    mailProvider,
+    emailVerificationReady: canRequireEmailVerification({ isProd: envIsProd(), mailProvider }),
+    ...settings.lastUpdate(),
+  }
+}
+
+// GET /api/admin/settings — pengaturan runtime + kesiapan infra (permission settings:read)
+adminRoutes.get('/settings', requirePermission({ settings: ['read'] }), async (c) => {
+  await settings.load()
+  return ok(c, settingsView())
+})
+
+// PATCH /api/admin/settings — ubah pengaturan runtime (permission settings:update)
+adminRoutes.patch('/settings', requirePermission({ settings: ['update'] }), async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = appSettingsUpdateSchema.safeParse(body)
+  if (!parsed.success) return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
+
+  const mailProvider = readMailConfig().provider
+  if (parsed.data.requireEmailVerification && !canRequireEmailVerification({ isProd: envIsProd(), mailProvider })) {
+    return fail(
+      c,
+      409,
+      'MAIL_PROVIDER_REQUIRED',
+      `Verifikasi email wajib butuh provider email sungguhan di production (MAIL_PROVIDER=resend, sekarang ${mailProvider})`,
+    )
+  }
+
+  await settings.update(parsed.data, c.get('user').id)
+  await auditFromContext(c, { action: 'admin.settings_updated', targetType: 'settings', metadata: { changes: parsed.data } })
+  return ok(c, settingsView(), { message: 'Pengaturan disimpan' })
 })

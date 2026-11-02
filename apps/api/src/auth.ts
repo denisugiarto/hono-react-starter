@@ -4,12 +4,13 @@ import { admin } from 'better-auth/plugins/admin'
 import { bearer } from 'better-auth/plugins/bearer'
 import { jwt } from 'better-auth/plugins/jwt'
 import { twoFactor } from 'better-auth/plugins/two-factor'
+import { haveIBeenPwned } from 'better-auth/plugins/haveibeenpwned'
 import { ac, roles } from '@hono-react-starter/shared/permissions'
 import {
   readAuthRateLimit,
   readAuthSecret,
   readBaseUrl,
-  readEmailVerificationRequired,
+  readPasswordBreachCheck,
   readSessionCacheSeconds,
   readTrustedOrigins,
   type AuthRateLimitConfig,
@@ -20,6 +21,8 @@ import { resetPasswordEmail, verificationEmail } from './lib/emails.ts'
 import { CLIENT_IP_HEADER } from './middleware/rate-limit.ts'
 import type { Mailer } from './lib/mailer.ts'
 import { mailer as defaultMailer } from './mailer.ts'
+import type { SettingsStore } from './lib/settings.ts'
+import { settings as defaultSettings } from './settings.ts'
 
 export const APP_NAME = 'Hono React Starter'
 
@@ -31,8 +34,16 @@ export const EMAIL_VERIFICATION_EXPIRES_IN = 60 * 60 * 24
 export const PASSWORD_RESET_EXPIRES_IN = 60 * 60
 
 export type AuthOptions = {
-  /** Tolak sign-in sebelum email diverifikasi. Default dari env AUTH_REQUIRE_EMAIL_VERIFICATION. */
+  /**
+   * Paksa nilai tetap untuk "tolak sign-in sebelum email diverifikasi" (test).
+   * Default: dibaca saat request dari `settings` (admin bisa mengubahnya runtime;
+   * nilai awal dari env AUTH_REQUIRE_EMAIL_VERIFICATION).
+   */
   requireEmailVerification?: boolean
+  /** Penyimpanan pengaturan runtime. Default: singleton src/settings.ts. */
+  settings?: SettingsStore
+  /** Tolak password yang pernah bocor (HIBP). Default dari env AUTH_PASSWORD_BREACH_CHECK. */
+  passwordBreachCheck?: boolean
   /** Pengirim email. Default: singleton src/mailer.ts (provider dari MAIL_PROVIDER). */
   mailer?: Mailer
   /** Rate limit /api/auth/*. Default dari env AUTH_RATE_LIMIT_* (nonaktif saat test); `false` mematikan. */
@@ -49,7 +60,9 @@ export type AuthOptions = {
 export function createAuth(options: AuthOptions = {}) {
   const baseURL = readBaseUrl()
   const mailer = options.mailer ?? defaultMailer
-  const requireEmailVerification = options.requireEmailVerification ?? readEmailVerificationRequired()
+  const store = options.settings ?? defaultSettings
+  const forcedRequireEmailVerification = options.requireEmailVerification
+  const passwordBreachCheck = options.passwordBreachCheck ?? readPasswordBreachCheck()
   const rateLimit = options.rateLimit ?? readAuthRateLimit()
   const sessionCacheSeconds = options.sessionCacheSeconds ?? readSessionCacheSeconds()
 
@@ -70,7 +83,13 @@ export function createAuth(options: AuthOptions = {}) {
       enabled: true,
       minPasswordLength: 8,
       // Bila true: sign-in sebelum verifikasi → 403 EMAIL_NOT_VERIFIED (+ email dikirim ulang).
-      requireEmailVerification,
+      // Getter: Better Auth membaca `options.emailAndPassword.requireEmailVerification` pada
+      // setiap request (sign-in/sign-up) dan hanya menyalin `options` secara dangkal, sehingga
+      // perubahan oleh admin (tabel app_setting) langsung berlaku tanpa restart.
+      // Dijaga test "settings runtime" di tests/settings.test.ts — periksa ulang saat upgrade.
+      get requireEmailVerification() {
+        return forcedRequireEmailVerification ?? store.current().requireEmailVerification
+      },
       // Reset password: POST /request-password-reset { email, redirectTo } → email berisi
       // tautan → redirect ke redirectTo?token=… → POST /reset-password { newPassword, token }.
       sendResetPassword: async ({ user, url }) => {
@@ -152,6 +171,16 @@ export function createAuth(options: AuthOptions = {}) {
         issuer: APP_NAME,
         // Setelah 10 kode salah berturut-turut akun dikunci 15 menit (default plugin).
       }),
+      // Password bocor (Have I Been Pwned, k-anonymity): sign-up / reset / ganti password
+      // dengan password yang ada di kebocoran publik ditolak 400 PASSWORD_COMPROMISED.
+      ...(passwordBreachCheck
+        ? [
+            haveIBeenPwned({
+              customPasswordCompromisedMessage:
+                'Password ini pernah muncul di kebocoran data publik. Gunakan password lain.',
+            }),
+          ]
+        : []),
     ],
   })
 }

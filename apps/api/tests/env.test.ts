@@ -5,11 +5,12 @@ import {
   readAuthSecret,
   readBaseUrl,
   readDatabaseUrl,
+  readPasswordBreachCheck,
   readPort,
   readTrustedOrigins,
 } from '../src/env.ts'
 
-const KEYS = ['NODE_ENV', 'DATABASE_URL', 'BETTER_AUTH_SECRET', 'BETTER_AUTH_URL', 'PORT', 'TRUSTED_ORIGINS'] as const
+const KEYS = ['NODE_ENV', 'DATABASE_URL', 'DATABASE_SSL_REQUIRED', 'BETTER_AUTH_SECRET', 'BETTER_AUTH_URL', 'PORT', 'TRUSTED_ORIGINS', 'AUTH_PASSWORD_BREACH_CHECK'] as const
 const saved: Partial<Record<(typeof KEYS)[number], string | undefined>> = {}
 
 beforeEach(() => {
@@ -382,5 +383,47 @@ describe('env — TRUST_PROXY / AUTH_LOCKOUT_* / CSP_ENABLED', () => {
     process.env.AUTH_LOCKOUT_MAX_ATTEMPTS = '3'
     process.env.AUTH_LOCKOUT_MINUTES = '0'
     expect(() => readLockoutConfig()).toThrow(/AUTH_LOCKOUT_MINUTES/)
+  })
+})
+
+describe('env — DATABASE_URL TLS di production', () => {
+  test('tanpa sslmode → gagal; sslmode=require / verify-full / ssl=true → diterima', () => {
+    asProd()
+    process.env.DATABASE_URL = 'postgresql://u:p@db.example.com/app'
+    expect(() => readDatabaseUrl()).toThrow(/sslmode=require/)
+    process.env.DATABASE_URL = 'postgresql://u:p@db.example.com/app?sslmode=prefer'
+    expect(() => readDatabaseUrl()).toThrow()
+    process.env.DATABASE_URL = 'postgresql://u:p@db.example.com/app?sslmode=require'
+    expect(readDatabaseUrl()).toContain('sslmode=require')
+    process.env.DATABASE_URL = 'postgresql://u:p@db.example.com/app?sslmode=verify-full'
+    expect(readDatabaseUrl()).toContain('verify-full')
+    process.env.DATABASE_URL = 'postgresql://u:p@db.example.com/app?ssl=true'
+    expect(readDatabaseUrl()).toContain('ssl=true')
+  })
+  test('DATABASE_SSL_REQUIRED=false melonggarkan; URL tidak valid dianggap tanpa TLS; di luar prod bebas', () => {
+    asProd()
+    process.env.DATABASE_URL = 'postgresql://u:p@db.internal/app'
+    process.env.DATABASE_SSL_REQUIRED = 'false'
+    expect(readDatabaseUrl()).toBe('postgresql://u:p@db.internal/app')
+    delete process.env.DATABASE_SSL_REQUIRED
+    process.env.DATABASE_URL = 'bukan url'
+    expect(() => readDatabaseUrl()).toThrow()
+    process.env.NODE_ENV = 'development'
+    process.env.DATABASE_URL = 'postgresql://localhost/app'
+    expect(readDatabaseUrl()).toBe('postgresql://localhost/app')
+  })
+})
+
+describe('env — AUTH_PASSWORD_BREACH_CHECK', () => {
+  test('default true, false saat test; env menimpa', () => {
+    process.env.NODE_ENV = 'development'
+    expect(readPasswordBreachCheck()).toBe(true)
+    process.env.NODE_ENV = 'test'
+    expect(readPasswordBreachCheck()).toBe(false)
+    process.env.AUTH_PASSWORD_BREACH_CHECK = 'true'
+    expect(readPasswordBreachCheck()).toBe(true)
+    process.env.NODE_ENV = 'production'
+    process.env.AUTH_PASSWORD_BREACH_CHECK = 'false'
+    expect(readPasswordBreachCheck()).toBe(false)
   })
 })

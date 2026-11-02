@@ -36,6 +36,8 @@ services:
       ALLOW_DEMO_SEED: 'true'
       # Di belakang Caddy: header X-Forwarded-For ditimpa proxy → boleh dipercaya
       TRUST_PROXY: 'true'
+      # DB di jaringan internal compose tanpa TLS → longgarkan pemeriksaan sslmode production
+      DATABASE_SSL_REQUIRED: 'false'
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MAIL_PROVIDER: ${MAIL_PROVIDER:-console}
       MAIL_FROM: ${MAIL_FROM:-}

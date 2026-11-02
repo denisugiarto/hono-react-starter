@@ -41,6 +41,7 @@ export function createEndpoints(baseUrl = API_BASE_URL) {
     admin: {
       users: api('/admin/users'),
       auditLogs: (query: AuditLogQuery & QueryParams = {}) => buildUrl(api('/admin/audit-logs'), query),
+      settings: api('/admin/settings'),
     },
   }
 }

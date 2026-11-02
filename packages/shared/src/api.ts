@@ -19,6 +19,8 @@ export const API_ERROR_CODES = [
   'PAYLOAD_TOO_LARGE',
   'RATE_LIMITED',
   'ACCOUNT_LOCKED',
+  /** Pengaturan butuh infrastruktur yang belum siap (mis. provider email di production). */
+  'MAIL_PROVIDER_REQUIRED',
   'HTTP_ERROR',
   'INTERNAL_ERROR',
   'SERVICE_UNAVAILABLE',

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { symmetricEncrypt } from 'better-auth/crypto'
 import { createOTP } from '@better-auth/utils/otp'
 import { DEMO_ACCOUNTS, DEMO_BACKUP_CODES, DEMO_NOTES, demoAccount, type DemoAccount } from '@hono-react-starter/shared/demo'
-import { auth } from '../auth.ts'
+import { createAuth } from '../auth.ts'
 import { readAuthSecret } from '../env.ts'
 import { db } from './index.ts'
 import { notes, twoFactor, user } from './schema.ts'
@@ -24,6 +24,9 @@ export const demoTotpCode = (secret = demoAccount('totp').totpSecret!) => create
 /** otpauth:// URI untuk dipindai aplikasi authenticator. */
 export const demoTotpUri = (issuer: string, account = demoAccount('totp')) =>
   createOTP(account.totpSecret!, { digits: 6, period: 30 }).url(issuer, account.email)
+
+// Password demo publik & lemah → cek kebocoran (HIBP) dimatikan khusus untuk seeding.
+const auth = createAuth({ passwordBreachCheck: false })
 
 /** Pastikan user ada dengan role/status sesuai; dibuat lewat Better Auth agar password ter-hash. */
 export async function ensureUser(account: DemoAccount): Promise<string> {

@@ -71,6 +71,13 @@
       "when": 1793232530415,
       "tag": "0009_security_lockout_jwks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793609689609,
+      "tag": "0010_app_settings",
+      "breakpoints": true
     }
   ]
 }

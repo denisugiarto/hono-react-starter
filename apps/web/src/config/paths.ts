@@ -18,6 +18,8 @@ export const paths = {
   security: '/settings/security',
   adminUsers: '/admin/users',
   adminAuditLogs: '/admin/audit-logs',
+  /** Pengaturan aplikasi runtime (admin). */
+  adminSettings: '/admin/settings',
 } as const
 
 export type AppPath = (typeof paths)[keyof typeof paths]

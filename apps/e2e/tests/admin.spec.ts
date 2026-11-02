@@ -46,3 +46,15 @@ test.describe('admin & RBAC', () => {
     expect((await res.json()).code).toBe('UNAUTHORIZED')
   })
 })
+
+test.describe('pengaturan aplikasi', () => {
+  test('admin melihat saklar verifikasi email; user biasa ditolak', async ({ page }) => {
+    await login(page, 'admin')
+    await page.goto('/admin/settings')
+    await expect(page.getByTestId('app-settings-card')).toBeVisible()
+    const toggle = page.getByTestId('settings-require-email-verification')
+    await expect(toggle).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-checked', /true|false/)
+    await expect(page.getByTestId('settings-mail-provider')).toHaveText('console')
+  })
+})

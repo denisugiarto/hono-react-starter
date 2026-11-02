@@ -14,17 +14,32 @@ export const statements = {
   note: ['create', 'read', 'update', 'delete'],
   /** Audit log (GET /api/admin/audit-logs). */
   audit: ['list'],
+  /** Pengaturan aplikasi runtime (GET/PATCH /api/admin/settings). */
+  settings: ['read', 'update'],
 } as const
 
 export const ac = createAccessControl(statements)
 
 const notePermissions = { note: ['create', 'read', 'update', 'delete'] } as const
 
+/**
+ * Permission admin bawaan plugin TANPA impersonasi: admin tidak boleh masuk
+ * sebagai pengguna lain (plugin menolak /admin/impersonate-user dengan 403).
+ */
+const IMPERSONATION_ACTIONS = new Set<string>(['impersonate', 'impersonate-admins'])
+const adminUserPermissions = adminAc.statements.user.filter((action) => !IMPERSONATION_ACTIONS.has(action))
+
 export const roles = {
   /** Pengguna biasa: penuh atas catatannya sendiri, tanpa manajemen user. */
   user: ac.newRole({ ...notePermissions }),
-  /** Admin: semua permission bawaan plugin admin + catatan. */
-  admin: ac.newRole({ ...adminAc.statements, ...notePermissions, audit: ['list'] }),
+  /** Admin: permission bawaan plugin admin (tanpa impersonasi) + catatan + audit + pengaturan. */
+  admin: ac.newRole({
+    ...adminAc.statements,
+    user: adminUserPermissions,
+    ...notePermissions,
+    audit: ['list'],
+    settings: ['read', 'update'],
+  }),
 }
 
 export const USER_ROLES = ['admin', 'user'] as const

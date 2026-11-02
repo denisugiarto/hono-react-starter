@@ -9,7 +9,8 @@ export const fetchCalls: Call[] = []
 type NoteRow = Record<string, unknown> & { id: string }
 export const apiMock = {
   notes: [] as NoteRow[],
-  fail: { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false },
+  fail: { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false, settings: false, settingsUpdate: false },
+  settings: { requireEmailVerification: false, mailProvider: 'memory', emailVerificationReady: true, updatedAt: null as string | null, updatedBy: null as string | null },
   /** Jumlah entri audit yang disajikan (dua halaman bila > pageSize). */
   auditTotal: 3,
 }
@@ -52,7 +53,8 @@ const originalFetch = globalThis.fetch
 export function resetApiMock() {
   fetchCalls.length = 0
   apiMock.notes = [sampleNote()]
-  apiMock.fail = { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false }
+  apiMock.fail = { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false, settings: false, settingsUpdate: false }
+  apiMock.settings = { requireEmailVerification: false, mailProvider: 'memory', emailVerificationReady: true, updatedAt: null, updatedBy: null }
   apiMock.auditTotal = 3
 }
 
@@ -105,6 +107,15 @@ export function installFetchMock() {
       const last = items[items.length - 1]
       const nextCursor = start + pageSize < all.length && last ? last.at : null
       return jsonResponse({ items, nextCursor })
+    }
+    if (url === '/api/admin/settings' && method === 'GET') {
+      if (apiMock.fail.settings) return jsonResponse({ code: 'FORBIDDEN', message: 'Pengaturan ditolak' }, 403)
+      return jsonResponse(apiMock.settings)
+    }
+    if (url === '/api/admin/settings' && method === 'PATCH') {
+      if (apiMock.fail.settingsUpdate) return jsonResponse({ code: 'MAIL_PROVIDER_REQUIRED', message: 'Butuh provider email sungguhan' }, 409)
+      apiMock.settings = { ...apiMock.settings, ...(body as object), updatedAt: '2026-01-01T00:00:00.000Z', updatedBy: 'u2' }
+      return jsonResponse(apiMock.settings, 200, 'Pengaturan disimpan')
     }
     if (url === '/api/admin/users') {
       if (apiMock.fail.admin) return jsonResponse({ code: 'FORBIDDEN', message: 'Forbidden' }, 403)

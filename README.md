@@ -30,7 +30,7 @@ Template starter fullstack **TypeScript** — monorepo **Nx** dengan frontend da
 - **Nx** — task graph + cache (`typecheck`, `lint`, `test`, `build`), `nx affected` untuk CI, `nx graph` untuk melihat dependensi antar proyek.
 - **Database terpasang** — Drizzle ORM + driver `postgres` (postgres.js), schema di `apps/api/src/db/`, migrasi versioned di `apps/api/drizzle/`.
 - **Autentikasi siap pakai** — Better Auth: sign-up / sign-in email-password, sesi via cookie, tabel auth dibuat lewat migrasi.
-- **Alur akun lengkap** — verifikasi email (opsional wajib via `AUTH_REQUIRE_EMAIL_VERIFICATION`), lupa/reset password, ganti password, **2FA TOTP** + backup code (aplikasi authenticator, QR di halaman Keamanan). Email lewat `Mailer` tanpa dependency: `console` (dev), `memory` (test), `resend` (produksi) — ganti provider di satu file.
+- **Alur akun lengkap** — verifikasi email (wajib/tidak diatur admin di `/admin/settings`, nilai awal `AUTH_REQUIRE_EMAIL_VERIFICATION`), password bocor ditolak (Have I Been Pwned), lupa/reset password, ganti password, **2FA TOTP** + backup code (aplikasi authenticator, QR di halaman Keamanan). Email lewat `Mailer` tanpa dependency: `console` (dev), `memory` (test), `resend` (produksi) — ganti provider di satu file.
 - **Audit log** — tabel `audit_log` append-only: sign-in/out (termasuk yang gagal), reset password, 2FA, aksi admin, dan CRUD catatan, lengkap dengan `requestId`, IP, user-agent. Endpoint `GET /api/admin/audit-logs` (permission `audit:list`) + halaman admin dengan filter & paginasi cursor.
 - **JWT untuk API client** — `GET /api/auth/token` menerbitkan JWT (EdDSA, 15 menit) yang diverifikasi stateless lewat JWKS (`/api/auth/jwks`). Semua route API menerima sesi cookie **atau** `Authorization: Bearer <jwt>`.
 - **RBAC berbasis permission** — role `admin` / `user` dipetakan ke permission (`packages/shared/src/permissions.ts`, dipakai server & client). Middleware `requireAuth` / `requireRole(...)` / `requirePermission({...})`; akun admin via `bun run db:seed`.
@@ -165,7 +165,9 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `MAIL_PROVIDER` | Tidak | test: `memory`; lainnya: `console` | Pengirim email verifikasi / reset password: `console` (hanya dicatat di log), `memory` (ditangkap untuk test), `resend` (HTTP API Resend) |
 | `MAIL_FROM` | Ya (bila `resend`) | — | Alamat pengirim, mis. `App <no-reply@example.com>` |
 | `RESEND_API_KEY` | Ya (bila `resend`) | — | Kunci API Resend |
-| `AUTH_REQUIRE_EMAIL_VERIFICATION` | Tidak | `false` | `true` = sign-in ditolak (`403 EMAIL_NOT_VERIFIED`) sampai email diverifikasi; di production wajib `MAIL_PROVIDER=resend` |
+| `AUTH_REQUIRE_EMAIL_VERIFICATION` | Tidak | `false` | Nilai **awal** saklar "wajib verifikasi email" — admin mengubahnya runtime di `/admin/settings` (tabel `app_setting`). `true` = sign-in ditolak (`403 EMAIL_NOT_VERIFIED`) sampai email diverifikasi; di production wajib `MAIL_PROVIDER=resend` |
+| `AUTH_PASSWORD_BREACH_CHECK` | Tidak | `true` (test: `false`) | Tolak password yang ada di kebocoran publik (HIBP k-anonymity, hanya 5 karakter awal SHA-1 dikirim) saat sign-up/reset/ganti password → `400 PASSWORD_COMPROMISED` |
+| `DATABASE_SSL_REQUIRED` | Tidak | `true` | Di production `DATABASE_URL` harus `?sslmode=require`/`verify-full` (atau `ssl=true`); `false` hanya untuk DB di jaringan privat tanpa TLS (compose staging) |
 | `TEST_DATABASE_URL` | Tidak | `DATABASE_URL` + akhiran `_test` | Database untuk `bun test` (tidak pernah memakai DB dev) |
 | `API_RATE_LIMIT_MAX` | Tidak | `100` (test: nonaktif) | Request per jendela per IP untuk `/api/*`; `0` = nonaktif |
 | `API_RATE_LIMIT_WINDOW` | Tidak | `60` | Panjang jendela rate limit API (detik) |
@@ -467,6 +469,8 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 | GET | `/api/admin/users` | Daftar user (permission `user:list` → admin) |
 | GET | `/api/admin/me` | Identitas pemanggil + `authMethod` (`session`/`jwt`) |
 | GET | `/api/admin/audit-logs` | Audit log terbaru dulu (permission `audit:list`). Query: `limit` (≤200), `cursor` (dari `nextCursor`), `action` (prefix, mis. `auth.`), `actorId`, `success` → `data: { items, nextCursor }` |
+| GET | `/api/admin/settings` | Pengaturan runtime + kesiapan infra (permission `settings:read`): `{ requireEmailVerification, mailProvider, emailVerificationReady, updatedAt, updatedBy }` |
+| PATCH | `/api/admin/settings` | Ubah pengaturan (permission `settings:update`), body `{ requireEmailVerification }`; berlaku seketika untuk semua instance (cache 15 s) dan dicatat `admin.settings_updated`. `409 MAIL_PROVIDER_REQUIRED` bila mengaktifkan di production tanpa `MAIL_PROVIDER=resend` |
 | GET | `/api/auth/token` | Terbitkan JWT untuk sesi saat ini |
 | GET | `/api/auth/jwks` | Kunci publik (JWKS) untuk verifikasi JWT |
 | POST | `/api/auth/sign-up/email` | Daftar akun |
@@ -530,7 +534,7 @@ file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
 | Folder | Isi | Aturan |
 | --- | --- | --- |
 | `app/` | `providers.tsx` (ErrorBoundary → Theme → QueryClient → Tooltip + Toaster), `routes.tsx` (definisi route + guard), `router.tsx` (createBrowserRouter) | Satu-satunya tempat yang tahu seluruh app |
-| `pages/` | Satu komponen per route: `home-page`, `login-page`, `two-factor-page`, `forgot-password-page`, `reset-password-page`, `verify-email-page`, `notes-page`, `settings/{api-token,security}-page`, `admin/{users,audit-logs}-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
+| `pages/` | Satu komponen per route: `home-page`, `login-page`, `two-factor-page`, `forgot-password-page`, `reset-password-page`, `verify-email-page`, `notes-page`, `settings/{api-token,security}-page`, `admin/{users,audit-logs,settings}-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
 | `features/<fitur>/` | `api/` (hooks TanStack Query + schema shared), `components/`, `hooks/`, `index.ts` (barrel) | Fitur boleh mengimpor `components/`, `hooks/`, `lib/`, `config/`; **hindari** impor antar fitur (lewat `index.ts` bila terpaksa) |
 | `components/ui/` | Primitif shadcn/ui (di-generate CLI, jangan diedit manual kecuali perlu) | Dikecualikan dari coverage |
 | `components/layout/` | `app-shell`, `site-header`, `main-nav`, `mobile-nav` (Sheet), `site-footer` | Kerangka halaman |
@@ -548,7 +552,7 @@ Fitur bawaan: **auth** (`useAuth`, `useSignOut`, `AuthForm`, `TwoFactorForm`, `F
 **Routing** (React Router, `app/routes.tsx`): publik `/`, `/login`, `/login/two-factor`, `/forgot-password`,
 `/reset-password`, `/verify-email`; di bawah `RequireAuth` (redirect ke `/login` dengan `state.from`, kembali
 setelah masuk): `/notes`, `/settings/api-token`, `/settings/security`; di bawah `RequirePermission`:
-`/admin/users` (`user:list`) dan `/admin/audit-logs` (`audit:list`) — 403 bila tak berhak.
+`/admin/users` (`user:list`), `/admin/audit-logs` (`audit:list`), dan `/admin/settings` (`settings:read`) — 403 bila tak berhak.
 Route lain → 404; error render → `RouteErrorPage`.
 
 **Tema**: `ThemeProvider` (light / dark / system, tersimpan di `localStorage`, mengikuti perubahan OS)
@@ -784,6 +788,18 @@ butuh invalidasi per rilis) dan service worker/offline. Keduanya bisa ditambah b
 muncul (katalog publik, mobile dengan jaringan buruk).
 
 ## Security & Hardening
+
+Ringkasan hasil review OWASP Top 10 (Iterasi 26) yang sudah diterapkan di kode:
+
+| Area | Mekanisme |
+| --- | --- |
+| Verifikasi email | Saklar runtime admin (`/admin/settings`, tabel `app_setting`, cache 15 s per instance); nilai awal `AUTH_REQUIRE_EMAIL_VERIFICATION`; di production hanya bisa diaktifkan bila `MAIL_PROVIDER=resend` |
+| Password bocor | Plugin Have I Been Pwned (`AUTH_PASSWORD_BREACH_CHECK`) → `400 PASSWORD_COMPROMISED`; seed demo dan E2E mematikannya |
+| Impersonasi admin | Dimatikan: role `admin` tanpa permission `user:impersonate` → `POST /api/auth/admin/impersonate-user` = 403 |
+| Header | `Permissions-Policy` mematikan kamera, mikrofon, geolokasi, pembayaran, USB; peringatan boot bila production tanpa `TRUST_PROXY=true` |
+| Koneksi DB | `DATABASE_URL` production wajib TLS (`DATABASE_SSL_REQUIRED`) |
+| Integritas | Action CI dipin ke SHA commit (Dependabot memperbarui), Scalar di `/api/docs` memakai SRI `integrity` + `crossorigin` |
+
 
 Yang sudah terpasang di `apps/api/src/app.ts` / `auth.ts`:
 

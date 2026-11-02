@@ -37,7 +37,7 @@ try {
   // jwks ikut dikosongkan: kunci privat dienkripsi dengan BETTER_AUTH_SECRET, jadi baris
   // dari proses lain (E2E/dev dengan secret berbeda) membuat semua request sesi gagal
   // ("Failed to decrypt private key"). Kunci baru dibuat otomatis saat JWT pertama diminta.
-  await sql`TRUNCATE TABLE "notes", "audit_log", "two_factor", "session", "account", "verification", "rate_limit", "api_rate_limit", "sign_in_lockout", "jwks", "user" RESTART IDENTITY CASCADE`
+  await sql`TRUNCATE TABLE "notes", "audit_log", "two_factor", "session", "account", "verification", "rate_limit", "api_rate_limit", "sign_in_lockout", "jwks", "app_setting", "user" RESTART IDENTITY CASCADE`
 } catch (err) {
   console.error(
     `\n[test] Gagal menyiapkan database test ${process.env.DATABASE_URL}.\n` +

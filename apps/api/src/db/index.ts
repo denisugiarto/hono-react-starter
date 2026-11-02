@@ -11,3 +11,6 @@ import * as schema from './schema.ts'
 export const client = postgres(readDatabaseUrl(), { max: 10, prepare: false })
 
 export const db = drizzle(client, { schema })
+
+/** Tipe instance Drizzle (untuk dependency injection di lib/*). */
+export type Db = typeof db

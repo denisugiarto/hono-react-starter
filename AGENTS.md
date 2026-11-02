@@ -83,3 +83,5 @@ tetap di luar commit).
 - Decorator di lapisan auth: `maskSignUpConflict(withAuthAudit(withSignInLockout(handler)))` di `app.ts`.
 - Konteks request: `c.get('log')`, `c.get('requestId')`, `c.get('user')`, `c.get('clientIp')`;
   di luar Hono pakai `currentRequest()` (AsyncLocalStorage).
+- Kebijakan yang perlu diubah admin tanpa deploy → tabel `app_setting` lewat `settings.current()`/`update()`
+  (`lib/settings.ts`, UI `/admin/settings`), bukan env baru. Env hanya untuk nilai awal/infra.

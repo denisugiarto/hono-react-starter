@@ -31,6 +31,7 @@ describe('OpenAPI & docs', () => {
     const html = await res.text()
     expect(html).toContain('data-url="/api/openapi.json"')
     expect(html).toContain('@scalar/api-reference')
+    expect(html).toMatch(/integrity="sha384-[A-Za-z0-9+/=]+" crossorigin="anonymous"/)
     expect(docsHtml('/x.json')).toContain('data-url="/x.json"')
   })
 

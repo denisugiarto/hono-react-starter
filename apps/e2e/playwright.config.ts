@@ -90,6 +90,8 @@ export default defineConfig({
       API_RATE_LIMIT_MAX: '0',
       AUTH_RATE_LIMIT_MAX: '0',
       MAIL_PROVIDER: 'console',
+      // Akun demo memakai password publik yang pasti ada di daftar bocor; cek HIBP butuh jaringan.
+      AUTH_PASSWORD_BREACH_CHECK: 'false',
       LOG_LEVEL: 'warn',
       LOG_FORMAT: 'pretty',
     },

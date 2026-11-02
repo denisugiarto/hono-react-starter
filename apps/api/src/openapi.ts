@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { apiErrorSchema, healthResponseSchema, helloResponseSchema, livenessResponseSchema } from '@hono-react-starter/shared/api'
 import { adminUserSchema } from '@hono-react-starter/shared/auth'
 import { auditLogListSchema, auditLogQuerySchema } from '@hono-react-starter/shared/audit'
+import { appSettingsUpdateSchema, appSettingsViewSchema } from '@hono-react-starter/shared/settings'
 import { noteCreateSchema, noteSchema, noteUpdateSchema } from '@hono-react-starter/shared/notes'
 import { APP_NAME } from './auth.ts'
 import type { AppEnv } from './types.ts'
@@ -58,6 +59,8 @@ export function buildOpenApiDocument(): Record<string, unknown> {
   const NoteList = { type: 'array', items: ref('Note') }
   const AuditLogList = toSchema(auditLogListSchema)
   const AdminUser = toSchema(adminUserSchema)
+  const AppSettings = toSchema(appSettingsViewSchema)
+  const AppSettingsUpdate = toSchema(appSettingsUpdateSchema, 'input')
   const AuditQuery = toSchema(auditLogQuerySchema, 'input') as { properties: Record<string, JsonSchema> }
 
   const queryParams = Object.entries(AuditQuery.properties).map(([name, schema]) => ({
@@ -96,6 +99,8 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         NoteCreate: toSchema(noteCreateSchema, 'input'),
         NoteUpdate: toSchema(noteUpdateSchema, 'input'),
         AdminUser,
+        AppSettings,
+        AppSettingsUpdate,
         AuditLogList,
         Liveness: toSchema(livenessResponseSchema),
         Readiness: toSchema(healthResponseSchema),
@@ -224,6 +229,24 @@ export function buildOpenApiDocument(): Record<string, unknown> {
           },
         },
       },
+      '/api/admin/settings': {
+        get: {
+          tags: ['admin'],
+          summary: 'Pengaturan aplikasi runtime + kesiapan infra (permission settings:read)',
+          responses: { 200: jsonBody(envelope(ref('AppSettings'))), ...STANDARD_ERRORS },
+        },
+        patch: {
+          tags: ['admin'],
+          summary: 'Ubah pengaturan runtime, mis. wajib verifikasi email (permission settings:update)',
+          requestBody: { required: true, content: { 'application/json': { schema: ref('AppSettingsUpdate') } } },
+          responses: {
+            200: jsonBody(envelope(ref('AppSettings')), 'Disimpan'),
+            400: errorRef('Data tidak valid'),
+            409: errorRef('MAIL_PROVIDER_REQUIRED — di production butuh provider email sungguhan'),
+            ...STANDARD_ERRORS,
+          },
+        },
+      },
       ...authPaths(),
     },
   }
@@ -321,6 +344,8 @@ function authPaths(): Record<string, unknown> {
 }
 
 const SCALAR_VERSION = '1.25.0'
+/** SRI bundel di atas — hitung ulang saat versi naik: `curl -sL <url> | openssl dgst -sha384 -binary | openssl base64 -A`. */
+const SCALAR_SRI = 'sha384-VPR3QD7bdyIR9EHf6dRrFXz7NO0yJV7/UCVTLQ6e7a0wgzot5WaxvciVrrYOKEpU'
 const SCALAR_CDN = 'https://cdn.jsdelivr.net'
 
 export type CspOptions = {
@@ -372,7 +397,7 @@ export function docsHtml(specUrl = '/api/openapi.json', nonce = ''): string {
 </head>
 <body>
   <script${nonceAttr} id="api-reference" data-url="${specUrl}" data-configuration='{"theme":"default","layout":"modern"}'></script>
-  <script${nonceAttr} src="${SCALAR_CDN}/npm/@scalar/api-reference@${SCALAR_VERSION}"></script>
+  <script${nonceAttr} src="${SCALAR_CDN}/npm/@scalar/api-reference@${SCALAR_VERSION}" integrity="${SCALAR_SRI}" crossorigin="anonymous"></script>
 </body>
 </html>`
 }

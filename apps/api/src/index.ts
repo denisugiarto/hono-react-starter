@@ -2,8 +2,13 @@ import { app } from './app.ts'
 import { client } from './db/index.ts'
 import { readLogConfig, readPort } from './env.ts'
 import { Logger } from './lib/logger.ts'
+import { settings } from './settings.ts'
 
 const log = new Logger({ ...readLogConfig(), base: { service: 'hono-react-starter' } })
+
+// Pengaturan runtime (app_setting) dimuat sebelum request pertama; bila DB belum siap,
+// nilai default dari env dipakai dan dibaca ulang otomatis (TTL cache) saat tersedia.
+await settings.load().catch((err: unknown) => log.warn('pengaturan runtime belum bisa dibaca, memakai default env', { err }))
 
 /**
  * Entry server.

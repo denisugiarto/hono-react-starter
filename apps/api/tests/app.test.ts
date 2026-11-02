@@ -261,3 +261,22 @@ describe('createApp — request log & error log (tracing)', () => {
     expect(l2.length).toBe(0)
   })
 })
+
+describe('createApp — header & peringatan konfigurasi', () => {
+  test('Permissions-Policy mematikan kamera/mikrofon/lokasi/pembayaran/usb', async () => {
+    const app = createApp({ silent: true })
+    const res = await app.fetch(req('/api/health'))
+    const policy = res.headers.get('permissions-policy') ?? ''
+    for (const d of ['camera=()', 'microphone=()', 'geolocation=()', 'payment=()', 'usb=()']) expect(policy).toContain(d)
+  })
+
+  test('production tanpa TRUST_PROXY → peringatan saat boot; dengan TRUST_PROXY → tidak', () => {
+    const { sink, lines } = createCapturingSink()
+    createApp({ isProd: true, trustProxy: false, serveWeb: false, logger: new Logger({ level: 'warn', sink }) })
+    expect(lines.some((l) => l.level === 'warn' && l.line.includes('TRUST_PROXY'))).toBe(true)
+
+    const { sink: s2, lines: l2 } = createCapturingSink()
+    createApp({ isProd: true, trustProxy: true, serveWeb: false, logger: new Logger({ level: 'warn', sink: s2 }) })
+    expect(l2.some((l) => l.line.includes('TRUST_PROXY'))).toBe(false)
+  })
+})

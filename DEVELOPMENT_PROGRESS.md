@@ -571,6 +571,23 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - Test: `tests/config/endpoints.test.ts` (web 182), `tests/cors.test.ts` (api 183). Build dengan `VITE_API_URL` diverifikasi
   membawa base URL ke bundle.
 
+## Iterasi 26 — OWASP Top 10: verifikasi email runtime, HIBP, impersonasi off, header, TLS DB, SRI (2026-11-02)
+
+- **A07** `app_setting` (migrasi `0010_app_settings`) + `lib/settings.ts` (`SettingsStore`: cache per proses, TTL 15 s,
+  `current()` sinkron untuk getter opsi Better Auth) + `GET/PATCH /api/admin/settings` (permission `settings:read/update`,
+  audit `admin.settings_updated`, `409 MAIL_PROVIDER_REQUIRED` di production tanpa resend). Better Auth membaca
+  `options.emailAndPassword.requireEmailVerification` per request dan hanya menyalin `options` dangkal → getter bekerja
+  (dijaga test "efek runtime" di `tests/settings.test.ts`; periksa saat upgrade). `AUTH_REQUIRE_EMAIL_VERIFICATION`
+  kini nilai awal. Web: `/admin/settings` (`AppSettingsCard` + story, `useAppSettings/useUpdateAppSettings`), nav & menu.
+- Plugin `haveIBeenPwned` (`AUTH_PASSWORD_BREACH_CHECK`, default true, test false; pesan Indonesia). Seed demo memakai
+  `createAuth({ passwordBreachCheck: false })`; E2E mematikannya lewat env. Test men-stub `api.pwnedpasswords.com`.
+- **A01** Impersonasi dimatikan: role admin tanpa `user:impersonate(-admins)` (`packages/shared/permissions.ts`); test 403.
+- **A05** `Permissions-Policy` (camera/microphone/geolocation/payment/usb) + peringatan boot `TRUST_PROXY=false` di production.
+- **A02** `DATABASE_URL` production wajib `sslmode=require|verify-*`/`ssl=true` (`DATABASE_SSL_REQUIRED=false` untuk
+  compose staging).
+- **A08** Action CI dipin ke SHA commit (+ komentar versi untuk Dependabot); Scalar `/api/docs` dengan `integrity` SRI.
+- Test: shared 20, api 202 (+settings, password-breach, impersonation, env TLS, app header/warn), web 188.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

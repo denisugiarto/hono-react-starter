@@ -98,6 +98,12 @@ export function createApp(options: AppOptions = {}): App {
     : (options.logger ?? new Logger({ ...readLogConfig(), base: { service: 'hono-react-starter' } }))
   const rateLimit = options.rateLimit ?? readApiRateLimit()
 
+  // Di balik reverse proxy tanpa TRUST_PROXY semua klien terlihat sebagai IP proxy:
+  // rate limit, lockout, dan audit salah sasaran. Ingatkan sekali saat boot.
+  if (isProd && !trustProxy) {
+    logger.warn('TRUST_PROXY=false di production: IP klien dibaca dari koneksi langsung. Set TRUST_PROXY=true bila di balik reverse proxy/load balancer')
+  }
+
   const app: App = new Hono<AppEnv>()
 
   // -------------------------------------------------------------------------
@@ -114,6 +120,8 @@ export function createApp(options: AppOptions = {}): App {
       strictTransportSecurity: isProd ? 'max-age=31536000; includeSubDomains' : false,
       xFrameOptions: 'DENY',
       referrerPolicy: 'strict-origin-when-cross-origin',
+      // Fitur browser yang tidak dipakai aplikasi ini dimatikan untuk semua origin.
+      permissionsPolicy: { camera: [], microphone: [], geolocation: [], payment: [], usb: [] },
     }),
   )
 

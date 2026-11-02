@@ -97,3 +97,15 @@ export const auditLog = pgTable(
 
 export type AuditLogRow = typeof auditLog.$inferSelect
 export type NewAuditLog = typeof auditLog.$inferInsert
+
+/**
+ * Pengaturan aplikasi runtime (diubah admin lewat /api/admin/settings), satu baris per kunci.
+ * Nilai JSON divalidasi dengan appSettingsSchema (packages/shared) saat dibaca.
+ */
+export const appSetting = pgTable('app_setting', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  /** id user admin yang terakhir mengubah (null bila dari migrasi/seed). */
+  updatedBy: text('updated_by'),
+})

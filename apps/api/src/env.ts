@@ -21,12 +21,32 @@ export function envIsTest(): boolean {
 
 export function readDatabaseUrl(): string {
   const url = process.env.DATABASE_URL
-  if (url) return url
+  if (url) {
+    if (envIsProd() && readBool('DATABASE_SSL_REQUIRED', true) && !hasTls(url)) {
+      fail(
+        'DATABASE_URL',
+        'di production harus memakai TLS: tambahkan ?sslmode=require (atau verify-full). ' +
+          'Set DATABASE_SSL_REQUIRED=false hanya bila DB berada di jaringan privat tanpa TLS',
+      )
+    }
+    return url
+  }
   if (envIsProd()) {
     fail('DATABASE_URL', 'wajib diisi di production')
   }
   // Convenience untuk development lokal
   return 'postgresql://localhost:5432/hono_react_starter'
+}
+
+/** `sslmode=require|verify-ca|verify-full` atau `ssl=true` pada URL koneksi. */
+function hasTls(url: string): boolean {
+  try {
+    const params = new URL(url).searchParams
+    const mode = params.get('sslmode')
+    return (mode !== null && ['require', 'verify-ca', 'verify-full'].includes(mode)) || ['true', '1'].includes(params.get('ssl') ?? '')
+  } catch {
+    return false
+  }
 }
 
 export function readAuthSecret(): string {
@@ -222,6 +242,15 @@ export function readEmailVerificationRequired(): boolean {
     fail('AUTH_REQUIRE_EMAIL_VERIFICATION', 'butuh MAIL_PROVIDER=resend di production (email harus benar-benar terkirim)')
   }
   return required
+}
+
+/**
+ * AUTH_PASSWORD_BREACH_CHECK (default true; false saat NODE_ENV=test): tolak password
+ * yang pernah bocor (Have I Been Pwned, k-anonymity — hanya 5 karakter awal hash SHA-1
+ * yang dikirim) saat sign-up, reset, dan ganti password.
+ */
+export function readPasswordBreachCheck(): boolean {
+  return readBool('AUTH_PASSWORD_BREACH_CHECK', !envIsTest())
 }
 
 /**

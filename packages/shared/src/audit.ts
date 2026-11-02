@@ -35,6 +35,7 @@ export const AUDIT_ACTIONS = [
   'admin.impersonate_user',
   'admin.stop_impersonating',
   'admin.revoke_user_session',
+  'admin.settings_updated',
   'admin.revoke_user_sessions',
   // data aplikasi
   'note.created',

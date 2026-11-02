@@ -87,11 +87,17 @@ Centang per rilis. Hasil yang diharapkan ditulis setelah `→`.
 - [ ] Audit log: filter "Gagal" hanya menampilkan entri gagal; "Muat lebih banyak" menambah baris.
 - [ ] User biasa: menu admin tidak ada; `/admin/users` → halaman 403.
 - [ ] Tanpa sesi: `GET /api/admin/users` → `401 { code: "UNAUTHORIZED" }`.
+- [ ] Pengaturan aplikasi (`/admin/settings`): saklar "Wajibkan verifikasi email" → toast "Pengaturan disimpan",
+      baris audit `admin.settings_updated`; daftar akun baru lalu masuk → ditolak "verifikasi email" sampai tautan
+      di log diklik; matikan saklar → masuk kembali normal. Di staging dengan `MAIL_PROVIDER=console` saklar terkunci.
+- [ ] Admin memanggil `POST /api/auth/admin/impersonate-user` → 403 (impersonasi dimatikan).
 
 **Keamanan**
 - [ ] 5 password salah berturut-turut → pesan "Terlalu banyak percobaan", password benar pun ditolak ±15 menit;
       setelah itu masuk normal. Akun lain tidak terpengaruh.
 - [ ] Daftar dengan email yang sudah terdaftar → tampil "Periksa email Anda" (bukan "sudah terdaftar"), tidak masuk.
+- [ ] Daftar dengan password `password123` (ada di daftar bocor) → ditolak "pernah muncul di kebocoran data publik"
+      (butuh `AUTH_PASSWORD_BREACH_CHECK=true` dan akses internet; E2E mematikannya).
 - [ ] Console browser tanpa pesan "Content Security Policy" di beranda, login, catatan, keamanan, admin.
 - [ ] Di balik proxy (staging): kolom IP di audit log = IP publik Anda, bukan IP container.
 
@@ -119,7 +125,7 @@ Komponen memakai `data-testid` (bukan teks, yang bisa berubah/diterjemahkan). Di
 | VirtualList | `virtual-list` (area gulir; testid bisa diganti lewat prop), `virtual-list-item` (+ `data-index`) — hanya baris terlihat yang ada di DOM; gulir area untuk memunculkan baris lain |
 | Header / menu | `login-link`, `main-nav`, `user-menu-trigger`, `user-menu-notes`, `user-menu-security`, `user-menu-api-token`, `user-menu-users`, `user-menu-audit`, `user-menu-sign-out` |
 | Catatan | `note-title`, `note-content`, `note-submit`, `note-list`, `note-item` (+ `data-note-id`), `note-toggle`, `note-delete`, `notes-empty` |
-| Admin | `users-table`, `user-row` (+ `data-email`), `audit-table`, `audit-row` (+ `data-action`), `audit-action`, `audit-success`, `audit-load-more`, `forbidden` |
+| Admin | `users-table`, `user-row` (+ `data-email`), `audit-table`, `audit-row` (+ `data-action`), `audit-action`, `audit-success`, `audit-load-more`, `forbidden`; pengaturan: `app-settings-card`, `settings-require-email-verification` (switch, `aria-checked`), `settings-mail-provider`, `settings-not-ready`, `settings-updated`, menu `user-menu-settings` |
 
 Aturan: elemen yang berinteraksi dengan pengguna (input, tombol, baris data, state kosong/error)
 diberi `data-testid` dengan prefix fitur; teks tetap boleh dipakai untuk memastikan isi.

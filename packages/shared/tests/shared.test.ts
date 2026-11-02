@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'bun:test'
-import { noteCreateSchema, noteUpdateSchema, signInSchema, signUpSchema } from '../src/index.ts'
+import {
+  APP_SETTING_KEYS,
+  DEFAULT_APP_SETTINGS,
+  appSettingsSchema,
+  appSettingsUpdateSchema,
+  appSettingsViewSchema,
+  can,
+  noteCreateSchema,
+  noteUpdateSchema,
+  signInSchema,
+  signUpSchema,
+} from '../src/index.ts'
 
 describe('Shared schema — notes', () => {
   test('create: trim title, default content', () => {
@@ -146,5 +157,42 @@ describe('Shared demo — akun uji', () => {
     expect(DEMO_BACKUP_CODES.every((c) => /^[a-z0-9]{5}-[a-z0-9]{5}$/.test(c))).toBe(true)
     expect(DEMO_NOTES.length).toBeGreaterThan(0)
     for (const n of DEMO_NOTES) expect(noteCreateSchema.safeParse(n).success).toBe(true)
+  })
+})
+
+describe('Shared — settings', () => {
+  test('appSettingsSchema & default', () => {
+    expect(appSettingsSchema.parse(DEFAULT_APP_SETTINGS)).toEqual({ requireEmailVerification: false })
+    expect(APP_SETTING_KEYS).toEqual(['requireEmailVerification'])
+    expect(appSettingsSchema.safeParse({}).success).toBe(false)
+  })
+  test('update: minimal satu field, tanpa field asing', () => {
+    expect(appSettingsUpdateSchema.safeParse({}).success).toBe(false)
+    expect(appSettingsUpdateSchema.safeParse({ requireEmailVerification: undefined }).success).toBe(false)
+    expect(appSettingsUpdateSchema.safeParse({ asing: true }).success).toBe(false)
+    expect(appSettingsUpdateSchema.parse({ requireEmailVerification: true })).toEqual({ requireEmailVerification: true })
+  })
+  test('view menyertakan kesiapan infra', () => {
+    const v = appSettingsViewSchema.parse({
+      requireEmailVerification: true,
+      mailProvider: 'resend',
+      emailVerificationReady: true,
+      updatedAt: null,
+      updatedBy: null,
+    })
+    expect(v.mailProvider).toBe('resend')
+    expect(appSettingsViewSchema.safeParse({ ...v, mailProvider: 'smtp' }).success).toBe(false)
+  })
+})
+
+describe('Shared — permissions settings & impersonasi', () => {
+  test('admin boleh baca/ubah pengaturan, user tidak', () => {
+    expect(can('admin', { settings: ['read', 'update'] })).toBe(true)
+    expect(can('user', { settings: ['read'] })).toBe(false)
+  })
+  test('impersonasi dimatikan untuk admin', () => {
+    expect(can('admin', { user: ['impersonate'] })).toBe(false)
+    expect(can('admin', { user: ['impersonate-admins'] })).toBe(false)
+    expect(can('admin', { user: ['list', 'ban', 'set-role', 'delete'] })).toBe(true)
   })
 })

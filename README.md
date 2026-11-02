@@ -534,9 +534,9 @@ file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
 | `features/<fitur>/` | `api/` (hooks TanStack Query + schema shared), `components/`, `hooks/`, `index.ts` (barrel) | Fitur boleh mengimpor `components/`, `hooks/`, `lib/`, `config/`; **hindari** impor antar fitur (lewat `index.ts` bila terpaksa) |
 | `components/ui/` | Primitif shadcn/ui (di-generate CLI, jangan diedit manual kecuali perlu) | Dikecualikan dari coverage |
 | `components/layout/` | `app-shell`, `site-header`, `main-nav`, `mobile-nav` (Sheet), `site-footer` | Kerangka halaman |
-| `components/common/` | `page-header`, `empty-state`, `loading-state`, `error-message`, `theme-toggle`, `error-boundary` | Komponen generik lintas fitur |
-| `hooks/` | `use-theme`, `use-document-title`, `use-visible-nav` | Hook generik (bukan milik satu fitur) |
-| `lib/` | `api/request.ts` (fetch + `ApiError`), `auth-client.ts`, `query-client.ts`, `theme.ts`, `format.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
+| `components/common/` | `page-header`, `empty-state`, `loading-state`, `error-message`, `theme-toggle`, `error-boundary`, blok dashboard (`data-table`, `virtual-list`, `stat-card`, …) | Komponen generik lintas fitur |
+| `hooks/` | `use-theme`, `use-document-title`, `use-visible-nav`, `use-mobile`, `use-debounce` (`useDebouncedValue/Callback`, `useThrottledCallback`), `use-in-view`, `use-local-storage` | Hook generik (bukan milik satu fitur) |
+| `lib/` | `api/request.ts` (fetch + `ApiError`), `api/client.ts` (`api.get/post/…`, `buildUrl`), `query.ts` (query keys + optimistic), `perf.ts`, `lazy.ts`, `format.ts`, `datetime.ts`, `auth-client.ts`, `query-client.ts`, `theme.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
 | `config/` | `site.ts` (nama, stack, repo), `paths.ts` (semua path route), `navigation.ts` (item nav + syarat login/permission) | Konstanta; jangan hardcode path/nama di komponen |
 | `styles/` | `globals.css` | Tailwind v4 + token tema shadcn |
 
@@ -595,6 +595,7 @@ appearance="outline"`, `ghost` → `neutral` + `ghost`, `destructive` → `dange
 | Komponen | File | Catatan |
 | --- | --- | --- |
 | `DataTable<TData>` | `components/common/data-table.tsx` | `columns: ColumnDef<TData>[]` (TanStack Table v8) + `data`; opsi `searchable`, `columnToggle`, `pageSize` (0 = tanpa paginasi), `rowProps`, `onRowClick`, `isLoading`/`error`/`emptyTitle`. `meta: { label, className, align }` per kolom. Client-side — untuk data besar pakai paginasi server seperti `AuditLogsTable` |
+| `VirtualList<T>` | `components/common/virtual-list.tsx` | Daftar panjang yang hanya merender baris terlihat (TanStack Virtual): `items`, `renderItem`, `getKey`, `estimateSize`, `dynamic` (ukur tinggi asli), `height`, `overscan`, `onEndReached` (+ `endReachedThreshold`) untuk infinite scroll, `isLoading`, `emptyState`; testid `virtual-list` / `virtual-list-item` (+ `data-index`). Untuk tabel berpaginasi tetap `DataTable` |
 | `StatCard` | `components/common/stat-card.tsx` | `title`, `value`, `icon`, `trend: { value, label }` (naik hijau `text-success`, turun merah), `isLoading` |
 | `Navbar` | `components/layout/navbar.tsx` | Slot `start` (menu/SidebarTrigger), `brand`, `children` (nav), `end` (tema, akun); `sticky`, `fluid`. `SiteHeader` adalah pemakaiannya |
 | `AppSidebar` | `components/layout/app-sidebar.tsx` | `groups: NavGroup[]`, `collapsible` → tombol ciutkan (`data-testid="sidebar-collapse"`), saat diciutkan label jadi tooltip; state dari `SidebarProvider` (cookie `sidebar_state`, pintasan ⌘/Ctrl+B) |
@@ -611,6 +612,20 @@ appearance="outline"`, `ghost` → `neutral` + `ghost`, `destructive` → `dange
 
 Contoh `UsersTable` (`features/admin/components/users-table.tsx`) memakai `DataTable` dengan badge, pencarian, dan pilih kolom.
 
+### Util frontend (`apps/web/src/lib`, `apps/web/src/hooks`)
+
+| Modul | Isi |
+| --- | --- |
+| `lib/format.ts` | `formatNumber`, `formatCurrency` (IDR → `Rp 150.000`), `formatPercent` (rasio → `25,6 %`), `formatCompact` (`12,5 rb`), `formatBytes`, `truncate`, `slugify`, `titleCase`, `maskEmail`, `initialsOf`, `summarizeMetadata`. Locale `id-ID`; nilai kosong/NaN → `''` |
+| `lib/datetime.ts` | `formatDate`, `formatDateRange`, `formatRelative` ("5 menit yang lalu", "lusa"), `parseDate`, `parseTime`, `toTimeString`, `combineDateTime` |
+| `lib/api/client.ts` | `api.get/post/put/patch/delete<T>(path, body?, { query, schema, timeoutMs, signal })` di atas `request()`: query string lewat `buildUrl`, validasi Zod (`schema`), timeout default 15 s (`TIMEOUT`), gagal jaringan → `NETWORK_ERROR`, dibatalkan → `ABORTED`; `isApiError(err, code?)`, `toApiError`. Untuk `message` server tetap `requestEnvelope` |
+| `lib/query.ts` | `createQueryKeys('notes')` → `all/lists()/list(params)/details()/detail(id)`; `optimisticUpdate`, `rollbackOptimistic`, `optimisticMutation(qc, key, update, { onError })` → `{ onMutate, onError, onSettled }` siap di-spread ke `useMutation` |
+| `lib/perf.ts` | `debounce` (+ `cancel/flush`), `throttle` (trailing), `runWhenIdle` (requestIdleCallback + fallback), `shallowEqual` (untuk `memo`) |
+| `lib/lazy.ts` | `lazyWithRetry(() => import('…'))`: `React.lazy` yang memuat ulang halaman sekali bila chunk hilang setelah deploy (`retryImport`, penanda di sessionStorage) |
+| `hooks/use-debounce.ts` | `useDebouncedValue(value, ms)`, `useDebouncedCallback(fn, ms)`, `useThrottledCallback(fn, ms)` — identitas stabil, selalu memanggil `fn` terbaru, dibatalkan saat unmount |
+| `hooks/use-in-view.ts` | `useInView({ once, rootMargin, threshold })` → `{ ref, inView }` (IntersectionObserver; tanpa dukungan dianggap terlihat) untuk lazy section/gambar |
+| `hooks/use-local-storage.ts` | `useLocalStorage(key, initial)` → `[value, setValue, remove]`, JSON, sinkron antar tab, aman saat storage gagal |
+
 ## Storybook
 
 Katalog komponen di `apps/web`: `bun run --cwd apps/web storybook` (port 6006) atau `bunx nx storybook web`.
@@ -621,7 +636,7 @@ dari `vite.config.ts` ikut otomatis, proxy `/api` dimatikan) dengan addon **docs
 
 Story diletakkan di samping komponennya (`*.stories.tsx`, CSF3): `ui/button`, `ui/input`, `ui/card`, `ui/breadcrumb`,
 `ui/pagination`, `common/password-input`, `common/data-table`, `common/stat-card`, `common/search-input`,
-`common/select-search`, `common/dropdown`, `common/chip`, `common/date-picker`, `common/time-picker`, `common/stepper`,
+`common/select-search`, `common/dropdown`, `common/chip`, `common/date-picker`, `common/time-picker`, `common/stepper`, `common/virtual-list`,
 `common/empty-state` (placeholder), `lib/toast`, `layout/navbar`, `layout/app-sidebar`, serta primitif `ui/*` (dialog, checkbox,
 radio-group, switch, slider, accordion, collapsible, drawer, popover, progress, spinner, tabs, tooltip, breadcrumb, pagination). Komponen baru yang punya state/variant sebaiknya diberi story.
 

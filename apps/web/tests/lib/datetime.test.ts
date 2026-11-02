@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { combineDateTime, formatDate, formatDateRange, parseDate, parseTime, toTimeString } from '../../src/lib/datetime.ts'
+import { combineDateTime, formatDate, formatDateRange, formatRelative, parseDate, parseTime, toTimeString } from '../../src/lib/datetime.ts'
 
 const d = new Date(2026, 0, 7, 14, 30, 15)
 
@@ -33,5 +33,23 @@ describe('lib/datetime', () => {
     expect(formatDateRange({ from: new Date(2026, 0, 1), to: new Date(2026, 0, 7) })).toBe('1 Jan 2026 – 7 Jan 2026')
     expect(formatDateRange({ from: new Date(2026, 0, 1), to: null })).toBe('1 Jan 2026')
     expect(formatDateRange(null)).toBe('')
+  })
+})
+
+describe('lib/datetime formatRelative', () => {
+  const now = new Date(2026, 0, 7, 12, 0, 0)
+  test('bahasa Indonesia, lampau & mendatang', () => {
+    expect(formatRelative(new Date(2026, 0, 7, 11, 55), now)).toBe('5 menit yang lalu')
+    expect(formatRelative(new Date(2026, 0, 9, 12, 0), now)).toBe('lusa')
+    expect(formatRelative(new Date(2026, 0, 7, 15, 0), now)).toBe('dalam 3 jam')
+    expect(formatRelative(new Date(2025, 10, 7, 12, 0), now)).toBe('2 bulan yang lalu')
+    expect(formatRelative(new Date(2024, 0, 7, 12, 0), now)).toBe('2 tahun yang lalu')
+    expect(formatRelative(new Date(2026, 0, 21, 12, 0), now)).toBe('dalam 2 minggu')
+  })
+  test('baru saja, string ISO, kosong/tak valid', () => {
+    expect(formatRelative(new Date(2026, 0, 7, 12, 0, 30), now)).toBe('baru saja')
+    expect(formatRelative(new Date(2026, 0, 7, 11, 59, 10).toISOString(), now)).toBe('50 detik yang lalu')
+    expect(formatRelative(null)).toBe('')
+    expect(formatRelative('bukan tanggal')).toBe('')
   })
 })

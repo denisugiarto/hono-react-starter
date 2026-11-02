@@ -52,3 +52,29 @@ export function formatDateRange(range: DateRangeValue | null | undefined, patter
   if (!range.to) return from
   return `${from} – ${formatDate(range.to, pattern, locale)}`
 }
+
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 31_536_000],
+  ['month', 2_592_000],
+  ['week', 604_800],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+]
+
+/**
+ * Waktu relatif berbahasa Indonesia: "5 menit yang lalu", "dalam 2 hari", "baru saja" (< 45 detik).
+ * `now` bisa disuntik untuk test/snapshot.
+ */
+export function formatRelative(date: Date | string | number | null | undefined, now: Date = new Date()): string {
+  if (date === null || date === undefined) return ''
+  const target = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(target.getTime())) return ''
+  const diffSeconds = Math.round((target.getTime() - now.getTime()) / 1000)
+  if (Math.abs(diffSeconds) < 45) return 'baru saja'
+  const rtf = new Intl.RelativeTimeFormat('id', { numeric: 'auto' })
+  for (const [unit, seconds] of RELATIVE_UNITS) {
+    if (Math.abs(diffSeconds) >= seconds) return rtf.format(Math.trunc(diffSeconds / seconds), unit)
+  }
+  return rtf.format(diffSeconds, 'second')
+}

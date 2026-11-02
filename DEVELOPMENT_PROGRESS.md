@@ -544,6 +544,21 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   `ci-cd-and-automation` diperbarui ke versi registry (rollback lewat env, cache package manager); tambah
   `observability-and-instrumentation` dan `nx-workspace-patterns`. Sumber: skills.sh (`npx skills add …`, pemindaian aman).
 
+## Iterasi 24 — Util frontend: formatter, klien API, virtualisasi, optimasi (2026-11-02)
+
+- `lib/format.ts`: `formatNumber/Currency/Percent/Compact/Bytes`, `truncate`, `slugify`, `titleCase`, `maskEmail` (locale id-ID;
+  spasi NBSP Intl dinormalkan, `Rp` diberi spasi karena ICU Bun menulis `Rp150.000`). `lib/datetime.ts`: `formatRelative`.
+- `lib/api/client.ts`: `api.get/post/put/patch/delete` + `buildUrl`, opsi `query`/`schema`/`timeoutMs`/`signal`
+  (`AbortSignal.any`), pemetaan error jaringan/timeout/abort ke `ApiError` berkode; `isApiError`.
+- `lib/query.ts`: `createQueryKeys`, `optimisticUpdate/rollbackOptimistic/optimisticMutation` (generalisasi pola di notes;
+  notes sendiri belum dimigrasi). `lib/perf.ts`: `debounce`, `throttle`, `runWhenIdle`, `shallowEqual`. `lib/lazy.ts`:
+  `lazyWithRetry`/`retryImport` (reload sekali bila chunk hilang; route belum di-split).
+- Hooks: `useDebouncedValue/Callback`, `useThrottledCallback`, `useInView`, `useLocalStorage`.
+- `common/virtual-list.tsx` (`@tanstack/react-virtual` 3.14): `VirtualList` dengan `dynamic`, `onEndReached`, state kosong/memuat;
+  story 10.000 baris, tinggi dinamis, infinite scroll, kosong — diverifikasi headless (14–19 elemen DOM untuk 10k baris).
+- Test: 9 file baru (178 test web). Catatan happy-dom: TanStack Virtual mengukur area gulir lewat `clientHeight/clientWidth`
+  (bukan `getBoundingClientRect`), baris mode `dynamic` lewat `getBoundingClientRect` → keduanya di-stub di test.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

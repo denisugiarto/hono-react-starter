@@ -61,7 +61,7 @@ tetap di luar commit).
   `auth-audit.ts`.
 - **Permission** Better Auth tanpa wildcard — tulis aksi satu per satu di `packages/shared/src/permissions.ts`.
 - **UI**: sebelum membuat komponen, cek `apps/web/src/components/common/` dan bagian Komponen di README;
-  pakai yang ada (`DataTable`, `SelectSearch`, `DatePicker`, `PasswordInput`, `notify`, …). Elemen interaktif
+  pakai yang ada (`DataTable`, `VirtualList` untuk daftar ribuan baris, `SelectSearch`, `DatePicker`, `PasswordInput`, `notify`, …). Util: angka/teks `lib/format`, tanggal `lib/datetime`, panggilan API `api.*` (`lib/api/client`) + `lib/query` (keys, optimistic), debounce/throttle `hooks/use-debounce`, code-splitting `lib/lazy`. Elemen interaktif
   baru diberi `data-testid` berprefix fitur (daftar di `docs/QA.md`). Tombol: `color` + `appearance` + `size`
   (komponen shadcn baru yang memakai `variant` dimigrasi). `Button render={<Link/>}` adalah pola yang benar
   (abaikan peringatan `nativeButton`). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` + entri

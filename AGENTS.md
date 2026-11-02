@@ -19,6 +19,24 @@ Skill ada di `.agents/skills/<nama>/SKILL.md` (Codex, Antigravity) = `.claude/sk
 | `adding-shadcn-component` | `bunx shadcn add` menulis ke folder salah / import `cn` rusak |
 | `verifying-changes` | Sebelum menyatakan selesai, commit, smoke test, CI merah, menaikkan dependensi |
 
+Skill umum (disalin dari koleksi komunitas; aturan proyek di atas tetap menang bila bertentangan):
+
+| Skill | Pakai saat |
+| --- | --- |
+| `ponytail` | Mode "lazy senior dev": perubahan terkecil yang menyelesaikan tugas (`/ponytail lite\|full\|ultra`) |
+| `impeccable` | Mendesain/mengkritik/memoles UI (hierarki, tipografi, warna, motion, empty state, DESIGN.md) |
+| `verification-before-completion` | Sebelum klaim "selesai/lolos" — jalankan perintah verifikasi dulu (pasangan `verifying-changes`) |
+| `systematic-debugging` | Bug, test/CI merah, perilaku aneh — cari akar masalah sebelum menambal (rujukan `superpowers:*` = `tdd` dan `verification-before-completion` di sini) |
+| `tdd` | Fitur/bugfix test-first; selaras dengan ambang coverage 90 % per file |
+| `code-review`, `pr` | Review perubahan sejak commit/branch tertentu; menulis badan PR |
+| `better-auth-best-practices` | Konfigurasi Better Auth (plugin, session, adapter) di `apps/api/src/auth.ts` |
+| `react-patterns`, `react-testing` | Pola React 19 dan test Testing Library di `apps/web` (ikuti juga `writing-tests`) |
+| `playwright-best-practices` | Spec Playwright di `apps/e2e`, flaky test, Page Object, CI |
+| `sql-optimization` | Query lambat, indeks, pagination di PostgreSQL/Drizzle |
+| `accessibility`, `web-design-guidelines` | Audit WCAG 2.2 / checklist UI untuk komponen shadcn & halaman |
+| `web-perf` | Core Web Vitals, Lighthouse, ukuran bundle Vite |
+| `docker-expert`, `ci-cd-and-automation` | Dockerfile/compose dan pipeline GitHub Actions |
+
 ## Perintah
 
 ```bash

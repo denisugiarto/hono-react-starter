@@ -526,6 +526,15 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - Catatan: regenerasi lewat `pnpm dlx shadcn@latest add drawer` menghasilkan komponen yang sama dengan `bunx` (style
   `base-nova` → Base UI Drawer, bukan vaul); hanya header `"use client"` hilang dan import `cn` perlu dinormalkan.
 
+## Iterasi 22 — Skill agen tambahan (2026-11-02)
+
+- `.claude/skills/` (= `.agents/skills/` untuk Codex/Antigravity) ditambah 18 skill komunitas, disalin utuh (bukan
+  symlink) agar repo mandiri: `ponytail`, `impeccable` (launcher mengunduh engine ke `~/.impeccable`, bukan ke repo),
+  `verification-before-completion`, `systematic-debugging`, `tdd`, `code-review`, `pr`, `better-auth-best-practices`,
+  `react-patterns`, `react-testing`, `playwright-best-practices`, `sql-optimization`, `accessibility`,
+  `web-design-guidelines`, `web-perf`, `docker-expert`, `ci-cd-and-automation`. Tabel pemetaan di `AGENTS.md`;
+  aturan proyek tetap menang bila bertentangan dengan skill umum.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

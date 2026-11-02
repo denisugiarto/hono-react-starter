@@ -8,7 +8,9 @@ let observers: Array<{ cb: Callback; disconnected: boolean; observed: Element[] 
 class FakeIO {
   observed: Element[] = []
   disconnected = false
-  constructor(public cb: Callback) {
+  cb: Callback
+  constructor(cb: Callback) {
+    this.cb = cb
     observers.push(this as unknown as (typeof observers)[number])
   }
   observe(el: Element) {

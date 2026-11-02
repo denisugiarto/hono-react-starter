@@ -5,37 +5,32 @@ TanStack Query, shadcn/ui), `packages/shared` (schema Zod + RBAC, dipakai keduan
 (Playwright). Dokumentasi manusia: `README.md` (arsitektur, env, API), `docs/QA.md` (tester),
 `DEVELOPMENT_PROGRESS.md` (riwayat iterasi — tambah entri setiap perubahan berarti).
 
-## Skill (baca sebelum mengerjakan tugas yang cocok)
+## Skill — muat sebelum mengerjakan, bukan setelah
 
-Skill ada di `.agents/skills/<nama>/SKILL.md` (Codex, Antigravity) = `.claude/skills/` (Claude Code;
-`.agents/skills` adalah symlink ke sana). Satu sumber, tiga agen.
+Skill = `SKILL.md` di `.agents/skills/<nama>/` (Codex, Antigravity) = `.claude/skills/` (Claude Code; `.agents/skills`
+symlink ke sana). Cara memuat: Claude Code lewat tool Skill atau `/<nama>`; Codex/Antigravity baca file SKILL.md-nya
+lalu ikuti. Prioritas bila bertentangan: aturan di file ini → skill proyek (`adding-feature`, `db-migrations`,
+`writing-tests`, `auditing-actions`, `adding-shadcn-component`, `verifying-changes`) → skill umum.
 
-| Skill | Pakai saat |
+**Mode dasar setiap tugas kode:** `ponytail` (perubahan terkecil yang menyelesaikan seluruh tugas; pengguna bisa
+mematikannya dengan "stop ponytail"), dan sebelum menyatakan selesai/commit: `verifying-changes` lalu
+`verification-before-completion` (bukti perintah lolos, baru klaim).
+
+Rute per tugas — muat berurutan; lewati yang tidak kena:
+
+| Tugas | Skill |
 | --- | --- |
-| `adding-feature` | Menambah resource/halaman/endpoint: urutan shared → migrasi → api → web → test → OpenAPI → dokumen |
-| `db-migrations` | Mengubah schema Drizzle, menambah plugin Better Auth, error "relation does not exist" |
-| `writing-tests` | Menulis/memperbaiki test api/web/shared/e2e; `bun test` lolos tapi exit 1; error mock web |
-| `auditing-actions` | Route yang mengubah data atau endpoint auth baru harus tercatat di `audit_log` |
-| `adding-shadcn-component` | `bunx shadcn add` menulis ke folder salah / import `cn` rusak |
-| `verifying-changes` | Sebelum menyatakan selesai, commit, smoke test, CI merah, menaikkan dependensi |
-
-Skill umum (disalin dari koleksi komunitas; aturan proyek di atas tetap menang bila bertentangan):
-
-| Skill | Pakai saat |
-| --- | --- |
-| `ponytail` | Mode "lazy senior dev": perubahan terkecil yang menyelesaikan tugas (`/ponytail lite\|full\|ultra`) |
-| `impeccable` | Mendesain/mengkritik/memoles UI (hierarki, tipografi, warna, motion, empty state, DESIGN.md) |
-| `verification-before-completion` | Sebelum klaim "selesai/lolos" — jalankan perintah verifikasi dulu (pasangan `verifying-changes`) |
-| `systematic-debugging` | Bug, test/CI merah, perilaku aneh — cari akar masalah sebelum menambal (rujukan `superpowers:*` = `tdd` dan `verification-before-completion` di sini) |
-| `tdd` | Fitur/bugfix test-first; selaras dengan ambang coverage 90 % per file |
-| `code-review`, `pr` | Review perubahan sejak commit/branch tertentu; menulis badan PR |
-| `better-auth-best-practices` | Konfigurasi Better Auth (plugin, session, adapter) di `apps/api/src/auth.ts` |
-| `react-patterns`, `react-testing` | Pola React 19 dan test Testing Library di `apps/web` (ikuti juga `writing-tests`) |
-| `playwright-best-practices` | Spec Playwright di `apps/e2e`, flaky test, Page Object, CI |
-| `sql-optimization` | Query lambat, indeks, pagination di PostgreSQL/Drizzle |
-| `accessibility`, `web-design-guidelines` | Audit WCAG 2.2 / checklist UI untuk komponen shadcn & halaman |
-| `web-perf` | Core Web Vitals, Lighthouse, ukuran bundle Vite |
-| `docker-expert`, `ci-cd-and-automation` | Dockerfile/compose dan pipeline GitHub Actions |
+| Resource/endpoint/halaman baru | `adding-feature` → `tdd` → `db-migrations` (schema berubah) → `auditing-actions` (route mutasi/auth) → `writing-tests` |
+| Bug, test/CI merah, perilaku aneh | `systematic-debugging` → `writing-tests`. Rujukan `superpowers:test-driven-development` / `superpowers:verification-before-completion` di dalamnya = `tdd` / `verification-before-completion` di sini |
+| Komponen/tampilan UI | `adding-shadcn-component` (dari registry shadcn) → `react-patterns` → `impeccable` (desain, polish, empty state) → `accessibility` |
+| Review UI cepat tanpa mengubah desain | `web-design-guidelines`, `accessibility` |
+| Halaman lambat, bundle besar, Web Vitals | `web-perf` |
+| Menulis/memperbaiki test | `writing-tests` (+ `react-testing` untuk `apps/web`, `playwright-best-practices` untuk `apps/e2e`) |
+| Better Auth: plugin, session, adapter, endpoint auth | `better-auth-best-practices` → `db-migrations` → `auditing-actions` |
+| Query lambat, indeks, pagination | `sql-optimization` |
+| Dockerfile/compose, GitHub Actions | `docker-expert`, `ci-cd-and-automation` |
+| Review perubahan, menulis PR | `code-review`, `pr` |
+| Sebelum klaim selesai, commit, push, smoke test, naik dependensi | `verifying-changes` → `verification-before-completion` |
 
 ## Perintah
 

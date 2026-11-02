@@ -38,8 +38,13 @@ export function createEndpoints(baseUrl = API_BASE_URL) {
       list: api('/notes'),
       byId: (id: string) => api(`/notes/${encodeURIComponent(id)}`),
     },
+    me: {
+      permissions: api('/me/permissions'),
+    },
     admin: {
       users: api('/admin/users'),
+      roles: api('/admin/roles'),
+      role: (name: string) => api(`/admin/roles/${encodeURIComponent(name)}`),
       auditLogs: (query: AuditLogQuery & QueryParams = {}) => buildUrl(api('/admin/audit-logs'), query),
       settings: api('/admin/settings'),
     },

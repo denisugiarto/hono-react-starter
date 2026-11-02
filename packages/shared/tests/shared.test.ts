@@ -6,7 +6,15 @@ import {
   appSettingsUpdateSchema,
   appSettingsViewSchema,
   can,
+  grants,
+  mergePermissions,
+  myPermissionsSchema,
   noteCreateSchema,
+  permissionsSchema,
+  roleCreateSchema,
+  roleNameSchema,
+  roleSchema,
+  roleUpdateSchema,
   noteUpdateSchema,
   signInSchema,
   signUpSchema,
@@ -194,5 +202,36 @@ describe('Shared — permissions settings & impersonasi', () => {
     expect(can('admin', { user: ['impersonate'] })).toBe(false)
     expect(can('admin', { user: ['impersonate-admins'] })).toBe(false)
     expect(can('admin', { user: ['list', 'ban', 'set-role', 'delete'] })).toBe(true)
+  })
+})
+
+describe('Shared — role dinamis', () => {
+  test('permissionsSchema: kanonik (dedupe, buang kosong), tolak aksi asing/impersonasi/resource asing', () => {
+    expect(permissionsSchema.parse({ note: ['read', 'read'], audit: [] })).toEqual({ note: ['read'] })
+    expect(permissionsSchema.safeParse({ note: ['fly'] }).success).toBe(false)
+    expect(permissionsSchema.safeParse({ user: ['impersonate'] }).success).toBe(false)
+    expect(permissionsSchema.safeParse({ asing: ['x'] }).success).toBe(false)
+  })
+  test('roleNameSchema & roleCreate/Update/role/myPermissions', () => {
+    expect(roleNameSchema.safeParse('viewer-2').success).toBe(true)
+    expect(roleNameSchema.safeParse('Viewer').success).toBe(false)
+    expect(roleNameSchema.safeParse('a').success).toBe(false)
+    expect(roleCreateSchema.parse({ name: 'viewer', permissions: { note: ['read'] } })).toEqual({ name: 'viewer', description: '', permissions: { note: ['read'] } })
+    expect(roleUpdateSchema.safeParse({}).success).toBe(false)
+    expect(roleUpdateSchema.safeParse({ description: 'x' }).success).toBe(true)
+    expect(roleUpdateSchema.safeParse({ nama: 'x' }).success).toBe(false)
+    expect(roleSchema.safeParse({ name: 'viewer', description: '', permissions: {}, system: false, usersCount: -1 }).success).toBe(false)
+    expect(myPermissionsSchema.parse({ role: 'user', permissions: { note: ['read'] } }).role).toBe('user')
+  })
+  test('grants / mergePermissions / can gabungan role', () => {
+    expect(grants({ note: ['read', 'update'] }, { note: ['read'] })).toBe(true)
+    expect(grants({ note: ['read'] }, { note: ['read', 'delete'] })).toBe(false)
+    expect(grants(null, { note: ['read'] })).toBe(false)
+    const defs = { user: { note: ['read'] }, auditor: { audit: ['list'] } } as const
+    expect(mergePermissions('user,auditor', defs)).toEqual({ note: ['read'], audit: ['list'] })
+    expect(mergePermissions('ghost', defs)).toEqual({})
+    expect(can('user,auditor', { note: ['read'], audit: ['list'] }, defs)).toBe(true)
+    expect(can('user', { audit: ['list'] }, defs)).toBe(false)
+    expect(can(null, { note: ['read'] })).toBe(false)
   })
 })

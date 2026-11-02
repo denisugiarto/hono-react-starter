@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { USER_ROLES } from './permissions.ts'
 
 /**
  * Schema & tipe untuk autentikasi & RBAC.
@@ -12,7 +11,8 @@ export const adminUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string(),
-  role: z.enum(USER_ROLES).nullable(),
+  /** Nama role (dinamis, lihat /api/admin/roles); null = belum diatur. */
+  role: z.string().nullable(),
   banned: z.boolean(),
   createdAt: z.string(),
 })
@@ -28,7 +28,7 @@ export const jwtPayloadSchema = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string(),
-  role: z.enum(USER_ROLES),
+  role: z.string(),
   exp: z.number().optional(),
   iat: z.number().optional(),
 })

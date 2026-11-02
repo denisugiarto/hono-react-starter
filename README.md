@@ -380,44 +380,46 @@ curl -s http://localhost:3000/api/notes -H "Authorization: Bearer <jwt>"
 
 ## RBAC (Role-Based Access Control)
 
-Role disimpan di kolom `user.role` (`admin` / `user`, default `user`). Permission
-didefinisikan **sekali** di `packages/shared/src/permissions.ts` (Better Auth access control)
-dan dipakai server maupun client:
+Role disimpan di kolom `user.role` (default `user`). **Katalog permission** (resource → aksi) ada sekali di
+`packages/shared/src/permissions.ts` (`statements`: `user`, `session`, `note`, `audit`, `settings`, `role`).
+**Definisi role bersifat dinamis**: tersimpan di tabel `app_role` dan dikelola admin di UI `/admin/roles`
+(matriks checkbox resource × aksi) tanpa deploy ulang.
+
+| Role | Sifat |
+| --- | --- |
+| `admin` | Sistem, **terkunci**: selalu semua permission (tanpa impersonasi). Mencegah admin mengunci dirinya |
+| `user` | Sistem: permission-nya boleh diubah admin, tidak bisa dihapus |
+| lainnya | Dibuat admin (`POST /api/admin/roles`), mis. `viewer`, `editor`; hanya bisa dihapus bila tidak dipakai user |
+
+Alur evaluasi:
+
+- **Server**: `RoleRegistry` (`apps/api/src/lib/roles.ts`) memuat `app_role` (cache 15 s per instance) dan menjaga
+  **satu objek `roles`** yang dipegang plugin admin Better Auth (`admin({ ac, roles })`) — dimutasi di tempat, jadi
+  `set-role` ke role yang tidak ada ditolak plugin (400) dan permission endpoint admin mengikuti definisi terbaru.
+  Middleware `requirePermission({ note: ['delete'] })` memakai `roleRegistry.can(user.role, …)`; `requireRole('admin')`
+  tetap berdasar nama role.
+- **Client**: `useAuth().can()` memakai permission efektif dari `GET /api/me/permissions` (role kustom menunggu
+  `permissionsPending`; role sistem memakai definisi default sementara). Guard route `RequirePermission`, item
+  navigasi (`permission` di `config/navigation.ts`), dan menu pengguna mengikuti hasil yang sama.
+- **Propagasi**: mengubah role seorang user (`POST /api/auth/admin/set-role`) mencabut semua sesinya → permission
+  baru berlaku saat ia masuk lagi; mengubah **matriks** sebuah role berlaku seketika untuk semua pemegangnya
+  (cache registry ≤15 s, cache permission client ≤30 s).
 
 ```ts
-// packages/shared/src/permissions.ts
-export const statements = { ...defaultStatements, note: ['create', 'read', 'update', 'delete'] } as const
-export const roles = {
-  user: ac.newRole({ note: ['create', 'read', 'update', 'delete'] }),
-  admin: ac.newRole({ ...adminAc.statements, note: ['create', 'read', 'update', 'delete'] }),
-}
-can('user', { user: ['list'] }) // false
+// Melindungi route di Hono (apps/api/src/middleware/auth.ts) — menerima sesi cookie atau JWT
+app.get('/api/profil', requireAuth, (c) => c.json(c.get('user')))
+adminRoutes.get('/users', requirePermission({ user: ['list'] }), handler)
+// Shared: cek subset permission tanpa server (untuk fallback/test)
+can('user', { note: ['read'] }) // true (definisi default); grants(granted, requested)
 ```
 
-**Melindungi route di Hono** (`apps/api/src/middleware/auth.ts`) — semua menerima sesi cookie atau JWT:
+Menambah resource baru: tambahkan ke `statements` (+ label Indonesia di `apps/web/src/features/admin/permission-labels.ts`),
+berikan ke role default di `DEFAULT_ROLE_DEFINITIONS` bila perlu — matriks UI, validasi (`permissionsSchema`), dan role
+`admin` mengikutinya otomatis.
 
-```ts
-app.get('/api/profil', requireAuth, (c) => c.json(c.get('user')))          // cukup login
-app.get('/api/laporan', requireRole('admin'), handler)                      // berdasar role
-adminRoutes.get('/users', requirePermission({ user: ['list'] }), handler)  // berdasar permission
-```
-
-`c.get('user')` bertipe `AuthUser` = `{ id, email, name, role, authMethod: 'session' | 'jwt' }`.
-Perilaku: tanpa identitas → `401 UNAUTHORIZED`, identitas ada tapi tidak berhak → `403 FORBIDDEN`.
-
-**Menambah role / resource:** tambah entri di `statements` dan `roles`, tambah nama role
-di `USER_ROLES`, lalu pakai `requirePermission` di route dan `can()` di UI.
-
-**Membuat akun admin:**
-
-```bash
-bun run db:seed
-# default dev: admin@example.com / admin123456 — di production ADMIN_EMAIL/ADMIN_PASSWORD wajib
-```
-
-**Di frontend:** `useSession().data.user.role`, dan `can(role, { user: ['list'] })` untuk
-menampilkan/menyembunyikan UI (contoh panel admin di `App.tsx`). Client admin tersedia via
-`authClient.admin.*` (`listUsers`, `setRole`, `banUser`, `checkRolePermission`).
+**Manajemen pengguna** (`/admin/users`, permission `user:*` via plugin admin Better Auth, semuanya diaudit): tambah
+pengguna, ubah role (pilihan dari daftar role), blokir/cabut blokir dengan alasan, cabut semua sesi, hapus. Aksi pada
+akun sendiri dinonaktifkan.
 
 ## API
 
@@ -470,6 +472,11 @@ cause, kode Postgres) dengan `requestId` yang sama dengan `details.requestId` di
 | GET | `/api/admin/me` | Identitas pemanggil + `authMethod` (`session`/`jwt`) |
 | GET | `/api/admin/audit-logs` | Audit log terbaru dulu (permission `audit:list`). Query: `limit` (≤200), `cursor` (dari `nextCursor`), `action` (prefix, mis. `auth.`), `actorId`, `success` → `data: { items, nextCursor }` |
 | GET | `/api/admin/settings` | Pengaturan runtime + kesiapan infra (permission `settings:read`): `{ requireEmailVerification, mailProvider, emailVerificationReady, updatedAt, updatedBy }` |
+| GET | `/api/admin/roles` | Semua role + `usersCount` (permission `role:list`) |
+| POST | `/api/admin/roles` | Role baru `{ name, description?, permissions }` (permission `role:create`); `409 ROLE_EXISTS` |
+| PATCH | `/api/admin/roles/:name` | Ubah `description`/`permissions` (permission `role:update`); `403 ROLE_LOCKED` untuk `admin` |
+| DELETE | `/api/admin/roles/:name` | Hapus role kustom (permission `role:delete`); `403 ROLE_LOCKED` sistem, `409 ROLE_IN_USE` bila dipakai |
+| GET | `/api/me/permissions` | Role & permission efektif pemanggil (dipakai UI) |
 | PATCH | `/api/admin/settings` | Ubah pengaturan (permission `settings:update`), body `{ requireEmailVerification }`; berlaku seketika untuk semua instance (cache 15 s) dan dicatat `admin.settings_updated`. `409 MAIL_PROVIDER_REQUIRED` bila mengaktifkan di production tanpa `MAIL_PROVIDER=resend` |
 | GET | `/api/auth/token` | Terbitkan JWT untuk sesi saat ini |
 | GET | `/api/auth/jwks` | Kunci publik (JWKS) untuk verifikasi JWT |
@@ -534,7 +541,7 @@ file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
 | Folder | Isi | Aturan |
 | --- | --- | --- |
 | `app/` | `providers.tsx` (ErrorBoundary → Theme → QueryClient → Tooltip + Toaster), `routes.tsx` (definisi route + guard), `router.tsx` (createBrowserRouter) | Satu-satunya tempat yang tahu seluruh app |
-| `pages/` | Satu komponen per route: `home-page`, `login-page`, `two-factor-page`, `forgot-password-page`, `reset-password-page`, `verify-email-page`, `notes-page`, `settings/{api-token,security}-page`, `admin/{users,audit-logs,settings}-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
+| `pages/` | Satu komponen per route: `home-page`, `login-page`, `two-factor-page`, `forgot-password-page`, `reset-password-page`, `verify-email-page`, `notes-page`, `settings/{api-token,security}-page`, `admin/{users,audit-logs,settings,roles}-page`, `not-found-page`, `forbidden-page`, `route-error-page` | Tipis: set judul (`useDocumentTitle`), susun komponen fitur. Tanpa fetch langsung |
 | `features/<fitur>/` | `api/` (hooks TanStack Query + schema shared), `components/`, `hooks/`, `index.ts` (barrel) | Fitur boleh mengimpor `components/`, `hooks/`, `lib/`, `config/`; **hindari** impor antar fitur (lewat `index.ts` bila terpaksa) |
 | `components/ui/` | Primitif shadcn/ui (di-generate CLI, jangan diedit manual kecuali perlu) | Dikecualikan dari coverage |
 | `components/layout/` | `app-shell`, `site-header`, `main-nav`, `mobile-nav` (Sheet), `site-footer` | Kerangka halaman |
@@ -795,7 +802,7 @@ Ringkasan hasil review OWASP Top 10 (Iterasi 26) yang sudah diterapkan di kode:
 | --- | --- |
 | Verifikasi email | Saklar runtime admin (`/admin/settings`, tabel `app_setting`, cache 15 s per instance); nilai awal `AUTH_REQUIRE_EMAIL_VERIFICATION`; di production hanya bisa diaktifkan bila `MAIL_PROVIDER=resend` |
 | Password bocor | Plugin Have I Been Pwned (`AUTH_PASSWORD_BREACH_CHECK`) → `400 PASSWORD_COMPROMISED`; seed demo dan E2E mematikannya |
-| Impersonasi admin | Dimatikan: role `admin` tanpa permission `user:impersonate` → `POST /api/auth/admin/impersonate-user` = 403 |
+| Impersonasi admin | Dimatikan untuk semua role: aksi `impersonate` tidak ada di katalog yang bisa diberikan (`GRANTABLE_ACTIONS`) → `POST /api/auth/admin/impersonate-user` = 403 |
 | Header | `Permissions-Policy` mematikan kamera, mikrofon, geolokasi, pembayaran, USB; peringatan boot bila production tanpa `TRUST_PROXY=true` |
 | Koneksi DB | `DATABASE_URL` production wajib TLS (`DATABASE_SSL_REQUIRED`) |
 | Integritas | Action CI dipin ke SHA commit (Dependabot memperbarui), Scalar di `/api/docs` memakai SRI `integrity` + `crossorigin` |

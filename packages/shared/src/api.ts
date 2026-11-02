@@ -21,6 +21,12 @@ export const API_ERROR_CODES = [
   'ACCOUNT_LOCKED',
   /** Pengaturan butuh infrastruktur yang belum siap (mis. provider email di production). */
   'MAIL_PROVIDER_REQUIRED',
+  /** Role sistem `admin` tidak bisa diubah/dihapus; role sistem lain tidak bisa dihapus. */
+  'ROLE_LOCKED',
+  /** Nama role sudah dipakai. */
+  'ROLE_EXISTS',
+  /** Role masih dipakai user — pindahkan dulu. */
+  'ROLE_IN_USE',
   'HTTP_ERROR',
   'INTERNAL_ERROR',
   'SERVICE_UNAVAILABLE',

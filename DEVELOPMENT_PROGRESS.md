@@ -588,6 +588,27 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - **A08** Action CI dipin ke SHA commit (+ komentar versi untuk Dependabot); Scalar `/api/docs` dengan `integrity` SRI.
 - Test: shared 20, api 202 (+settings, password-breach, impersonation, env TLS, app header/warn), web 188.
 
+## Iterasi 27 — RBAC dinamis: role & permission dari UI, manajemen pengguna (2026-11-02)
+
+- **Shared**: `statements` jadi katalog (+ resource `role`), `GRANTABLE_ACTIONS` (tanpa impersonasi), `permissionsSchema`
+  (kanonik, tolak aksi/resource asing), `DEFAULT_ROLE_DEFINITIONS` (admin penuh & terkunci, user dasar), `grants`,
+  `mergePermissions`, `can(role, perms, definitions?)`, `buildRole`; `roleNameSchema`, `roleSchema`, `roleCreate/UpdateSchema`,
+  `myPermissionsSchema`; `UserRole = string` (role dinamis; `adminUserSchema.role`/JWT role jadi string). Kode error
+  `ROLE_LOCKED`, `ROLE_EXISTS`, `ROLE_IN_USE`; audit `admin.role_created/updated/deleted`.
+- **API**: tabel `app_role` (migrasi `0011_app_roles`), `RoleRegistry` (`lib/roles.ts`): cache 15 s, memutasi SATU objek
+  `roles` yang dipegang plugin admin Better Auth (dibaca per request → set-role ke role tak dikenal = 400, permission
+  mengikuti definisi terbaru), role sistem dibuat ulang bila hilang, `admin` dipaksa `ALL_PERMISSIONS`. Middleware
+  `requirePermission` → `roleRegistry.can`. Endpoint `GET/POST /api/admin/roles`, `PATCH/DELETE /api/admin/roles/:name`,
+  `GET /api/me/permissions`. Hook `after` `/admin/set-role` mencabut sesi user target (propagasi role).
+- **Web**: `useAuth().can()` memakai permission efektif dari server (fallback definisi default untuk role sistem;
+  `permissionsPending` untuk role kustom → `RequirePermission` menampilkan loading). Halaman `/admin/roles`
+  (`RolesTable`, `RoleDialog`, `PermissionMatrix` + story), aksi pengguna di `/admin/users` (`UserActions`: ubah role,
+  blokir/cabut, cabut sesi, hapus; `CreateUserDialog`) lewat `adminApi` (`lib/auth-client.ts`). Nav & menu baru.
+- Catatan test: checkbox Base UI di dalam `<label>` ter-toggle dua kali di happy-dom (aktivasi label) → matriks memakai
+  `<label htmlFor>` terpisah. Menutup Dialog Base UI lewat Esc/klik tutup membuat Bun 1.2.19 crash (SIGTRAP) di happy-dom →
+  test menutup dialog lewat jalur sukses saja; handler `onOpenChange` dibuat fungsi bernama yang juga dipakai jalur sukses.
+- Test: shared 23, api 211, web 205; E2E ditambah alur role.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

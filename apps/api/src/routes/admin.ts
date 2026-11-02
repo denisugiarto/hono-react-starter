@@ -3,6 +3,7 @@ import { and, desc, eq, like, lt, type SQL } from 'drizzle-orm'
 import type { AdminUser } from '@hono-react-starter/shared/auth'
 import { auditLogQuerySchema, type AuditLog, type AuditLogList } from '@hono-react-starter/shared/audit'
 import { appSettingsUpdateSchema, type AppSettingsView } from '@hono-react-starter/shared/settings'
+import { roleCreateSchema, roleUpdateSchema, type RoleView } from '@hono-react-starter/shared/roles'
 import { requireAuth, requirePermission } from '../middleware/auth.ts'
 import { revalidate } from '../middleware/cache-control.ts'
 import type { AppEnv } from '../types.ts'
@@ -13,6 +14,7 @@ import { fail, ok } from '../lib/response.ts'
 import { canRequireEmailVerification } from '../lib/settings.ts'
 import { envIsProd, readMailConfig } from '../env.ts'
 import { settings } from '../settings.ts'
+import { roleRegistry } from '../roles.ts'
 
 export const adminRoutes = new Hono<AppEnv>()
 
@@ -111,4 +113,72 @@ adminRoutes.patch('/settings', requirePermission({ settings: ['update'] }), asyn
   await settings.update(parsed.data, c.get('user').id)
   await auditFromContext(c, { action: 'admin.settings_updated', targetType: 'settings', metadata: { changes: parsed.data } })
   return ok(c, settingsView(), { message: 'Pengaturan disimpan' })
+})
+
+// ---------------------------------------------------------------------------
+// Role dinamis (tabel app_role) — permission role:*
+// ---------------------------------------------------------------------------
+
+async function roleViews(): Promise<RoleView[]> {
+  const defs = await roleRegistry.load()
+  const counts = await roleRegistry.usersCount()
+  return defs
+    .map((d) => ({ ...d, usersCount: counts.get(d.name) ?? 0 }))
+    .sort((a, b) => Number(b.system) - Number(a.system) || a.name.localeCompare(b.name))
+}
+
+// GET /api/admin/roles — semua role + jumlah user (permission role:list)
+adminRoutes.get('/roles', requirePermission({ role: ['list'] }), revalidate(), async (c) => ok(c, await roleViews()))
+
+// POST /api/admin/roles — role baru (permission role:create)
+adminRoutes.post('/roles', requirePermission({ role: ['create'] }), async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = roleCreateSchema.safeParse(body)
+  if (!parsed.success) return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
+  if (roleRegistry.has(parsed.data.name)) return fail(c, 409, 'ROLE_EXISTS', `Role "${parsed.data.name}" sudah ada`)
+
+  const created = await roleRegistry.create(parsed.data)
+  await auditFromContext(c, {
+    action: 'admin.role_created',
+    targetType: 'role',
+    targetId: created.name,
+    metadata: { permissions: created.permissions },
+  })
+  return ok(c, { ...created, usersCount: 0 } satisfies RoleView, { status: 201, message: `Role "${created.name}" dibuat` })
+})
+
+// PATCH /api/admin/roles/:name — ubah deskripsi/permission (permission role:update); `admin` terkunci
+adminRoutes.patch('/roles/:name', requirePermission({ role: ['update'] }), async (c) => {
+  const name = c.req.param('name')
+  const existing = roleRegistry.has(name) ? name : null
+  if (!existing) return fail(c, 404, 'NOT_FOUND', 'Role tidak ditemukan')
+  if (name === 'admin') return fail(c, 403, 'ROLE_LOCKED', 'Role admin tidak bisa diubah')
+
+  const body = await c.req.json().catch(() => null)
+  const parsed = roleUpdateSchema.safeParse(body)
+  if (!parsed.success) return fail(c, 400, 'VALIDATION_ERROR', 'Data tidak valid', parsed.error.flatten().fieldErrors)
+
+  const updated = await roleRegistry.update(name, parsed.data)
+  await auditFromContext(c, {
+    action: 'admin.role_updated',
+    targetType: 'role',
+    targetId: name,
+    metadata: { fields: Object.keys(parsed.data), ...(parsed.data.permissions ? { permissions: parsed.data.permissions } : {}) },
+  })
+  const counts = await roleRegistry.usersCount()
+  return ok(c, { ...updated, usersCount: counts.get(name) ?? 0 } satisfies RoleView, { message: 'Role disimpan' })
+})
+
+// DELETE /api/admin/roles/:name — hapus role kustom yang tidak dipakai (permission role:delete)
+adminRoutes.delete('/roles/:name', requirePermission({ role: ['delete'] }), async (c) => {
+  const name = c.req.param('name')
+  const def = roleRegistry.definition(name)
+  if (!def) return fail(c, 404, 'NOT_FOUND', 'Role tidak ditemukan')
+  if (def.system) return fail(c, 403, 'ROLE_LOCKED', 'Role sistem tidak bisa dihapus')
+  const inUse = (await roleRegistry.usersCount()).get(name) ?? 0
+  if (inUse > 0) return fail(c, 409, 'ROLE_IN_USE', `Role masih dipakai ${inUse} pengguna — pindahkan dulu`, { usersCount: inUse })
+
+  await roleRegistry.delete(name)
+  await auditFromContext(c, { action: 'admin.role_deleted', targetType: 'role', targetId: name })
+  return ok(c, { name }, { message: `Role "${name}" dihapus` })
 })

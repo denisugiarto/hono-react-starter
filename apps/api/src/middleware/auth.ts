@@ -1,10 +1,11 @@
 import { createMiddleware } from 'hono/factory'
-import { can, isUserRole, type Permissions, type UserRole } from '@hono-react-starter/shared/permissions'
+import type { Permissions, UserRole } from '@hono-react-starter/shared/permissions'
 import { jwtPayloadSchema } from '@hono-react-starter/shared/auth'
 import { auth } from '../auth.ts'
 import { cache as defaultCache } from '../cache.ts'
 import type { Cache } from '../lib/cache.ts'
 import { fail } from '../lib/response.ts'
+import { roleRegistry } from '../roles.ts'
 
 /**
  * Identitas pemanggil yang sudah terautentikasi, tersedia via `c.get('user')`.
@@ -85,7 +86,7 @@ export async function resolveUser(headers: Headers): Promise<AuthUser | null> {
 
   const session = await auth.api.getSession({ headers })
   if (!session) return null
-  const role = isUserRole(session.user.role) ? session.user.role : 'user'
+  const role = session.user.role || 'user'
   return {
     id: session.user.id,
     email: session.user.email,
@@ -122,14 +123,15 @@ export function requireRole(...allowed: UserRole[]) {
 }
 
 /**
- * Wajib memiliki SEMUA permission yang diminta (lihat packages/shared/src/permissions.ts).
+ * Wajib memiliki SEMUA permission yang diminta — dievaluasi terhadap definisi role
+ * dinamis (RoleRegistry / tabel app_role; katalog di packages/shared/src/permissions.ts).
  *   adminRoutes.get('/users', requirePermission({ user: ['list'] }), handler)
  */
 export function requirePermission(permissions: Permissions) {
   return createMiddleware<AuthEnv>(async (c, next) => {
     const user = c.get('user') ?? (await resolveUser(c.req.raw.headers))
     if (!user) return unauthorized(c)
-    if (!can(user.role, permissions)) {
+    if (!roleRegistry.can(user.role, permissions)) {
       return fail(c, 403, 'FORBIDDEN', 'Permission tidak cukup', permissions)
     }
     c.set('user', user)

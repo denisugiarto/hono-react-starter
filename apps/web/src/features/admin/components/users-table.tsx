@@ -3,6 +3,8 @@ import type { AdminUser } from '@hono-react-starter/shared'
 import { DataTable } from '@/components/common/data-table'
 import { Badge } from '@/components/ui/badge'
 import { useAdminUsers } from '../api/users.ts'
+import { CreateUserDialog } from './create-user-dialog.tsx'
+import { UserActions } from './user-actions.tsx'
 
 const dateFormat = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' })
 const formatDate = (iso: string) => {
@@ -38,9 +40,17 @@ export const userColumns: ColumnDef<AdminUser, unknown>[] = [
     meta: { label: 'Terdaftar', className: 'text-muted-foreground whitespace-nowrap' },
     cell: ({ row }) => formatDate(row.original.createdAt),
   },
+  {
+    id: 'actions',
+    header: '',
+    enableHiding: false,
+    enableSorting: false,
+    meta: { align: 'right' },
+    cell: ({ row }) => <UserActions user={row.original} />,
+  },
 ]
 
-/** Tabel semua pengguna (admin): pencarian, sorting, paginasi, pilih kolom (DataTable). */
+/** Tabel semua pengguna (admin): pencarian, sorting, paginasi, pilih kolom, aksi per baris, tambah pengguna. */
 export function UsersTable() {
   const users = useAdminUsers(true)
   return (
@@ -55,6 +65,7 @@ export function UsersTable() {
       searchable
       searchPlaceholder="Cari nama atau email…"
       columnToggle
+      toolbar={<CreateUserDialog />}
       rowProps={(u) => ({ 'data-testid': 'user-row', 'data-email': u.email })}
     />
   )

@@ -9,6 +9,7 @@ import { serveStatic } from 'hono/bun'
 import { api } from './routes/api.ts'
 import { notesRoutes } from './routes/notes.ts'
 import { adminRoutes } from './routes/admin.ts'
+import { meRoutes } from './routes/me.ts'
 import { auth } from './auth.ts'
 import { withAuthAudit } from './auth-audit.ts'
 import { maskSignUpConflict, withSignInLockout } from './auth-guards.ts'
@@ -172,6 +173,7 @@ export function createApp(options: AppOptions = {}): App {
   if (docs) app.route('/api', createDocsRoutes({ csp }))
   app.route('/api/notes', notesRoutes)
   app.route('/api/admin', adminRoutes)
+  app.route('/api/me', meRoutes)
 
   // Better Auth — semua request /api/auth/* di-handle oleh auth. Lapisan dari luar ke dalam:
   //   maskSignUpConflict  → sembunyikan "email sudah terdaftar" (anti-enumerasi)

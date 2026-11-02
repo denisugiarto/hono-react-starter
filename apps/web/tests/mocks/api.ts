@@ -3,13 +3,19 @@
  * admin users. Semua respons memakai envelope standar. Atur `apiMock.fail.*`
  * untuk mensimulasikan error.
  */
+import { ALL_PERMISSIONS, type Permissions } from '@hono-react-starter/shared'
+import { sessionState } from './auth-client.ts'
+
 export type Call = { method: string; url: string; body?: unknown }
 export const fetchCalls: Call[] = []
 
 type NoteRow = Record<string, unknown> & { id: string }
 export const apiMock = {
   notes: [] as NoteRow[],
-  fail: { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false, settings: false, settingsUpdate: false },
+  fail: { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false, settings: false, settingsUpdate: false, permissions: false, roles: false, roleWrite: false },
+  /** Permission per role untuk /api/me/permissions (role di luar daftar → kosong). */
+  permissions: { admin: ALL_PERMISSIONS, user: { note: ['create', 'read', 'update', 'delete'] } } as Record<string, Permissions>,
+  roles: [] as Array<{ name: string; description: string; permissions: Permissions; system: boolean; usersCount: number }>,
   settings: { requireEmailVerification: false, mailProvider: 'memory', emailVerificationReady: true, updatedAt: null as string | null, updatedBy: null as string | null },
   /** Jumlah entri audit yang disajikan (dua halaman bila > pageSize). */
   auditTotal: 3,
@@ -53,7 +59,27 @@ const originalFetch = globalThis.fetch
 export function resetApiMock() {
   fetchCalls.length = 0
   apiMock.notes = [sampleNote()]
-  apiMock.fail = { create: false, update: false, delete: false, notes: false, admin: false, health: false, hello: false, audit: false, settings: false, settingsUpdate: false }
+  apiMock.fail = {
+    create: false,
+    update: false,
+    delete: false,
+    notes: false,
+    admin: false,
+    health: false,
+    hello: false,
+    audit: false,
+    settings: false,
+    settingsUpdate: false,
+    permissions: false,
+    roles: false,
+    roleWrite: false,
+  }
+  apiMock.permissions = { admin: ALL_PERMISSIONS, user: { note: ['create', 'read', 'update', 'delete'] } }
+  apiMock.roles = [
+    { name: 'admin', description: 'Akses penuh', permissions: ALL_PERMISSIONS, system: true, usersCount: 1 },
+    { name: 'user', description: 'Pengguna biasa', permissions: { note: ['create', 'read', 'update', 'delete'] }, system: true, usersCount: 2 },
+    { name: 'viewer', description: 'Hanya baca', permissions: { note: ['read'] }, system: false, usersCount: 0 },
+  ]
   apiMock.settings = { requireEmailVerification: false, mailProvider: 'memory', emailVerificationReady: true, updatedAt: null, updatedBy: null }
   apiMock.auditTotal = 3
 }
@@ -107,6 +133,34 @@ export function installFetchMock() {
       const last = items[items.length - 1]
       const nextCursor = start + pageSize < all.length && last ? last.at : null
       return jsonResponse({ items, nextCursor })
+    }
+    if (url === '/api/me/permissions') {
+      if (apiMock.fail.permissions) return jsonResponse({ code: 'INTERNAL_ERROR', message: 'rusak' }, 500)
+      const role = sessionState.data?.user.role ?? 'user'
+      return jsonResponse({ role, permissions: apiMock.permissions[role] ?? {} })
+    }
+    if (url === '/api/admin/roles' && method === 'GET') {
+      if (apiMock.fail.roles) return jsonResponse({ code: 'FORBIDDEN', message: 'Role ditolak' }, 403)
+      return jsonResponse(apiMock.roles)
+    }
+    if (url === '/api/admin/roles' && method === 'POST') {
+      if (apiMock.fail.roleWrite) return jsonResponse({ code: 'ROLE_EXISTS', message: 'Role sudah ada' }, 409)
+      const input = body as { name: string; description?: string; permissions: Permissions }
+      const role = { name: input.name, description: input.description ?? '', permissions: input.permissions, system: false, usersCount: 0 }
+      apiMock.roles = [...apiMock.roles, role]
+      return jsonResponse(role, 201, `Role "${role.name}" dibuat`)
+    }
+    if (url.startsWith('/api/admin/roles/') && method === 'PATCH') {
+      if (apiMock.fail.roleWrite) return jsonResponse({ code: 'ROLE_LOCKED', message: 'Role admin tidak bisa diubah' }, 403)
+      const name = decodeURIComponent(url.slice('/api/admin/roles/'.length))
+      apiMock.roles = apiMock.roles.map((r) => (r.name === name ? { ...r, ...(body as object) } : r))
+      return jsonResponse(apiMock.roles.find((r) => r.name === name), 200, 'Role disimpan')
+    }
+    if (url.startsWith('/api/admin/roles/') && method === 'DELETE') {
+      if (apiMock.fail.roleWrite) return jsonResponse({ code: 'ROLE_IN_USE', message: 'Role masih dipakai' }, 409)
+      const name = decodeURIComponent(url.slice('/api/admin/roles/'.length))
+      apiMock.roles = apiMock.roles.filter((r) => r.name !== name)
+      return jsonResponse({ name }, 200, `Role "${name}" dihapus`)
     }
     if (url === '/api/admin/settings' && method === 'GET') {
       if (apiMock.fail.settings) return jsonResponse({ code: 'FORBIDDEN', message: 'Pengaturan ditolak' }, 403)

@@ -31,6 +31,12 @@ export type AuthCallKind =
   | 'twoFactor.verifyTotp'
   | 'twoFactor.verifyBackupCode'
   | 'twoFactor.disable'
+  | 'admin.setRole'
+  | 'admin.banUser'
+  | 'admin.unbanUser'
+  | 'admin.createUser'
+  | 'admin.removeUser'
+  | 'admin.revokeUserSessions'
 export const authCalls: { kind: AuthCallKind; payload?: unknown }[] = []
 
 type Result = { data?: unknown; error: null | { message?: string; code?: string } }
@@ -99,6 +105,14 @@ mock.module('@/lib/auth-client', () => ({
     verifyTotp: record('twoFactor.verifyTotp'),
     verifyBackupCode: record('twoFactor.verifyBackupCode'),
     disable: record('twoFactor.disable'),
+  },
+  adminApi: {
+    setRole: record('admin.setRole'),
+    banUser: record('admin.banUser'),
+    unbanUser: record('admin.unbanUser'),
+    createUser: record('admin.createUser'),
+    removeUser: record('admin.removeUser'),
+    revokeUserSessions: record('admin.revokeUserSessions'),
   },
   authClient: {},
 }))

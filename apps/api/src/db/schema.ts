@@ -109,3 +109,17 @@ export const appSetting = pgTable('app_setting', {
   /** id user admin yang terakhir mengubah (null bila dari migrasi/seed). */
   updatedBy: text('updated_by'),
 })
+
+/**
+ * Definisi role dinamis (dikelola admin di /admin/roles). Role sistem (`admin`, `user`)
+ * selalu ada; `admin` dipaksa permission penuh saat dibaca (lihat lib/roles.ts).
+ */
+export const appRole = pgTable('app_role', {
+  name: text('name').primaryKey(),
+  description: text('description').notNull().default(''),
+  /** Objek permission { resource: [aksi] } — divalidasi permissionsSchema (packages/shared). */
+  permissions: jsonb('permissions').$type<Record<string, string[]>>().notNull(),
+  system: boolean('system').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})

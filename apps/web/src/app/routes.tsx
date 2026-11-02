@@ -4,6 +4,7 @@ import { SidebarLayout } from '@/components/layout/sidebar-layout'
 import { paths } from '@/config/paths'
 import { RequireAuth, RequirePermission } from '@/features/auth'
 import { AuditLogsPage } from '@/pages/admin/audit-logs-page'
+import { RolesPage } from '@/pages/admin/roles-page'
 import { AppSettingsPage } from '@/pages/admin/settings-page'
 import { UsersPage } from '@/pages/admin/users-page'
 import { ForgotPasswordPage } from '@/pages/forgot-password-page'
@@ -57,6 +58,10 @@ export const routes: RouteObject[] = [
               {
                 element: <RequirePermission permission={{ settings: ['read'] }} />,
                 children: [{ path: paths.adminSettings, element: <AppSettingsPage /> }],
+              },
+              {
+                element: <RequirePermission permission={{ role: ['list'] }} />,
+                children: [{ path: paths.adminRoles, element: <RolesPage /> }],
               },
             ],
           },

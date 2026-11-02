@@ -1,4 +1,14 @@
-import { HomeIcon, KeyRoundIcon, NotebookPenIcon, ScrollTextIcon, SettingsIcon, ShieldCheckIcon, UsersIcon, type LucideIcon } from 'lucide-react'
+import {
+  HomeIcon,
+  KeyRoundIcon,
+  LockKeyholeIcon,
+  NotebookPenIcon,
+  ScrollTextIcon,
+  SettingsIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  type LucideIcon,
+} from 'lucide-react'
 import type { Permissions } from '@hono-react-starter/shared'
 import { paths } from './paths.ts'
 
@@ -39,6 +49,7 @@ export const sidebarNav: NavGroup[] = [
     items: [
       { label: 'Pengguna', to: paths.adminUsers, icon: UsersIcon, auth: true, permission: { user: ['list'] } },
       { label: 'Audit log', to: paths.adminAuditLogs, icon: ScrollTextIcon, auth: true, permission: { audit: ['list'] } },
+      { label: 'Role & permission', to: paths.adminRoles, icon: LockKeyholeIcon, auth: true, permission: { role: ['list'] } },
       { label: 'Pengaturan aplikasi', to: paths.adminSettings, icon: SettingsIcon, auth: true, permission: { settings: ['read'] } },
     ],
   },

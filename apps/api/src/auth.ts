@@ -5,7 +5,9 @@ import { bearer } from 'better-auth/plugins/bearer'
 import { jwt } from 'better-auth/plugins/jwt'
 import { twoFactor } from 'better-auth/plugins/two-factor'
 import { haveIBeenPwned } from 'better-auth/plugins/haveibeenpwned'
-import { ac, roles } from '@hono-react-starter/shared/permissions'
+import { createAuthMiddleware } from 'better-auth/api'
+import { eq } from 'drizzle-orm'
+import { ac } from '@hono-react-starter/shared/permissions'
 import {
   readAuthRateLimit,
   readAuthSecret,
@@ -23,6 +25,8 @@ import type { Mailer } from './lib/mailer.ts'
 import { mailer as defaultMailer } from './mailer.ts'
 import type { SettingsStore } from './lib/settings.ts'
 import { settings as defaultSettings } from './settings.ts'
+import type { RoleRegistry } from './lib/roles.ts'
+import { roleRegistry as defaultRoles } from './roles.ts'
 
 export const APP_NAME = 'Hono React Starter'
 
@@ -42,6 +46,8 @@ export type AuthOptions = {
   requireEmailVerification?: boolean
   /** Penyimpanan pengaturan runtime. Default: singleton src/settings.ts. */
   settings?: SettingsStore
+  /** Registry role dinamis. Default: singleton src/roles.ts. */
+  roles?: RoleRegistry
   /** Tolak password yang pernah bocor (HIBP). Default dari env AUTH_PASSWORD_BREACH_CHECK. */
   passwordBreachCheck?: boolean
   /** Pengirim email. Default: singleton src/mailer.ts (provider dari MAIL_PROVIDER). */
@@ -61,6 +67,7 @@ export function createAuth(options: AuthOptions = {}) {
   const baseURL = readBaseUrl()
   const mailer = options.mailer ?? defaultMailer
   const store = options.settings ?? defaultSettings
+  const registry = options.roles ?? defaultRoles
   const forcedRequireEmailVerification = options.requireEmailVerification
   const passwordBreachCheck = options.passwordBreachCheck ?? readPasswordBreachCheck()
   const rateLimit = options.rateLimit ?? readAuthRateLimit()
@@ -129,6 +136,16 @@ export function createAuth(options: AuthOptions = {}) {
     // suite tidak kena 429). /get-session dikecualikan: dipanggil SPA berulang
     // (tiap tab/refresh) dan tidak berguna untuk menebak kredensial — tanpa
     // pengecualian ini banyak pengguna di balik satu NAT akan "terlempar" dari sesi.
+    hooks: {
+      // Propagasi perubahan role: sesi user yang role-nya diganti dicabut, sehingga
+      // permission baru berlaku saat ia masuk lagi (cookie cache sesi tidak menahan role lama).
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/admin/set-role') return
+        const userId = (ctx.body as { userId?: unknown } | undefined)?.userId
+        if (typeof userId !== 'string' || !userId) return
+        await db.delete(schema.session).where(eq(schema.session.userId, userId))
+      }),
+    },
     rateLimit: {
       enabled: rateLimit !== false,
       window: rateLimit ? rateLimit.windowSeconds : 60,
@@ -142,7 +159,8 @@ export function createAuth(options: AuthOptions = {}) {
         defaultRole: 'user',
         adminRoles: ['admin'],
         ac,
-        roles,
+        // Objek roles milik registry dimutasi di tempat saat admin mengubah role di UI.
+        roles: registry.roles,
       }),
       // Bearer: klien non-browser bisa memakai `Authorization: Bearer <session token>`
       // (token dari header `set-auth-token` saat sign-in) ke endpoint auth & API.

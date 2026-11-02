@@ -1,4 +1,4 @@
-import { KeyRoundIcon, LogOutIcon, NotebookPenIcon, ScrollTextIcon, ShieldCheckIcon, UsersIcon, SettingsIcon } from 'lucide-react'
+import { KeyRoundIcon, LogOutIcon, NotebookPenIcon, ScrollTextIcon, ShieldCheckIcon, UsersIcon, SettingsIcon , LockKeyholeIcon } from 'lucide-react'
 import { Link } from 'react-router'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -57,6 +57,11 @@ export function UserMenu() {
         {can({ audit: ['list'] }) && (
           <DropdownMenuItem data-testid="user-menu-audit" render={<Link to={paths.adminAuditLogs} />}>
             <ScrollTextIcon /> Audit log
+          </DropdownMenuItem>
+        )}
+        {can({ role: ['list'] }) && (
+          <DropdownMenuItem data-testid="user-menu-roles" render={<Link to={paths.adminRoles} />}>
+            <LockKeyholeIcon /> Role & permission
           </DropdownMenuItem>
         )}
         {can({ settings: ['read'] }) && (

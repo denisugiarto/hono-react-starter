@@ -47,3 +47,17 @@ export async function getJwtToken(): Promise<string> {
   if (!res.ok) throw new Error(`Gagal membuat token (HTTP ${res.status})`)
   return tokenResponseSchema.parse(await res.json()).token
 }
+
+/**
+ * Aksi admin plugin Better Auth (`/api/auth/admin/*`, diaudit server; permission `user:*`).
+ * Dibungkus sebagai objek bernama agar komponen tidak memakai `authClient.*` langsung (mudah di-mock).
+ */
+export const adminApi = {
+  setRole: (input: { userId: string; role: string }) => authClient.admin.setRole(input),
+  banUser: (input: { userId: string; banReason?: string; banExpiresIn?: number }) => authClient.admin.banUser(input),
+  unbanUser: (input: { userId: string }) => authClient.admin.unbanUser(input),
+  createUser: (input: { name: string; email: string; password: string; role?: string }) =>
+    authClient.admin.createUser({ ...input, role: input.role as 'user' | 'admin' | undefined }),
+  removeUser: (input: { userId: string }) => authClient.admin.removeUser(input),
+  revokeUserSessions: (input: { userId: string }) => authClient.admin.revokeUserSessions(input),
+}

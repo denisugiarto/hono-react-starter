@@ -59,14 +59,18 @@ tetap di luar commit).
 - **Keamanan**: IP klien hanya dari `c.get('clientIp')`; GET daftar memakai `revalidate()`; aset dari origin
   lain → perbarui `buildCsp()`; endpoint yang menerima kredensial → `auth-guards.ts` dan aturan audit di
   `auth-audit.ts`.
-- **Permission** Better Auth tanpa wildcard — tulis aksi satu per satu di `packages/shared/src/permissions.ts`.
+- **Permission**: katalog resource/aksi di `statements` (`packages/shared/src/permissions.ts`, tanpa wildcard — tulis
+  aksi satu per satu) + label di `apps/web/src/features/admin/permission-labels.ts`. Role **dinamis** (tabel `app_role`,
+  UI `/admin/roles`): server cek lewat `requirePermission()` → `roleRegistry.can`, client lewat `useAuth().can()`
+  (permission dari `/api/me/permissions`). Jangan hardcode nama role selain `admin`/`user` (sistem).
 - **UI**: sebelum membuat komponen, cek `apps/web/src/components/common/` dan bagian Komponen di README;
   pakai yang ada (`DataTable`, `VirtualList` untuk daftar ribuan baris, `SelectSearch`, `DatePicker`, `PasswordInput`, `notify`, …). URL endpoint API hanya dari `config/endpoints.ts` (`endpoints.*`; base `VITE_API_URL`), bukan string `/api/...` di fitur. Util: angka/teks `lib/format`, tanggal `lib/datetime`, panggilan API `api.*` (`lib/api/client`) + `lib/query` (keys, optimistic), debounce/throttle `hooks/use-debounce`, code-splitting `lib/lazy`. Elemen interaktif
   baru diberi `data-testid` berprefix fitur (daftar di `docs/QA.md`). Tombol: `color` + `appearance` + `size`
   (komponen shadcn baru yang memakai `variant` dimigrasi). `Button render={<Link/>}` adalah pola yang benar
   (abaikan peringatan `nativeButton`). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` + entri
   `sidebarNav`. Komponen dengan state/variant → `*.stories.tsx` (Storybook dicek CI).
-- **Test web** mengimpor `src/components/layout/*` dan `features/*` lewat `tests/utils.tsx`; helper murni
+- **Test web (happy-dom)**: checkbox/switch Base UI jangan dibungkus `<label>` (toggle dua kali); menutup Dialog Base UI
+  lewat Esc/klik tutup membuat Bun crash — uji penutupan lewat jalur sukses. **Test web** mengimpor `src/components/layout/*` dan `features/*` lewat `tests/utils.tsx`; helper murni
   ditaruh di `src/lib/*` (contoh `lib/sidebar-state.ts`).
 - **Dependensi**: ubah rentang di `package.json` proyek lalu `bun install` (`bun update <pkg>` dari root
   menambah dependensi ke root — hindari). Paket transitif → `overrides` di root. Setelah naik versi Better

@@ -7,4 +7,25 @@ export * from './audit.ts'
 export * from './auth.ts'
 export * from './notes.ts'
 export * from './settings.ts'
-export { ac, can, roles, statements, type Permissions } from './permissions.ts'
+export * from './roles.ts'
+export {
+  ALL_PERMISSIONS,
+  DEFAULT_ROLE_DEFINITIONS,
+  GRANTABLE_ACTIONS,
+  PERMISSION_RESOURCES,
+  ROLE_NAME_PATTERN,
+  USER_ROLES,
+  ac,
+  buildRole,
+  can,
+  grants,
+  mergePermissions,
+  permissionsSchema,
+  roleNameSchema,
+  roles,
+  statements,
+  type Permissions,
+  type Resource,
+  type RoleDefinition,
+  type UserRole,
+} from './permissions.ts'

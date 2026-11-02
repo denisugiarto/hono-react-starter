@@ -58,3 +58,46 @@ test.describe('pengaturan aplikasi', () => {
     await expect(page.getByTestId('settings-mail-provider')).toHaveText('console')
   })
 })
+
+test.describe('role & permission', () => {
+  test('admin membuat role dari matriks, melihatnya di daftar, lalu menghapusnya; menu aksi pengguna tersedia', async ({ page }) => {
+    const roleName = `e2e-${Date.now().toString(36)}`
+    await login(page, 'admin')
+    await page.goto('/admin/roles')
+    await expect(page.getByTestId('roles-table')).toBeVisible()
+    await expect(page.getByTestId('role-row').filter({ hasText: 'admin' })).toContainText('sistem')
+
+    await page.getByTestId('role-create').click()
+    const dialog = page.getByTestId('role-dialog')
+    await dialog.getByTestId('role-name').fill(roleName)
+    await dialog.getByTestId('role-description').fill('Role uji E2E')
+    await dialog.getByTestId('perm-note-read').click()
+    await dialog.getByTestId('perm-audit-all').click()
+    await dialog.getByTestId('role-submit').click()
+    await expect(dialog).toBeHidden()
+    const row = page.getByTestId('role-row').filter({ has: page.locator(`[data-role="${roleName}"]`) }).or(page.locator(`[data-testid="role-row"][data-role="${roleName}"]`))
+    await expect(row.first()).toBeVisible()
+    await expect(row.first()).toContainText('2') // 2 permission
+
+    // Role admin: hanya lihat (terkunci)
+    await page.locator('[data-testid="role-row"][data-role="admin"]').getByTestId('role-edit').click()
+    await expect(page.getByTestId('role-dialog')).toContainText('tidak bisa diubah')
+    await expect(page.getByTestId('role-dialog').getByTestId('role-submit')).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('role-dialog')).toBeHidden()
+
+    // Hapus role uji (tidak dipakai)
+    await row.first().getByTestId('role-delete').click()
+    await page.getByTestId('role-delete-confirm').click()
+    await expect(page.locator(`[data-testid="role-row"][data-role="${roleName}"]`)).toHaveCount(0)
+
+    // Aksi pengguna tersedia (bukan akun sendiri)
+    await page.goto('/admin/users')
+    await page.getByTestId('users-table-search').fill(demoAccount('user').email)
+    const userRow = page.getByTestId('user-row').filter({ hasText: demoAccount('user').email })
+    await userRow.getByTestId('user-actions').click()
+    await expect(page.getByRole('menuitem', { name: 'Ubah role' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('user-create')).toBeVisible()
+  })
+})

@@ -4,6 +4,7 @@ import { apiErrorSchema, healthResponseSchema, helloResponseSchema, livenessResp
 import { adminUserSchema } from '@hono-react-starter/shared/auth'
 import { auditLogListSchema, auditLogQuerySchema } from '@hono-react-starter/shared/audit'
 import { appSettingsUpdateSchema, appSettingsViewSchema } from '@hono-react-starter/shared/settings'
+import { myPermissionsSchema, roleCreateSchema, roleSchema, roleUpdateSchema } from '@hono-react-starter/shared/roles'
 import { noteCreateSchema, noteSchema, noteUpdateSchema } from '@hono-react-starter/shared/notes'
 import { APP_NAME } from './auth.ts'
 import type { AppEnv } from './types.ts'
@@ -61,6 +62,10 @@ export function buildOpenApiDocument(): Record<string, unknown> {
   const AdminUser = toSchema(adminUserSchema)
   const AppSettings = toSchema(appSettingsViewSchema)
   const AppSettingsUpdate = toSchema(appSettingsUpdateSchema, 'input')
+  const RoleView = toSchema(roleSchema)
+  const RoleCreate = toSchema(roleCreateSchema, 'input')
+  const RoleUpdate = toSchema(roleUpdateSchema, 'input')
+  const MyPermissions = toSchema(myPermissionsSchema)
   const AuditQuery = toSchema(auditLogQuerySchema, 'input') as { properties: Record<string, JsonSchema> }
 
   const queryParams = Object.entries(AuditQuery.properties).map(([name, schema]) => ({
@@ -101,6 +106,10 @@ export function buildOpenApiDocument(): Record<string, unknown> {
         AdminUser,
         AppSettings,
         AppSettingsUpdate,
+        RoleView,
+        RoleCreate,
+        RoleUpdate,
+        MyPermissions,
         AuditLogList,
         Liveness: toSchema(livenessResponseSchema),
         Readiness: toSchema(healthResponseSchema),
@@ -245,6 +254,56 @@ export function buildOpenApiDocument(): Record<string, unknown> {
             409: errorRef('MAIL_PROVIDER_REQUIRED — di production butuh provider email sungguhan'),
             ...STANDARD_ERRORS,
           },
+        },
+      },
+      '/api/admin/roles': {
+        get: {
+          tags: ['admin'],
+          summary: 'Semua role + jumlah pengguna (permission role:list)',
+          responses: { 200: jsonBody(envelope({ type: 'array', items: ref('RoleView') })), ...STANDARD_ERRORS },
+        },
+        post: {
+          tags: ['admin'],
+          summary: 'Buat role baru (permission role:create)',
+          requestBody: { required: true, content: { 'application/json': { schema: ref('RoleCreate') } } },
+          responses: {
+            201: jsonBody(envelope(ref('RoleView')), 'Dibuat'),
+            400: errorRef('Data tidak valid'),
+            409: errorRef('ROLE_EXISTS'),
+            ...STANDARD_ERRORS,
+          },
+        },
+      },
+      '/api/admin/roles/{name}': {
+        patch: {
+          tags: ['admin'],
+          summary: 'Ubah deskripsi/permission role (permission role:update); `admin` terkunci',
+          parameters: [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
+          requestBody: { required: true, content: { 'application/json': { schema: ref('RoleUpdate') } } },
+          responses: {
+            200: jsonBody(envelope(ref('RoleView')), 'Disimpan'),
+            400: errorRef('Data tidak valid'),
+            404: errorRef('Role tidak ditemukan'),
+            ...STANDARD_ERRORS,
+          },
+        },
+        delete: {
+          tags: ['admin'],
+          summary: 'Hapus role kustom yang tidak dipakai (permission role:delete)',
+          parameters: [{ name: 'name', in: 'path', required: true, schema: { type: 'string' } }],
+          responses: {
+            200: jsonBody(envelope({ type: 'object', properties: { name: { type: 'string' } } }), 'Dihapus'),
+            404: errorRef('Role tidak ditemukan'),
+            409: errorRef('ROLE_IN_USE'),
+            ...STANDARD_ERRORS,
+          },
+        },
+      },
+      '/api/me/permissions': {
+        get: {
+          tags: ['auth'],
+          summary: 'Role & permission efektif pemanggil (untuk UI)',
+          responses: { 200: jsonBody(envelope(ref('MyPermissions'))), ...STANDARD_ERRORS },
         },
       },
       ...authPaths(),

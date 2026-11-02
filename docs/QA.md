@@ -91,6 +91,13 @@ Centang per rilis. Hasil yang diharapkan ditulis setelah `→`.
       baris audit `admin.settings_updated`; daftar akun baru lalu masuk → ditolak "verifikasi email" sampai tautan
       di log diklik; matikan saklar → masuk kembali normal. Di staging dengan `MAIL_PROVIDER=console` saklar terkunci.
 - [ ] Admin memanggil `POST /api/auth/admin/impersonate-user` → 403 (impersonasi dimatikan).
+- [ ] Role & permission (`/admin/roles`): buat role `viewer` (catatan: baca) → baris baru; ubah role `user@example.com`
+      menjadi `viewer` dari menu aksi di Pengguna → sesinya tercabut; masuk lagi sebagai user → menu admin tidak ada,
+      catatan terlihat tapi tombol tambah/hapus ditolak 403. Centang `catatan: buat` pada `viewer` → tambah catatan
+      langsung bisa tanpa login ulang. Kembalikan role ke `user`, hapus `viewer`.
+- [ ] Role `admin`: tombol edit hanya menampilkan matriks terkunci; hapus dinonaktifkan. Role yang masih dipakai tidak bisa dihapus (409).
+- [ ] Pengguna: tambah akun dari dialog, blokir dengan alasan → status banned, cabut blokir, cabut sesi, hapus.
+      Menu aksi pada baris akun sendiri nonaktif.
 
 **Keamanan**
 - [ ] 5 password salah berturut-turut → pesan "Terlalu banyak percobaan", password benar pun ditolak ±15 menit;
@@ -125,7 +132,7 @@ Komponen memakai `data-testid` (bukan teks, yang bisa berubah/diterjemahkan). Di
 | VirtualList | `virtual-list` (area gulir; testid bisa diganti lewat prop), `virtual-list-item` (+ `data-index`) — hanya baris terlihat yang ada di DOM; gulir area untuk memunculkan baris lain |
 | Header / menu | `login-link`, `main-nav`, `user-menu-trigger`, `user-menu-notes`, `user-menu-security`, `user-menu-api-token`, `user-menu-users`, `user-menu-audit`, `user-menu-sign-out` |
 | Catatan | `note-title`, `note-content`, `note-submit`, `note-list`, `note-item` (+ `data-note-id`), `note-toggle`, `note-delete`, `notes-empty` |
-| Admin | `users-table`, `user-row` (+ `data-email`), `audit-table`, `audit-row` (+ `data-action`), `audit-action`, `audit-success`, `audit-load-more`, `forbidden`; pengaturan: `app-settings-card`, `settings-require-email-verification` (switch, `aria-checked`), `settings-mail-provider`, `settings-not-ready`, `settings-updated`, menu `user-menu-settings` |
+| Admin | `users-table`, `user-row` (+ `data-email`), `audit-table`, `audit-row` (+ `data-action`), `audit-action`, `audit-success`, `audit-load-more`, `forbidden`; pengaturan: `app-settings-card`, `settings-require-email-verification` (switch, `aria-checked`), `settings-mail-provider`, `settings-not-ready`, `settings-updated`, menu `user-menu-settings`; aksi pengguna: `user-create` (+ `user-create-dialog`, `-name`, `-email`, `-password`, `-role`, `-submit`), `user-actions` (menu per baris), `user-role-dialog` (+ `user-role-select`, `user-role-submit`), `user-ban-dialog` (+ `user-ban-reason`, `user-ban-submit`), `user-remove-confirm`; role: `roles-table`, `role-row` (+ `data-role`), `role-create`, `role-edit`, `role-delete`, `role-delete-confirm`, `role-dialog` (+ `role-name`, `role-description`, `role-submit`), matriks `permission-matrix`, `perm-<resource>-<aksi>`, `perm-<resource>-all`; menu `user-menu-roles` |
 
 Aturan: elemen yang berinteraksi dengan pengguna (input, tombol, baris data, state kosong/error)
 diberi `data-testid` dengan prefix fitur; teks tetap boleh dipakai untuk memastikan isi.

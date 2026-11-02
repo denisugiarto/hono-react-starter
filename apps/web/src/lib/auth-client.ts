@@ -2,11 +2,12 @@ import { createAuthClient } from 'better-auth/react'
 import { adminClient, jwtClient, twoFactorClient } from 'better-auth/client/plugins'
 import { ac, roles } from '@hono-react-starter/shared/permissions'
 import { tokenResponseSchema } from '@hono-react-starter/shared/auth'
+import { apiCredentials, endpoints } from '@/config/endpoints'
 
 /**
  * Client Better Auth untuk frontend.
- * baseURL otomatis diambil dari window.location.origin,
- * jadi request mengarah ke /api/auth/* di origin yang sama.
+ * baseURL mengikuti `config/endpoints` (VITE_API_URL): kosong → window.location.origin
+ * (request ke /api/auth/* same-origin); terisi → API di origin lain dengan cookie `include`.
  *
  * - adminClient({ ac, roles }): method admin (listUsers, setRole, banUser, …)
  *   + `authClient.admin.checkRolePermission` dengan role/permission shared.
@@ -17,6 +18,8 @@ import { tokenResponseSchema } from '@hono-react-starter/shared/auth'
  * supaya mudah di-mock di test (tests/mocks/auth-client.ts).
  */
 export const authClient = createAuthClient({
+  baseURL: endpoints.auth.baseUrl,
+  fetchOptions: { credentials: apiCredentials },
   plugins: [adminClient({ ac, roles }), jwtClient(), twoFactorClient()],
 })
 
@@ -40,7 +43,7 @@ export const absoluteUrl = (path: string) => new URL(path, window.location.origi
  * Dipakai API client non-browser: `Authorization: Bearer <token>`.
  */
 export async function getJwtToken(): Promise<string> {
-  const res = await fetch('/api/auth/token', { credentials: 'same-origin' })
+  const res = await fetch(endpoints.auth.token, { credentials: apiCredentials })
   if (!res.ok) throw new Error(`Gagal membuat token (HTTP ${res.status})`)
   return tokenResponseSchema.parse(await res.json()).token
 }

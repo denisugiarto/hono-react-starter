@@ -1,4 +1,5 @@
 import { apiResponseSchema, type ApiSuccessBody } from '@hono-react-starter/shared'
+import { apiCredentials } from '@/config/endpoints'
 
 /**
  * Error dari API dengan kode mesin (mis. UNAUTHORIZED, VALIDATION_ERROR).
@@ -19,7 +20,8 @@ export class ApiError extends Error {
 
 /**
  * Helper fetch terpusat untuk endpoint /api/* dengan envelope standar
- * (lihat packages/shared/src/api.ts): same-origin, JSON, dan membaca `code`/`message`
+ * (lihat packages/shared/src/api.ts): cookie same-origin (atau `include` bila `VITE_API_URL`
+ * diisi), JSON, dan membaca `code`/`message`
  * dari body error — bukan hanya HTTP status.
  *
  * Mengembalikan envelope sukses utuh ({ success, data, message }).
@@ -29,7 +31,7 @@ export async function requestEnvelope<T>(
   init?: RequestInit,
 ): Promise<ApiSuccessBody<T>> {
   const res = await fetch(url, {
-    credentials: 'same-origin',
+    credentials: apiCredentials,
     ...init,
     headers: {
       Accept: 'application/json',

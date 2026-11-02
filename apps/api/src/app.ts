@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { bodyLimit } from 'hono/body-limit'
 import { requestId } from 'hono/request-id'
+import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { serveStatic } from 'hono/bun'
 import { api } from './routes/api.ts'
@@ -20,6 +21,7 @@ import {
   readLogConfig,
   readServeWebDist,
   readTrustProxy,
+  readTrustedOrigins,
   type ApiRateLimitConfig,
 } from './env.ts'
 import { buildCsp, createDocsRoutes } from './openapi.ts'
@@ -56,6 +58,11 @@ export type AppOptions = {
    * `false` menonaktifkan. Lihat middleware/rate-limit.ts.
    */
   rateLimit?: (ApiRateLimitConfig & Pick<ApiRateLimitOptions, 'store' | 'skip'>) | false
+  /**
+   * Origin frontend yang boleh memanggil /api/* lintas origin (CORS dengan cookie).
+   * Default: `readTrustedOrigins()` (env TRUSTED_ORIGINS) — daftar yang sama dengan CSRF Better Auth.
+   */
+  corsOrigins?: string[]
   /**
    * Hook untuk mendaftarkan route tambahan SETELAH API bawaan dan SEBELUM
    * catch-all (404 API / static / SPA fallback). Dipakai test untuk
@@ -107,6 +114,23 @@ export function createApp(options: AppOptions = {}): App {
       strictTransportSecurity: isProd ? 'max-age=31536000; includeSubDomains' : false,
       xFrameOptions: 'DENY',
       referrerPolicy: 'strict-origin-when-cross-origin',
+    }),
+  )
+
+  // CORS untuk frontend yang di-host terpisah (VITE_API_URL di apps/web): hanya origin
+  // di TRUSTED_ORIGINS, dengan cookie (credentials). Same-origin tidak terpengaruh
+  // (browser tidak mengirim Origin lintas situs). Preflight OPTIONS dijawab di sini,
+  // sebelum body limit dan rate limit.
+  const corsOrigins = options.corsOrigins ?? readTrustedOrigins()
+  app.use(
+    '/api/*',
+    cors({
+      origin: (origin) => (corsOrigins.includes(origin) ? origin : null),
+      credentials: true,
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization', 'If-None-Match', 'X-Request-Id'],
+      exposeHeaders: ['X-Request-Id', 'ETag'],
+      maxAge: 86_400,
     }),
   )
 

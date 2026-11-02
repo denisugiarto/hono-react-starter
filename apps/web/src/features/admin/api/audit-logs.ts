@@ -1,5 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { auditLogListSchema, type AuditLog, type AuditLogList } from '@hono-react-starter/shared'
+import { endpoints } from '@/config/endpoints'
 import { request } from '@/lib/api/request'
 
 export type AuditLogFilters = {
@@ -16,12 +17,13 @@ export const auditLogKeys = {
 }
 
 export function buildAuditLogsUrl(filters: AuditLogFilters, cursor?: string, limit = 50): string {
-  const params = new URLSearchParams({ limit: String(limit) })
-  if (filters.action) params.set('action', filters.action)
-  if (filters.success) params.set('success', filters.success)
-  if (filters.actorId) params.set('actorId', filters.actorId)
-  if (cursor) params.set('cursor', cursor)
-  return `/api/admin/audit-logs?${params.toString()}`
+  return endpoints.admin.auditLogs({
+    limit,
+    action: filters.action || undefined,
+    success: filters.success,
+    actorId: filters.actorId || undefined,
+    cursor,
+  })
 }
 
 /** Audit log berhalaman (cursor) — admin. Halaman berikutnya via fetchNextPage(). */

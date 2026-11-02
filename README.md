@@ -160,7 +160,7 @@ Frontend tidak membutuhkan `.env`; untuk Vite tersedia `PORT` (default 5173) dan
 | `BETTER_AUTH_SECRET` | Ya | — | Rahasia Better Auth, min 32 karakter. Buat: `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | Ya (production) | `http://localhost:PORT` (dev) | Origin publik aplikasi, mis. `https://app.example.com`. Wajib `https://` di production (trusted origin + cookie Secure) |
 | `PORT` | Tidak | `3000` | Port server API (dev & production) |
-| `TRUSTED_ORIGINS` | Tidak | dev: `http://localhost:5173`; prod: kosong | Origin lain yang dipercaya Better Auth (CSRF), dipisah koma — mis. Vite dev server. Tidak perlu di production bila API menyajikan frontend (same-origin) |
+| `TRUSTED_ORIGINS` | Tidak | dev: `http://localhost:5173`; prod: kosong | Origin lain yang dipercaya, dipisah koma: dipakai Better Auth (CSRF) **dan** CORS `/api/*` (dengan cookie). Wajib diisi origin frontend bila frontend di-host terpisah; tidak perlu bila API menyajikan frontend (same-origin) |
 | `WEB_DIST_DIR` | Tidak | `apps/web/dist` | Folder hasil build frontend yang disajikan API di production |
 | `MAIL_PROVIDER` | Tidak | test: `memory`; lainnya: `console` | Pengirim email verifikasi / reset password: `console` (hanya dicatat di log), `memory` (ditangkap untuk test), `resend` (HTTP API Resend) |
 | `MAIL_FROM` | Ya (bila `resend`) | — | Alamat pengirim, mis. `App <no-reply@example.com>` |
@@ -537,7 +537,7 @@ file, sehingga fitur bisa ditambah/dihapus tanpa menyentuh folder lain.
 | `components/common/` | `page-header`, `empty-state`, `loading-state`, `error-message`, `theme-toggle`, `error-boundary`, blok dashboard (`data-table`, `virtual-list`, `stat-card`, …) | Komponen generik lintas fitur |
 | `hooks/` | `use-theme`, `use-document-title`, `use-visible-nav`, `use-mobile`, `use-debounce` (`useDebouncedValue/Callback`, `useThrottledCallback`), `use-in-view`, `use-local-storage` | Hook generik (bukan milik satu fitur) |
 | `lib/` | `api/request.ts` (fetch + `ApiError`), `api/client.ts` (`api.get/post/…`, `buildUrl`), `query.ts` (query keys + optimistic), `perf.ts`, `lazy.ts`, `format.ts`, `datetime.ts`, `auth-client.ts`, `query-client.ts`, `theme.ts`, `utils.ts` (`cn`) | Tanpa JSX/React state |
-| `config/` | `site.ts` (nama, stack, repo), `paths.ts` (semua path route), `navigation.ts` (item nav + syarat login/permission) | Konstanta; jangan hardcode path/nama di komponen |
+| `config/` | `site.ts` (nama, stack, repo), `paths.ts` (semua path route), `endpoints.ts` (semua URL endpoint API + `VITE_API_URL`), `navigation.ts` (item nav + syarat login/permission) | Konstanta; jangan hardcode path/URL/nama di komponen |
 | `styles/` | `globals.css` | Tailwind v4 + token tema shadcn |
 
 Fitur bawaan: **auth** (`useAuth`, `useSignOut`, `AuthForm`, `TwoFactorForm`, `ForgotPasswordForm`,
@@ -874,10 +874,15 @@ bun run start                 # nx run api:start → migrasi otomatis, lalu serv
 # atau tanpa Nx: cd apps/api && bun run start
 ```
 
-**Frontend di-host terpisah (CDN / static hosting):** deploy `apps/web/dist` ke hosting statis,
-jalankan `apps/api` di server, lalu set `TRUSTED_ORIGINS=https://web.example.com` di API dan
-tambahkan middleware `cors` Hono (`hono/cors`) dengan `credentials: true` di `app.ts` — atau
-lebih sederhana, letakkan keduanya di balik satu reverse proxy (same-origin).
+**Frontend di-host terpisah (CDN / static hosting):** sudah didukung tanpa mengubah kode.
+
+| Sisi | Pengaturan |
+| --- | --- |
+| Web (saat build) | `VITE_API_URL=https://api.example.com bun run build` (atau `apps/web/.env`, lihat `apps/web/.env.example`). Semua URL di `config/endpoints.ts` diawali base ini, `fetch` dan Better Auth client memakai `credentials: 'include'` |
+| API | `TRUSTED_ORIGINS=https://web.example.com` → CORS `/api/*` (origin itu saja, dengan cookie, preflight di-cache 24 jam) + CSRF Better Auth. `BETTER_AUTH_URL` tetap origin API |
+| Cookie | Lintas situs (eTLD+1 berbeda) butuh cookie `SameSite=None; Secure` → set `BETTER_AUTH_URL` https dan pertimbangkan `advanced.defaultCookieAttributes` di `auth.ts`; subdomain yang sama (`web.example.com` ↔ `api.example.com`) bekerja dengan default |
+
+Alternatif paling sederhana tetap satu reverse proxy (same-origin), `VITE_API_URL` kosong.
 
 **Vercel / Cloudflare Workers:** tambahkan adapter `@hono/vercel` /
 `@hono/cloudflare-workers` di `apps/api`, build client dengan `bun run build`, dan sesuaikan

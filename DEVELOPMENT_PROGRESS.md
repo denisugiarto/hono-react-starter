@@ -559,6 +559,18 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
 - Test: 9 file baru (178 test web). Catatan happy-dom: TanStack Virtual mengukur area gulir lewat `clientHeight/clientWidth`
   (bukan `getBoundingClientRect`), baris mode `dynamic` lewat `getBoundingClientRect` → keduanya di-stub di test.
 
+## Iterasi 25 — Endpoint terpusat & dukungan frontend di-host terpisah (2026-11-02)
+
+- `apps/web/src/config/endpoints.ts`: semua URL API (`endpoints.notes.list/byId`, `admin.users/auditLogs(query)`,
+  `auth.token`, `health`, `hello(name)`) + `API_BASE_URL` dari `VITE_API_URL` (`normalizeBaseUrl`), `apiCredentials`
+  (`include` bila lintas origin). Lima modul fitur dan `auth-client.ts` (baseURL + `fetchOptions.credentials`)
+  dimigrasi; `buildUrl` dipindah ke `lib/api/url.ts` (dire-export `client.ts`) agar tidak ada impor siklik.
+- `apps/api/src/app.ts`: middleware `cors` Hono untuk `/api/*` — origin dari `TRUSTED_ORIGINS` (opsi `corsOrigins` untuk
+  test), `credentials: true`, expose `X-Request-Id`/`ETag`, preflight maxAge 24 jam; dipasang sebelum body limit & rate limit.
+- `apps/web/.env.example` (`VITE_API_URL`), `vite-env.d.ts`; README: tabel hosting terpisah; `.env.example` API diperbarui.
+- Test: `tests/config/endpoints.test.ts` (web 182), `tests/cors.test.ts` (api 183). Build dengan `VITE_API_URL` diverifikasi
+  membawa base URL ke bundle.
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

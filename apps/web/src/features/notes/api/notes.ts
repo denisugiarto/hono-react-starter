@@ -6,6 +6,7 @@ import {
   type NoteCreateInput,
   type NoteUpdateInput,
 } from '@hono-react-starter/shared'
+import { endpoints } from '@/config/endpoints'
 import { request, requestEnvelope } from '@/lib/api/request'
 
 export const notesKeys = {
@@ -21,7 +22,7 @@ export function useNotes(enabled = true) {
     queryKey: notesKeys.all,
     enabled,
     queryFn: async () => {
-      const data = await request<unknown>('/api/notes')
+      const data = await request<unknown>(endpoints.notes.list)
       return noteSchema.array().parse(data)
     },
   })
@@ -35,7 +36,7 @@ export function useCreateNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: NoteCreateInput) =>
-      requestEnvelope<Note>('/api/notes', {
+      requestEnvelope<Note>(endpoints.notes.list, {
         method: 'POST',
         body: JSON.stringify(input),
       }),
@@ -69,7 +70,7 @@ export function useToggleNote() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, done }: { id: string; done: boolean }) =>
-      request<Note>(`/api/notes/${id}`, {
+      request<Note>(endpoints.notes.byId(id), {
         method: 'PATCH',
         body: JSON.stringify({ done } satisfies NoteUpdateInput),
       }),
@@ -83,7 +84,7 @@ export function useToggleNote() {
 export function useDeleteNote() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => request<{ id: string }>(`/api/notes/${id}`, { method: 'DELETE' }),
+    mutationFn: (id: string) => request<{ id: string }>(endpoints.notes.byId(id), { method: 'DELETE' }),
     onMutate: (id) => optimistic(qc, (notes) => notes.filter((n) => n.id !== id)),
     onError: (err, _id, snapshot) => rollback(qc, snapshot, err),
     onSettled: () => qc.invalidateQueries({ queryKey: notesKeys.all }),

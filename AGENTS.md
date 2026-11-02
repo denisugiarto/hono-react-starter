@@ -29,7 +29,9 @@ Rute per tugas — muat berurutan, lewati yang tidak kena:
 | Halaman lambat, bundle besar, Web Vitals | `web-perf` |
 | Menulis/memperbaiki test | `writing-tests` (+ `react-testing` untuk `apps/web`, `playwright-best-practices` untuk `apps/e2e`; bila keduanya berbeda dari `writing-tests` — mis. Vitest/MSW — `writing-tests` yang berlaku: bun test, `apiMock`) |
 | Better Auth: plugin, session, adapter, endpoint auth | `better-auth-best-practices` → `db-migrations` → `auditing-actions` |
-| Query lambat, indeks, pagination | `sql-optimization` |
+| Schema, indeks, relasi, query Drizzle | `drizzle` → `db-migrations` (rollout) |
+| Logging, metrics, tracing, alert produksi | `observability-and-instrumentation` (pakai `c.get('log')` / `currentRequest()`) |
+| Nx: project baru, boundaries, cache, affected | `nx-workspace-patterns` |
 | Dockerfile/compose, GitHub Actions | `docker-expert`, `ci-cd-and-automation` |
 | Review perubahan, menulis PR | `code-review`, `pr` |
 | Sebelum klaim selesai, commit, push, smoke test, naik dependensi | `verifying-changes` → `verification-before-completion` (tunjukkan output perintah, baru klaim) |

@@ -535,6 +535,15 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   `web-design-guidelines`, `web-perf`, `docker-expert`, `ci-cd-and-automation`. Tabel pemetaan di `AGENTS.md`;
   aturan proyek tetap menang bila bertentangan dengan skill umum.
 
+## Iterasi 23 — Review AGENTS.md & penyegaran skill (2026-11-02)
+
+- AGENTS.md: ponytail jadi mode dasar tetapi tidak memangkas test/story/testid/dokumen; verifikasi disebut sekali;
+  blok perintah hanya yang tidak ada di `package.json`; pemetaan komponen → pointer ke `components/common` + README;
+  larangan ditulis positif; rujukan `superpowers:*` di `systematic-debugging` diganti `tdd`/`verification-before-completion`.
+- Skill: `sql-optimization` (generik) dilepas → `drizzle` (lobehub; schema/indeks/query, rollout ke `db-migrations`);
+  `ci-cd-and-automation` diperbarui ke versi registry (rollback lewat env, cache package manager); tambah
+  `observability-and-instrumentation` dan `nx-workspace-patterns`. Sumber: skills.sh (`npx skills add …`, pemindaian aman).
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).

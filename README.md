@@ -956,6 +956,13 @@ foldernya.
 | `bun test` gagal menyiapkan database | Jalankan `bun run db:test:create` atau set `TEST_DATABASE_URL` |
 | Migrasi `0005` gagal (`user_id` NOT NULL) | Tabel `notes` berisi data tanpa pemilik — lihat komentar di `apps/api/drizzle/0005_notes_user_id.sql` |
 
+## Operasional & kontribusi
+
+- `docs/OPERATIONS.md` — backup/restore database, migrasi tanpa downtime, pemulihan insiden, pemantauan minimum.
+- `CONTRIBUTING.md` — alur kontribusi, aturan perubahan, checklist PR (template PR & issue di `.github/`).
+- `SECURITY.md` — cara melaporkan kerentanan (private advisory), env wajib production, rotasi rahasia.
+- `.github/CODEOWNERS` — reviewer wajib; `.github/dependabot.yml` — pembaruan dependensi mingguan.
+
 ## Roadmap
 
 - [x] Proteksi route notes per-user (pemilik catatan)
@@ -970,3 +977,7 @@ foldernya.
 - [ ] OpenAPI dari schema Zod shared
 - [ ] Playwright E2E di CI
 - [ ] Content-Security-Policy (nonce) di production
+
+## Lisensi
+
+[MIT](LICENSE) © 2026 Deni Sugiarto.

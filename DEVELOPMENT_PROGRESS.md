@@ -609,12 +609,18 @@ Review menyeluruh (kode, Docker, CI, `bun audit`). Temuan tinggi diperbaiki, sis
   test menutup dialog lewat jalur sukses saja; handler `onOpenChange` dibuat fungsi bernama yang juga dipakai jalur sukses.
 - Test: shared 23, api 211, web 205; E2E ditambah alur role.
 
+## Iterasi 28 — Kelengkapan repo (2026-11-04)
+
+- `LICENSE` (MIT), `SECURITY.md` (pelaporan via private advisory, env wajib production, rotasi rahasia),
+  `CONTRIBUTING.md`, `.github/CODEOWNERS`, template PR & issue (`bug_report`, `feature_request`, `config.yml`),
+  `docs/OPERATIONS.md` (backup/restore `pg_dump`/`pg_restore`, migrasi tanpa downtime, pemulihan insiden,
+  pemantauan minimum). `package.json`: `license`, `repository`. README: bagian "Operasional & kontribusi" + "Lisensi".
+
 ## Next Steps
 
 - OAuth Google/GitHub atau SSO OIDC (plugin Better Auth).
 - OpenTelemetry (tracing/metrics) + Sentry.
 - E2E: alur reset password & verifikasi email lewat tautan (butuh inbox uji, mis. endpoint `memory` khusus staging).
-- Hygiene repo: LICENSE, CONTRIBUTING, SECURITY.md, CODEOWNERS, Renovate, scan dependensi di CI.
 - Content-Security-Policy ber-nonce di production.
 
 ## Final Result

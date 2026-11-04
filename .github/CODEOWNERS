@@ -1,0 +1,9 @@
+# Reviewer wajib untuk semua perubahan (lihat CONTRIBUTING.md).
+*                       @denisugiarto
+
+# Area sensitif: minta review ekstra bila tim bertambah.
+/apps/api/src/auth*.ts   @denisugiarto
+/apps/api/src/middleware @denisugiarto
+/packages/shared/src/permissions.ts @denisugiarto
+/.github/               @denisugiarto
+/SECURITY.md            @denisugiarto

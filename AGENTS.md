@@ -70,7 +70,7 @@ tetap di luar commit).
   (abaikan peringatan `nativeButton`). Halaman Pengaturan/Admin → route di bawah `SidebarLayout` + entri
   `sidebarNav`. Komponen dengan state/variant → `*.stories.tsx` (Storybook dicek CI).
 - **Test web (happy-dom)**: checkbox/switch Base UI jangan dibungkus `<label>` (toggle dua kali); menutup Dialog Base UI
-  lewat Esc/klik tutup membuat Bun crash — uji penutupan lewat jalur sukses. **Test web** mengimpor `src/components/layout/*` dan `features/*` lewat `tests/utils.tsx`; helper murni
+  lewat Esc/klik tutup membuat Bun crash — uji penutupan lewat jalur sukses. Global yang dipalsukan di satu file (`matchMedia`, `innerWidth`, cookie) **dikembalikan di `afterEach`** — urutan file di CI berbeda dari lokal. **Test web** mengimpor `src/components/layout/*` dan `features/*` lewat `tests/utils.tsx`; helper murni
   ditaruh di `src/lib/*` (contoh `lib/sidebar-state.ts`).
 - **Dependensi**: ubah rentang di `package.json` proyek lalu `bun install` (`bun update <pkg>` dari root
   menambah dependensi ke root — hindari). Paket transitif → `overrides` di root. Setelah naik versi Better

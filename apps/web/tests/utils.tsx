@@ -24,8 +24,13 @@ export function renderAt(path = '/', customRoutes: RouteObject[] = routes) {
   return { ...utils, router, queryClient }
 }
 
-/** Pasang di `beforeEach` tiap file test: reset mock auth + API, tema, storage. */
+const originalMatchMedia = window.matchMedia
+
+/** Pasang di `beforeEach` tiap file test: reset mock auth + API, tema, storage, cookie sidebar, matchMedia. */
 export function setupEach() {
+  // Jaga-jaga terhadap kebocoran dari file test lain (matchMedia palsu / cookie sidebar)
+  window.matchMedia = originalMatchMedia
+  document.cookie = 'sidebar_state=; max-age=0; path=/'
   resetAuthMock()
   resetApiMock()
   installFetchMock()

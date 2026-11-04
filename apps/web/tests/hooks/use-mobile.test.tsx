@@ -27,7 +27,15 @@ function Probe() {
 
 const setWidth = (w: number) => Object.defineProperty(window, 'innerWidth', { value: w, configurable: true, writable: true })
 
-afterEach(cleanup)
+// matchMedia palsu & innerWidth tidak boleh bocor ke file test lain (tema & sidebar bergantung padanya;
+// urutan file di CI berbeda dengan lokal).
+const originalMatchMedia = window.matchMedia
+const originalWidth = window.innerWidth
+afterEach(() => {
+  cleanup()
+  window.matchMedia = originalMatchMedia
+  setWidth(originalWidth)
+})
 
 describe('useIsMobile', () => {
   test('mengikuti lebar jendela dan bereaksi pada event media query; listener dilepas saat unmount', () => {

@@ -53,7 +53,7 @@ berbeda, pengguna perlu mengaktifkan ulang 2FA.
 | Banyak 429 dari satu IP padahal pengguna berbeda | `TRUST_PROXY` belum `true` di balik proxy (lihat peringatan boot) |
 | Admin terkunci dari fitur | Role `admin` selalu penuh; set `role='admin'` langsung di DB untuk satu akun: `update "user" set role='admin' where email='…';` lalu cabut sesinya |
 | Verifikasi email wajib tetapi email tidak terkirim | Matikan sementara di `/admin/settings` (atau `update app_setting set value='false' where key='requireEmailVerification';`), perbaiki `MAIL_PROVIDER` |
-| Lupa password admin satu-satunya | `bun run db:seed` dengan `ADMIN_PASSWORD` baru hanya membuat admin bila belum ada; untuk reset: kirim reset password dari UI, atau hapus baris `account` user itu lalu `bun run db:seed` |
+| Lupa password admin satu-satunya | Pakai "Lupa password" di UI (butuh email terkirim). Alternatif: `ADMIN_EMAIL=<email baru> ADMIN_PASSWORD=<kuat> bun run db:seed` membuat admin baru (bila email sudah ada, hanya role-nya dinaikkan — password tidak diganti) |
 
 ## Pemantauan minimum
 

@@ -32,7 +32,7 @@ CORS hanya origin tepercaya, TLS database wajib di production, audit log append-
 | `TRUSTED_ORIGINS` | Hanya origin frontend bila di-host terpisah |
 | `MAIL_PROVIDER` | `resend` + `RESEND_API_KEY`, lalu nyalakan "wajib verifikasi email" di `/admin/settings` |
 | `API_DOCS_ENABLED` | `false` (default production) kecuali staging |
-| `DEMO_SEED_ALLOWED` | Jangan diaktifkan di production (akun demo berpassword publik) |
+| `ALLOW_DEMO_SEED` | Biarkan `false` di production (akun demo berpassword publik) |
 
 Endpoint contoh `GET /api/hello` dan `POST /api/echo` (`apps/api/src/routes/api.ts`) boleh dihapus bila tidak dipakai.
 
